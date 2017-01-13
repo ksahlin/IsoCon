@@ -53,7 +53,7 @@ import multiprocessing as mp
 from collections import defaultdict
 
 
-def EM_cluster_reads(params):
+def cluster_reads(params):
 
     ##### initialize logging info and output #######
     total_start = time()
@@ -413,73 +413,7 @@ def EM_cluster_reads(params):
     write_output.post_process(y, y_to_x, epsilon_y, errors_y, params, final_output = True)
     write_output.output_significant_clusters(y, x, alignment_results_dict, y_to_x, epsilon, params)
     total_elapsed = time() - total_start
-    write_output.logger('TOTAL TIME EELAPSED FOR HITEM:{0}'.format(str(total_elapsed)), params.logfile)
-
-
-
-def main_pipline(params):
-    """
-    For large data sets it is advised to invoke HIT with the provided
-    make languake 'snakemake'.
-
-    Pipeline described below:
-
-    All steps are possible entrypoints if necessary input data to the
-    given step already has been generated. Running the
-    whole pipeline will do the following:
-        1 Separate and extract full length and non full length transcript by using
-            pbtranscript.py classify algorithm
-        2 Run aligner of choice to find similarities between transcripts:
-            * with all-vs-all alignments, or querys to targets from: https://github.com/lh3/minimap
-        3' Create graph based on the alignments (as in ICE)
-        3 Based on a bam file provided in step 2, parse the bam and find nfl and fl ROI (reads)
-            that aligns and are similar. At this point it does not
-            matter if some of the mappings are false positive hits due to
-            different haplotypes, amplicon genes or similar any other case.
-            The only purpose of this step is to error correct the FL transcript
-            that were "target sequeces" in the mapping step. The errors will be
-            corrected only if the target does not agree with any (or at most
-            a super small fraction --- i.e. reasonable probability given coverage)
-        4 This is the algorithmic part. Given a set of mapped sequences onto the target
-            FL sequences (parsed out in step 3), error correct the FL sequences with
-            a probabilistic model. Is several possible corrections are possible,
-            either chose the most likely (is it possible to derive this?) or
-            keep all possible corrections. We can infer (phase) different corrections
-            together by using the relative abundances between positions.
-        4 Remove redundant transcripts (to be done).
-            Redundant reads should align pretty well if they are error corrected
-            correctly. Do this either with:
-            1 pbtofu pipline
-            2 or something I implement
-
-
-
-    """
-
-    if not os.path.exists(params.outfolder):
-        os.makedirs(params.outfolder)
-
-    # 1
-    classify_wrapper(params)
-
-    # 2
-    alignment_wrapper(params)
-
-    # # 2
-    # lib_est.LibrarySampler(bam_out,param)
-
-    # # 3
-    # collect_libstats(params,params.outfolder,param)
-    # get_bp_stats.parse_bam(bam_out, param)
-
-    # # 4
-    # #get_gap_coordinates.
-    # gap_coordinates(params,param)
-
-    # 5-5'
-    # sample_file_path = os.path.join(params.outfolder,'sample_se.txt')
-    # sample_ess_correction.main(sample_file_path, param)
-    # p_value_cluster(params, param)
+    write_output.logger('TOTAL TIME ELAPSED FOR 3CO:{0}'.format(str(total_elapsed)), params.logfile)
 
 
 if __name__ == '__main__':
@@ -502,54 +436,26 @@ if __name__ == '__main__':
     # pipeline.add_argument('--similarity', type=float, default='0.8', help='Minimum similarity to create an edge in the transcript graph')
     # pipeline.set_defaults(which='pipeline')
 
-    # classify = subparsers.add_parser('classify', help='Run wrapper for pacbios pbtranscript.py classify algorithm i.e., \n\n {0}'.format(classify_wrapper.__doc__))
-    # classify_required = classify.add_argument_group('required arguments')
-    # classify_required.add_argument('-outfolder', type=str, required=True, help='Outfolder. ')
-    # classify_required.add_argument('-pacbio_RoI', type=str, required=True, help='Fast<a/q> file pacbio Reads of Insert. ')
-    # classify.add_argument('--threads', type=str, default='64', help='Number of threads for bwa mem.')
-    # classify.set_defaults(which='classify')
+    remove_barcodes = subparsers.add_parser('remove_barcodes', help='Remove barcodes from sequences.')
+    remove_barcodes.add_argument('fl_reads', type=str, help='Path to the consensus fasta file')
+    remove_barcodes.add_argument('outfolder', type=str, help='Output folder to results')
+    remove_barcodes.set_defaults(which='remove_barcodes')
 
-    # create the parser for the "align" command
-    # align_reads = subparsers.add_parser('align', help='Aligns non full length and full length RoIs to Full length RoIs (and Illumina reads to FL RoIs if provided) and outputs bam files.i.e., \n\n {0}'.format(alignment_wrapper.__doc__))
-    # align_required = align_reads.add_argument_group('required arguments')
-    # align_required.add_argument('-outfolder', type=str, required=True, help='Outfolder. ')
-    # align_required.add_argument('-fl_RoI', type=str, required=True, help='Full length RoIs (classified in the previous step). ')
-    # align_required.add_argument('-nfl_RoI', type=str, required=True, help='Non full length RoIs (classified in the previous step). ')
-    # align_reads.add_argument('--Illumina_r1', type=str, default="", help='Fast<a/q> file with illumina PE/MP reads all the first mates. ')
-    # align_reads.add_argument('--Illumina_r2', type=str, default="", help='Fast<a/q> file with illumina PE/MP reads all the second mates. ')
-    # align_reads.add_argument('--threads', type=str, default='64', help='Number of threads for bwa mem.')
-    # align_reads.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
-    # align_reads.set_defaults(which='align')
-
-    # create the parser for the "EM_cluster" command
-    EM_cluster = subparsers.add_parser('EM_cluster', help='Create multialignment pileups and similarity graph network for transcripts.')
-    parse_alignments_required = EM_cluster.add_argument_group('required arguments')
+    # create the parser for the "cluster" command
+    cluster = subparsers.add_parser('cluster', help='Create multialignment pileups and similarity graph network for transcripts.')
+    parse_alignments_required = cluster.add_argument_group('required arguments')
     parse_alignments_required.add_argument('-fl_reads', type=str, required=True, help='Full length RoIs. ')
     parse_alignments_required.add_argument('-pacbio_paf', type=str, help='Paths to paf file with mapped pac_bio isoseq reads. ')
     parse_alignments_required.add_argument('-outfolder', type=str, required=True, help='Outfolder. ')
-    EM_cluster.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
-    EM_cluster.add_argument('--heuristic_convergence', dest='heuristic_convergence', action='store_true', help='This will improve runtime but _may_ decrease performance in terms of slightly less accurate transcripts.\n heuristic_convergence stops processing transcript y if: y has not changed betewwe two passes AND epsilon_i of all reads x_i that contributes to updating base pair precision of y have not changed (or changed very little, 5% relative difference) ')
-    EM_cluster.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
-    EM_cluster.add_argument('--paf_similarity', type=float, default='0.25', help='Minimum similarity inferred from paf format (approximate) to create an edge in the transcript graph')
-    EM_cluster.add_argument('--sw_similarity', type=float, default='0.8', help='Minimum similarity from Smith Waterman alignment in order for the transcript to give correction feedback')
-    EM_cluster.add_argument('--paf_x_limit', type=int, default='10000', help="Maximum number of edges from x to y, i.e., maximum number of y's that a read can pass information to.")
-    EM_cluster.add_argument('--paf_y_limit', type=int, default='100', help='Maximum number of edges from y to x, i.e., maximum number of reads to consider for error correction of y.')
-    EM_cluster.add_argument('--min_consensus_support', type=int, default='3', help="Minimum number of y's that converged to the same sequence.")
-    EM_cluster.add_argument('--max_passes', type=int, default='10', help='Maximum number of EM iterations allowed.')
-    EM_cluster.add_argument('--min_p', type=float, default='0.01', help='Minimum probability required to keep base pair prediction in y. If probability that base pair is incorrect is under this threshold, we change the base pair to the moste likely other suggestion (indel or substitution).')
-    EM_cluster.add_argument('--version', action='version', version='%(prog)s 1.2')
-    EM_cluster.set_defaults(which='EM_cluster')
+    cluster.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
+    cluster.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
+    cluster.add_argument('--version', action='version', version='%(prog)s 0.01')
+    cluster.set_defaults(which='cluster')
 
 
     args = parser.parse_args()
 
-    # if args.which == 'pipeline' or args.which == 'classify':
-    #     try:
-    #         open(args.pacbio_RoI)
-    #     except IOError as e:
-    #         sys.exit("couldn't find pacbio_RoI file: " + args.pacbio_RoI + " check that the path is correct and that the file exists")
-
-    if args.which == 'EM_cluster':
+    if args.which == 'cluster':
         try:
             open(args.pacbio_paf,"r")
         except IOError as e:
@@ -567,11 +473,9 @@ if __name__ == '__main__':
 
     if args.which == 'pipeline':
         main_pipline(params)
-    # elif args.which == 'classify':
-    #     classify_wrapper(params)
-    # elif args.which == 'align':
-    #     alignment_wrapper(params)
-    elif args.which == 'EM_cluster':
-        EM_cluster_reads(params)
+    elif args.which == 'remove_barcodes':
+        classify_wrapper(params)
+    elif args.which == 'cluster':
+        cluster_reads(params)
     else:
         print('invalid call')
