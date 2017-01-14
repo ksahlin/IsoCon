@@ -221,5 +221,40 @@ class TestFunctions(unittest.TestCase):
 
         self.assertEqual(create_multialignment_format(query_to_target_positioned_dict, start, stop), alignment_matrix )
 
+        start, stop = 3, 7
+        query_to_target_positioned_dict = {"q1" : ( ["-", "A","-", "C", "-", "G", "ACCG",   "G", "-", "A", "TTT"], 0, 10),
+                                            "q2" : (["-", "A","-", "C", "-", "G", "AG",     "G", "-", "A", "TTT"], 0, 10),
+                                            "q3" : (["-", "A","-", "C", "-", "G", "A",      "G", "-", "A", "TTT"], 0, 10),
+                                            "q4" : (["-", "A","-", "C", "-", "G", "CC",     "G", "-", "A", "-"], 0, 10),
+                                            "q5" : (["-", "A","-", "C", "-", "G", "-",      "G", "-", "A", "T"], 0, 10),
+                                            "q6" : (["G", "A","-", "C", "-", "G", "C",      "G", "-", "A", "-"], 0, 10)}
+
+        alignment_matrix = {"q1" : [ "C", "-", "G","A","C","C","G", "G"],
+                            "q2" : [ "C", "-", "G","A","G","-","-", "G"],
+                            "q3" : [ "C", "-", "G","A","-","-","-", "G"],
+                            "q4" : [ "C", "-", "G","C","C","-","-", "G"],
+                            "q5" : [ "C", "-", "G","-","-","-","-", "G"],
+                            "q6" : [ "C", "-", "G","C","-","-","-", "G"]
+                            }
+
+        self.assertEqual(create_multialignment_format(query_to_target_positioned_dict, start, stop), alignment_matrix )
+
+
+        start, stop = 2, 8
+        query_to_target_positioned_dict = {"q1" : ( [         "-", "A","-", "C", "-", "G", "ACCG",   "G", "-", "A", "TTT"], 0, 10),
+                                            "q2" : ([         "-", "A","-", "C", "-", "G", "AG",     "G", "-", "A", "TTT"], 3, 13),
+                                            "q3" : (["-", "A","-", "C", "-", "G", "A",      "G", "-", "A", "TTT"], -2, 8),
+                                            "q4" : ([         "-", "A","-", "C", "-", "G", "CC",     "G", "A", "A", "-"], 0, 10),
+                                            "q5" : ([               "-", "A","-", "C", "-", "G", "-",      "G", "-", "A", "T"], 20, 30),
+                                            "q6" : ([         "G", "A","-", "C", "-", "G", "C",      "G", "-", "A", "-"], 0, 10)}
+
+        alignment_matrix = {"q1" : ["-", "C", "-", "G", "A", "C", "C", "G", "G", "-", "-", "-"],
+                            "q3" : ["-", "G", "A", "G", "-", "-", "-", "-", "A", "T", "T", "T"],
+                            "q4" : ["-", "C", "-", "G", "C", "C", "-", "-", "G", "A", "-", "-"],
+                            "q6" : ["-", "C", "-", "G", "C", "-", "-", "-", "G", "-", "-", "-"]
+                            }
+
+        self.assertEqual(create_multialignment_format(query_to_target_positioned_dict, start, stop), alignment_matrix )
+
 if __name__ == '__main__':
     unittest.main()
