@@ -5,10 +5,6 @@
     create_multialignment_format(): arranges all query alignments that covers the region [start,stop] into a multialignment matrix
                     useful for statistical testing of SNVs
 
-    minimizer_graph(S): creates the minimizer graph defined in..
-    mmembership_graph(S): creates the membership graph defined in..
-
-
     FUTURE:
     identify_allele_regions(): takes a start and stop coordinate and returns positions subject to phasing (two variants have high coverage) 
     this is useful for phasing haplotypes or SNVs within viral sequences or haplotypes
