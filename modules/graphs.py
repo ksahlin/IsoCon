@@ -9,6 +9,70 @@ import unittest
 import tempfile
 import subprocess
 
+import alignment_module
+
+def paf_to_best_matches(paf_files, acc_to_strings):
+    """
+        input: PAF file
+        output: for each sequence found in PAF file, store X best matches based on paf score
+    """
+
+    matches = {}
+
+    for paf_file_path in paf_files:
+        try:
+            file_object = gzip.open(paf_file_path)
+            file_object.readline()
+            file_object.seek(0)
+        except IOError:
+            file_object = open(paf_file_path)
+
+        highest_paf_scores = defaultdict(list)
+
+        with file_object as paf_file:
+            for line in paf_file:
+                row_info = line.strip().split()
+                q_acc = row_info[0].decode('ascii')
+                q_len = int(row_info[1])
+                t_acc = row_info[5].decode('ascii')
+                t_len = int(row_info[6])
+
+                if q_acc == t_acc:
+                    print("SELF MAPPING DETECTED")
+                    print(q_acc, q_len, row_info)
+                    print(t_acc, t_len, row_info)
+                    continue
+
+                n_min = int(row_info[12].split(":")[-1])
+                #   \frac{\min \{ |q|, |t| \} } {\max \{ |q|,|t| \} }  n^{\text{minimizers}}
+                paf_similarity_score = n_min * min(q_len, t_len)/float(max(q_len, t_len))
+
+                if len(highest_paf_scores[q_acc]) >= 5:
+                    # current alignment is better than at least one of previous scores, remove the worst one so far
+                    if paf_similarity_score > highest_paf_scores[q_acc][0][0]: 
+                        paf_score, t_acc_out = heapq.heappushpop(highest_paf_scores[q_acc], (paf_similarity_score, t_acc) )
+                else:
+                    heapq.heappush(highest_paf_scores[q_acc], (paf_similarity_score, t_acc))
+
+                if len(highest_paf_scores[t_acc]) >= 5:
+                    # current alignment is better than at least one of previous scores, remove the worst one so far
+                    if paf_similarity_score > highest_paf_scores[t_acc][0][0]: 
+                        paf_score, q_acc_out = heapq.heappushpop(highest_paf_scores[t_acc], (paf_similarity_score, q_acc) )
+                else:
+                    heapq.heappush(highest_paf_scores[t_acc], (paf_similarity_score, q_acc))
+
+    for acc1 in highest_paf_scores:
+        s1 = acc_to_strings[acc1]
+        matches[s1] = [] 
+
+        matches_list = highest_paf_scores[acc1]
+        for score, acc2 in matches_list:
+            s2 = acc_to_strings[acc2]
+            matches[s1].append(s2)
+
+    return matches
+
+
 def map_with_minimap(sequences_file_name):
     print('Aligning with minimap.')
     sys.stdout.flush()
@@ -28,10 +92,9 @@ def map_with_minimap(sequences_file_name):
                                 stderr=stderr_file)
         sys.stdout.flush()
 
-
     return minimap_output
 
-def minimap(unique_strings):
+def minimap_partition(unique_strings):
     # partition unique strings (speed optimization for minimap)
     # this works for transcript version of 3CO
     unique_strings.sort(key=lambda x: len(x))
@@ -47,11 +110,13 @@ def minimap(unique_strings):
 
     work_dir = "/tmp/" 
     fasta_files = []
+    acc_to_strings = {}
     for i, labeled_strings_bin in enumerate(bins):
         fasta_file_name = os.path.join(work_dir,str(i)+".fa")
         fasta_file = open(fasta_file_name, "w")
         for acc, seq in labeled_strings_bin:
-            fasta_file.write(">{0\n{1}\n".format(acc, seq))
+            fasta_file.write(">{0}\n{1}\n".format(acc, seq))
+            acc_to_strings[acc] = seq
 
         fasta_file.close()
         fasta_files.append(fasta_file_name)
@@ -61,7 +126,23 @@ def minimap(unique_strings):
     for fa_file_name in fasta_files:
         paf_file_name = map_with_minimap(fa_file_name)
         paf_file_names.append(paf_file_name)
-    return paf_file_names
+
+    return paf_file_names, acc_to_strings
+
+def find_best_matches(approximate_matches):
+    """
+        input: dictionary with a string as key and a list of strings as value
+        output: dictionary with a string as key and a (reduced) list of strings as value.
+                Each string in the reduced list has the same (lowest) edit distance to the key 
+    """
+    exact_matches = alignment_module.sw_align_sequences(approximate_matches)
+
+    # process the exact matches here
+
+    
+    # for s1 in matches:
+    #     for s2 in matches[s1]:
+
 
 def construct_minimizer_graph(S):
 
@@ -71,27 +152,33 @@ def construct_minimizer_graph(S):
                 self edges has a weight > 1 (identical sequences) and all other edges has weight 1.
     """
     G_star = {}
+    alignment_graph = {}
     # adding self edges to strings that has converged
     for acc, s in S.items():
         if s not in G_star:
             G_star[s] = {}
+            alignment_graph[s] = {}
         else:
             if s in G_star[s]:
-                G_star[s][s] += 1                
+                G_star[s][s] += 1  
             else:
                 G_star[s][s] = 1
+                alignment_graph[s] = s
 
 
     unique_strings = set(S.values())
-    paf_files = minimap(unique_strings)
+    paf_files, acc_to_strings = minimap_partition(unique_strings)
+
+    approximate_matches = paf_to_best_matches(paf_files, acc_to_strings)
+    find_best_matches(approximate_matches)
 
     # take care of isolated nodes in minimizer graph here
 
+    #construct G_star and alignment_graph
+    return G_star, alignment_graph
 
-    return G_star
 
-
-def partition_strings():
+def construct_2set_minimizer_bipartite_graph(S, T):
     return
 
 class TestFunctions(unittest.TestCase):
