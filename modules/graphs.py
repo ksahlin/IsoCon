@@ -14,6 +14,7 @@ from collections import defaultdict
 import heapq
 
 from modules import alignment_module
+from modules import functions
 
 
 def paf_to_best_matches(paf_files, acc_to_strings):
@@ -129,7 +130,7 @@ def minimap_partition(unique_strings_set):
         fasta_file.close()
         fasta_files.append(fasta_file_name)
 
-    # call minimap, eventually parallelize
+    # TODO: call minimap, eventually parallelize
     paf_file_names = []
     for fa_file_name in fasta_files:
         paf_file_name = map_with_minimap(fa_file_name)
@@ -200,6 +201,14 @@ def construct_minimizer_graph(S):
                 G_star[s][s] = 2
                 alignment_graph[s][s] = (0, s, s)
 
+    # check if converged:
+    converged = True
+    for nbr in G_star.values():
+        if len(nbr) == 0:
+            converged = False
+
+    if converged:
+        return G_star, alignment_graph, converged
 
     unique_strings = set(S.values())
     paf_files, acc_to_strings = minimap_partition(unique_strings)
@@ -219,17 +228,51 @@ def construct_minimizer_graph(S):
             (edit_distance, s1_alignment, s2_alignment) = best_exact_matches[s1][s2]
             alignment_graph[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
 
-    return G_star, alignment_graph
+    return G_star, alignment_graph, converged
 
 def partition_strings(S):
-    G_star, alignment_graph = construct_minimizer_graph(S)
+    G_star, alignment_graph, converged = construct_minimizer_graph(S)
+
+    if converged:
+        M = set(G_star.keys())
+        for m in G_star:
+            partition[m] = set()
+        return alignment_graph, partition, M, converged
+
     V_G = len(G_star)
     marked = set()
-    partition_counter = 0
-    G_star_transposed = 
+    # partition_counter = 0
+    G_star_transposed = functions.transpose(G_star)
+    node_indegrees = {}  # dict of nodes and their indegrees as integers, this will update everytime new nodes are marked
+    M = set()
+    partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
+    for n in G_star_transposed:
+        indegree = sum([ count for count in  G_star_transposed[n].values()])
+        node_indegrees[n] = indegree
+
     while len(marked) < V_G:
-        node_max_indegree, max_indegree = max([(n,len(G_star_transposed[n])) for n in G_star_transposed], key=lambda x: len(x[1]))
+        node_max_indegree, max_indegree = max([(n,indegree) for n, indegree in G_star_transposed.items()], key=lambda x: len(x[1]))
+        M.add(node_max_indegree)
+        marked.add(node_max_indegree)
+        node_indegrees[node_max_indegree] = 0
+        unmarked_nbrs =  set([nbr for nbr in G_star_transposed[node_max_indegree] if nbr not in marked])
+        partition[node_max_indegree] = unmarked_nbrs
         
+        for unmarked_nbr in unmarked_nbrs:
+            marked.add(unmarked_nbr) 
+            for v in G_star_transposed[unmarked_nbr]:
+                if v in unmarked_nbrs:
+                    node_indegrees[unmarked_nbr] -= 1
+
+
+
+        for n in node_indegrees
+            assert node_indegrees[n] >= 0
+            
+
+        # partition_counter +=1
+
+    return alignment_graph, partition, M, converged
 
 def construct_2set_minimizer_bipartite_graph(S, T):
     return
@@ -258,7 +301,7 @@ class TestFunctions(unittest.TestCase):
              "2": "AAAAATAAAAAGGGGGGGGGGAAAAAAAAAAATTTTTTTTTTTTTCCCCCCCCCCCCCCAAAAAAAAAACCCCCCCCCCCCCGAGGAGAGAGAGAGAGAGATTTTTGTTTTTTCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
              "3": "AAAAAAAAAAAGGGGAGGGGGAAAAAAAAAAATTTTTTTTTTTTTCCCCCCCCCCCCCAAAAAAAAAAACCCCCCCCCCCCCGAGGAGAGAGAGAGAGAGATTTTTTTCTTTTTCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
              "4": "AAAAAAAAAAAGGGGGGGGGGAAATAAAAAAATTTTTTTTTTTTTCCCCCCCCCCCCCAAAAAAAAAAACCCCCCCCCCCCCGAGGAGAGACAGAGAGAGATTTTTTTTTTTTCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"} 
-        G_star, alignment_graph = construct_minimizer_graph(S)
+        G_star, alignment_graph, converged = construct_minimizer_graph(S)
         # print(G_star)
         # print(alignment_graph)
         # self.assertEqual(G_star, G_star)
@@ -266,11 +309,11 @@ class TestFunctions(unittest.TestCase):
         from input_output import fasta_parser
         try:
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
-            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
             S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(fasta_file_name, 'r'))} 
         except:
             print("test file not found:",fasta_file_name)
-        G_star, alignment_graph = construct_minimizer_graph(S)
+        G_star, alignment_graph, converged = construct_minimizer_graph(S)
         edit_distances = []
         nr_unique_minimizers = []
         for s1 in alignment_graph:
@@ -290,7 +333,7 @@ class TestFunctions(unittest.TestCase):
                 #     print("perfect match of :", G_star[s1][s2], "seqs" )
             assert len(alignment_graph[s1]) == len(G_star[s1])
 
-        print(sorted(nr_minimizers, reverse = True))
+        print(sorted(nr_unique_minimizers, reverse = True))
         print(sorted(edit_distances))
         # print(G_star)
         # print(alignment_graph)

@@ -13,6 +13,12 @@
 
 import unittest
 
+def transpose(dct):
+    d = defaultdict(dict)
+    for key1, inner in dct.items():
+        for key2, value in inner.items():
+            d[key2][key1] = value
+    return d
 
 def position_query_to_alignment(query_aligned, target_aligned, target_alignment_start_position):
     """
