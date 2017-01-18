@@ -12,6 +12,8 @@
 """
 
 import unittest
+from collections import defaultdict
+
 
 def transpose(dct):
     d = defaultdict(dict)
