@@ -15,6 +15,7 @@ import heapq
 
 from modules import alignment_module
 
+
 def paf_to_best_matches(paf_files, acc_to_strings):
     """
         input: PAF file
@@ -22,6 +23,8 @@ def paf_to_best_matches(paf_files, acc_to_strings):
     """
 
     matches = {}
+    highest_paf_scores = defaultdict(list)
+
 
     for paf_file_path in paf_files:
         try:
@@ -31,7 +34,6 @@ def paf_to_best_matches(paf_files, acc_to_strings):
         except IOError:
             file_object = open(paf_file_path)
 
-        highest_paf_scores = defaultdict(list)
 
         with file_object as paf_file:
             for line in paf_file:
@@ -42,9 +44,9 @@ def paf_to_best_matches(paf_files, acc_to_strings):
                 t_len = int(row_info[6])
 
                 if q_acc == t_acc:
-                    print("SELF MAPPING DETECTED")
-                    print(q_acc, q_len, row_info)
-                    print(t_acc, t_len, row_info)
+                    # print("SELF MAPPING DETECTED")
+                    # print(q_acc, q_len, row_info)
+                    # print(t_acc, t_len, row_info)
                     continue
 
                 n_min = int(row_info[12].split(":")[-1])
@@ -142,7 +144,7 @@ def find_best_matches(approximate_matches):
                 The inner dict contains a tuple (edit_distance, s1_alignment, s2_alignment) as value.
                 Each string in the inner dict has the same (lowest) edit distance to the key 
     """
-    exact_matches = alignment_module.sw_align_sequences(approximate_matches, single_core= True )
+    exact_matches = alignment_module.sw_align_sequences(approximate_matches, single_core = False )
 
     # process the exact matches here
     best_exact_matches = {}
@@ -195,8 +197,8 @@ def construct_minimizer_graph(S):
             if s in G_star[s]:
                 G_star[s][s] += 1  
             else:
-                G_star[s][s] = 1
-                alignment_graph[s][s] = (1.0, s, s)
+                G_star[s][s] = 2
+                alignment_graph[s][s] = (0, s, s)
 
 
     unique_strings = set(S.values())
@@ -207,13 +209,20 @@ def construct_minimizer_graph(S):
 
     #add remaining edges to  G_star and alignment_graph
     for s1 in best_exact_matches:
+        # already have weighted self edge, i.e., identical sequence
+        if s1 in G_star[s1]:
+            print("here!", G_star[s1][s1])
+            continue
         for s2 in best_exact_matches[s1]:
             assert s2 not in G_star[s1]
             G_star[s1][s2] = 1
             (edit_distance, s1_alignment, s2_alignment) = best_exact_matches[s1][s2]
-            alignment_graph[s1][s2] = (s1_alignment, s2_alignment)
+            alignment_graph[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
 
     return G_star, alignment_graph
+
+def partition_strings(G_star, alignment_graph):
+    pass
 
 
 def construct_2set_minimizer_bipartite_graph(S, T):
@@ -244,10 +253,40 @@ class TestFunctions(unittest.TestCase):
              "3": "AAAAAAAAAAAGGGGAGGGGGAAAAAAAAAAATTTTTTTTTTTTTCCCCCCCCCCCCCAAAAAAAAAAACCCCCCCCCCCCCGAGGAGAGAGAGAGAGAGATTTTTTTCTTTTTCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
              "4": "AAAAAAAAAAAGGGGGGGGGGAAATAAAAAAATTTTTTTTTTTTTCCCCCCCCCCCCCAAAAAAAAAAACCCCCCCCCCCCCGAGGAGAGACAGAGAGAGATTTTTTTTTTTTCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"} 
         G_star, alignment_graph = construct_minimizer_graph(S)
-        print(G_star)
-        print(alignment_graph)
+        # print(G_star)
+        # print(alignment_graph)
         # self.assertEqual(G_star, G_star)
         # self.assertEqual(alignment_graph, alignment_graph)
+        from input_output import fasta_parser
+        try:
+            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(fasta_file_name, 'r'))} 
+        except:
+            print("test file not found:",fasta_file_name)
+        G_star, alignment_graph = construct_minimizer_graph(S)
+        edit_distances = []
+        nr_minimizers = []
+        for s1 in alignment_graph:
+            # print("nr minimizers:", len(alignment_graph[s1]))
+            nr_minimizers.append(len(alignment_graph[s1]))
+            # if len(alignment_graph[s1]) > 20:
+            #     for s2 in alignment_graph[s1]:
+            #         print(alignment_graph[s1][s2][0])
+            #     print("------------------------")
+            for s2 in alignment_graph[s1]:
+                # print("edit distance:", alignment_graph[s1][s2][0])
+                edit_distances.append(alignment_graph[s1][s2][0])
+                # if len(alignment_graph[s1]) > 1:
+                #     print(alignment_graph[s1][s2][0])
+                # if alignment_graph[s1][s2][0] == 0:
+                #     print("perfect match of :", G_star[s1][s2], "seqs" )
+
+        print(sorted(nr_minimizers, reverse = True))
+        print(sorted(edit_distances))
+        # print(G_star)
+        # print(alignment_graph)
+
 
 
 if __name__ == '__main__':
