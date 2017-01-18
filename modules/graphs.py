@@ -8,8 +8,12 @@ import sys
 import unittest
 import tempfile
 import subprocess
+import gzip
 
-import alignment_module
+from collections import defaultdict
+import heapq
+
+from modules import alignment_module
 
 def paf_to_best_matches(paf_files, acc_to_strings):
     """
@@ -62,12 +66,13 @@ def paf_to_best_matches(paf_files, acc_to_strings):
                     heapq.heappush(highest_paf_scores[t_acc], (paf_similarity_score, q_acc))
 
     for acc1 in highest_paf_scores:
-        s1 = acc_to_strings[acc1]
+        # print(acc_to_strings)
+        s1 = acc_to_strings[str(acc1)]
         matches[s1] = [] 
 
         matches_list = highest_paf_scores[acc1]
         for score, acc2 in matches_list:
-            s2 = acc_to_strings[acc2]
+            s2 = acc_to_strings[str(acc2)]
             matches[s1].append(s2)
 
     return matches
@@ -76,10 +81,10 @@ def paf_to_best_matches(paf_files, acc_to_strings):
 def map_with_minimap(sequences_file_name):
     print('Aligning with minimap.')
     sys.stdout.flush()
-    work_dir = "/tmp/" #tempfile.mkdtemp() 
+    # work_dir = "/tmp/" #tempfile.mkdtemp() 
     # print(work_dir)
-    minimap_output = os.path.join(work_dir, "minimap.paf")
-    stderr_file = open(os.path.join(work_dir,"minimap.stderr"), 'w')
+    minimap_output = sequences_file_name + ".paf"
+    stderr_file = open(sequences_file_name + ".minimap.stderr", 'w')
     # print('Output path: ', minimap_output)
     # print('Stderr file: ', stderr_file)
     sys.stdout.flush()
@@ -94,9 +99,10 @@ def map_with_minimap(sequences_file_name):
 
     return minimap_output
 
-def minimap_partition(unique_strings):
+def minimap_partition(unique_strings_set):
     # partition unique strings (speed optimization for minimap)
     # this works for transcript version of 3CO
+    unique_strings = list(unique_strings_set)
     unique_strings.sort(key=lambda x: len(x))
     # labeled_unique_strings.sort(key=lambda x: len(x))
     bins = []
@@ -116,7 +122,7 @@ def minimap_partition(unique_strings):
         fasta_file = open(fasta_file_name, "w")
         for acc, seq in labeled_strings_bin:
             fasta_file.write(">{0}\n{1}\n".format(acc, seq))
-            acc_to_strings[acc] = seq
+            acc_to_strings[str(acc)] = seq
 
         fasta_file.close()
         fasta_files.append(fasta_file_name)
@@ -132,16 +138,42 @@ def minimap_partition(unique_strings):
 def find_best_matches(approximate_matches):
     """
         input: dictionary with a string as key and a list of strings as value
-        output: dictionary with a string as key and a (reduced) list of strings as value.
-                Each string in the reduced list has the same (lowest) edit distance to the key 
+        output: dictionary with a string as key and a dictionary as value. 
+                The inner dict contains a tuple (edit_distance, s1_alignment, s2_alignment) as value.
+                Each string in the inner dict has the same (lowest) edit distance to the key 
     """
-    exact_matches = alignment_module.sw_align_sequences(approximate_matches)
+    exact_matches = alignment_module.sw_align_sequences(approximate_matches, single_core= True )
 
     # process the exact matches here
+    best_exact_matches = {}
+    for s1 in exact_matches:
+        for s2 in exact_matches[s1]:
+            s1_alignment, s2_alignment, (matches, mismatches, indels) = exact_matches[s1][s2]
+            edit_distance = mismatches + indels
 
-    
-    # for s1 in matches:
-    #     for s2 in matches[s1]:
+            if s1 in best_exact_matches:
+                s1_minimizer = best_exact_matches[s1].keys()[0]
+                if edit_distance < best_exact_matches[s1][s1_minimizer][0]:
+                    best_exact_matches[s1] = {}
+                    best_exact_matches[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
+                elif edit_distance == best_exact_matches[s1][s1_minimizer][0]:
+                    best_exact_matches[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
+            else:
+                best_exact_matches[s1] = {}
+                best_exact_matches[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
+
+            if s2 in best_exact_matches:
+                s2_minimizer = best_exact_matches[s2].keys()[0]
+                if edit_distance < best_exact_matches[s2][s2_minimizer][0]:
+                    best_exact_matches[s2] = {}
+                    best_exact_matches[s2][s1] = (edit_distance, s2_alignment, s1_alignment)
+                elif edit_distance == best_exact_matches[s2][s2_minimizer][0]:
+                    best_exact_matches[s2][s1] = (edit_distance, s2_alignment, s1_alignment)
+            else:
+                best_exact_matches[s2] = {}
+                best_exact_matches[s2][s1] = (edit_distance, s2_alignment, s1_alignment)
+
+    return best_exact_matches
 
 
 def construct_minimizer_graph(S):
@@ -150,6 +182,7 @@ def construct_minimizer_graph(S):
         input: a dict of strings, not necesarily unique
         output: a directed graph implemented as a dict of dicts. Each edge has a weight assosiated to them.
                 self edges has a weight > 1 (identical sequences) and all other edges has weight 1.
+                Note, a node can be isolated!
     """
     G_star = {}
     alignment_graph = {}
@@ -163,18 +196,23 @@ def construct_minimizer_graph(S):
                 G_star[s][s] += 1  
             else:
                 G_star[s][s] = 1
-                alignment_graph[s] = s
+                alignment_graph[s][s] = (1.0, s, s)
 
 
     unique_strings = set(S.values())
     paf_files, acc_to_strings = minimap_partition(unique_strings)
 
     approximate_matches = paf_to_best_matches(paf_files, acc_to_strings)
-    find_best_matches(approximate_matches)
+    best_exact_matches = find_best_matches(approximate_matches)
 
-    # take care of isolated nodes in minimizer graph here
+    #add remaining edges to  G_star and alignment_graph
+    for s1 in best_exact_matches:
+        for s2 in best_exact_matches[s1]:
+            assert s2 not in G_star[s1]
+            G_star[s1][s2] = 1
+            (edit_distance, s1_alignment, s2_alignment) = best_exact_matches[s1][s2]
+            alignment_graph[s1][s2] = (s1_alignment, s2_alignment)
 
-    #construct G_star and alignment_graph
     return G_star, alignment_graph
 
 
@@ -199,6 +237,17 @@ class TestFunctions(unittest.TestCase):
         for line in open(minimap_paf, "r"):
             minimap_result += line
         self.assertEqual(minimap_result, expected_result)
+
+    def test_construct_minimizer_graph(self):
+        S = {"1": "AAAAAAAAAAAGGGGGGGGGGAAAAAAAAAAATTTTTTTTTTTTTCCCCCCCCCCCCCCAAAAAAAAAAACCCCCCCCCCCCCGAGGAGAGAGAGAGAGAGATTTTTTTTTTTTCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+             "2": "AAAAATAAAAAGGGGGGGGGGAAAAAAAAAAATTTTTTTTTTTTTCCCCCCCCCCCCCCAAAAAAAAAACCCCCCCCCCCCCGAGGAGAGAGAGAGAGAGATTTTTGTTTTTTCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+             "3": "AAAAAAAAAAAGGGGAGGGGGAAAAAAAAAAATTTTTTTTTTTTTCCCCCCCCCCCCCAAAAAAAAAAACCCCCCCCCCCCCGAGGAGAGAGAGAGAGAGATTTTTTTCTTTTTCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+             "4": "AAAAAAAAAAAGGGGGGGGGGAAATAAAAAAATTTTTTTTTTTTTCCCCCCCCCCCCCAAAAAAAAAAACCCCCCCCCCCCCGAGGAGAGACAGAGAGAGATTTTTTTTTTTTCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"} 
+        G_star, alignment_graph = construct_minimizer_graph(S)
+        print(G_star)
+        print(alignment_graph)
+        # self.assertEqual(G_star, G_star)
+        # self.assertEqual(alignment_graph, alignment_graph)
 
 
 if __name__ == '__main__':
