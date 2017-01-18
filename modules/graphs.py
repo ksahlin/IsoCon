@@ -111,7 +111,7 @@ def minimap_partition(unique_strings_set):
     bin_size =  min(len(unique_strings), 200 )
     for i in range(0, len(unique_strings), bin_size):
         # create overlapping bins
-        bin = unique_strings[i: i+bin_size + 20]
+        bin = unique_strings[i: i+bin_size + 50]
         labeled_strings_bin = [(i+j, s) for j,s in enumerate(bin)]
         bins.append(labeled_strings_bin)
 
@@ -211,7 +211,7 @@ def construct_minimizer_graph(S):
     for s1 in best_exact_matches:
         # already have weighted self edge, i.e., identical sequence
         if s1 in G_star[s1]:
-            print("here!", G_star[s1][s1])
+            # print("here!", G_star[s1][s1])
             continue
         for s2 in best_exact_matches[s1]:
             assert s2 not in G_star[s1]
@@ -221,9 +221,15 @@ def construct_minimizer_graph(S):
 
     return G_star, alignment_graph
 
-def partition_strings(G_star, alignment_graph):
-    pass
-
+def partition_strings(S):
+    G_star, alignment_graph = construct_minimizer_graph(S)
+    V_G = len(G_star)
+    marked = set()
+    partition_counter = 0
+    G_star_transposed = 
+    while len(marked) < V_G:
+        node_max_indegree, max_indegree = max([(n,len(G_star_transposed[n])) for n in G_star_transposed], key=lambda x: len(x[1]))
+        
 
 def construct_2set_minimizer_bipartite_graph(S, T):
     return
@@ -266,10 +272,11 @@ class TestFunctions(unittest.TestCase):
             print("test file not found:",fasta_file_name)
         G_star, alignment_graph = construct_minimizer_graph(S)
         edit_distances = []
-        nr_minimizers = []
+        nr_unique_minimizers = []
         for s1 in alignment_graph:
             # print("nr minimizers:", len(alignment_graph[s1]))
-            nr_minimizers.append(len(alignment_graph[s1]))
+            # nr_minimizers.append(sum([ count for nbr, count in  G_star[s1].items()]))
+            nr_unique_minimizers.append(len(G_star[s1].items()))
             # if len(alignment_graph[s1]) > 20:
             #     for s2 in alignment_graph[s1]:
             #         print(alignment_graph[s1][s2][0])
@@ -281,6 +288,7 @@ class TestFunctions(unittest.TestCase):
                 #     print(alignment_graph[s1][s2][0])
                 # if alignment_graph[s1][s2][0] == 0:
                 #     print("perfect match of :", G_star[s1][s2], "seqs" )
+            assert len(alignment_graph[s1]) == len(G_star[s1])
 
         print(sorted(nr_minimizers, reverse = True))
         print(sorted(edit_distances))
