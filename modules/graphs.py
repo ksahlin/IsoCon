@@ -197,8 +197,10 @@ def construct_minimizer_graph(S):
         else:
             if s in G_star[s]:
                 G_star[s][s] += 1  
+                print("More!!!!", G_star[s][s])
             else:
                 G_star[s][s] = 2
+                print("HERE!!!!")
                 alignment_graph[s][s] = (0, s, s)
 
     # check if converged:
@@ -230,8 +232,11 @@ def construct_minimizer_graph(S):
 
     return G_star, alignment_graph, converged
 
-def partition_strings(S):
+
+def partition_strings2(S):
     G_star, alignment_graph, converged = construct_minimizer_graph(S)
+    unique_start_strings = set(G_star.keys())
+    partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
 
     if converged:
         M = set(G_star.keys())
@@ -240,51 +245,81 @@ def partition_strings(S):
         return alignment_graph, partition, M, converged
 
     marked = set()
-    # partition_counter = 0
-    node_indegrees = {}  # dict of nodes and their indegrees as integers, this will update everytime new nodes are marked
-    M = set()
-    partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
+    M = {}
+    V_not_in_M = set(G_star.keys())
+    partition_counter = 1
 
-    # treat isolated nodes separately
-    isolated = 0
-    for n in G_star:
-        if len(G_star[n]) == 0:
-            isolated += 1
-            partition[n] = set()
-            M.add(n)
+    for s in G_star:
+        if len(G_star[s]) == 0:
+            # isolated += 1
+            # partition[n] = set()
+            M[s] = partition_counter
+            marked.add(s)
+            partition[s] = set()
+            partition_counter += 1
+
+    isolated = set(partition.keys())
 
     G_star_transposed = functions.transpose(G_star)
-
+    # check so that there are no "leaves" in G^* (a sequence that has no minimizer but is a minimizer to some other sequence, this should not happen)
     for n in G_star_transposed:
-        indegree = sum([ count for count in  G_star_transposed[n].values()])
-        node_indegrees[n] = indegree
+        assert n not in isolated
 
-    V_G = len(G_star) - isolated # all nodes that has at least one minimizer, i.e., not isolated
-    print(node_indegrees.values())
+    # do_while as long as there is a node with positive indegree of unmarked nbrs
+    while True:
+        # find node with biggest indegree
+        max_indegree = -1
+        for s in V_not_in_M:
+            indegree = sum([indegree for in_nbr, indegree in G_star_transposed[s].items() if in_nbr not in marked ])
+            if indegree > max_indegree:
+                m, max_indegree = s, indegree
+        #     indegrees.append( (s, indegree) )
+        # m, max_indegree = max([(s,indegree) for s, indegree in indegrees.items()], key=lambda x: x[1])
+        print(max_indegree, len(V_not_in_M), len(marked))
+        if max_indegree < 1:
+            break
+        M[m] = partition_counter
+        partition[m] = set()
+        V_not_in_M.remove(m)
+        partition_counter += 1
+        marked.add(m)
+        for in_nbr_to_m in G_star_transposed[m]:
+            marked.add(in_nbr_to_m)
 
-    while len(marked) < V_G:
-        # print([(n,indegree) for n, indegree in node_indegrees.items()])
-        node_max_indegree, max_indegree = max([(n,indegree) for n, indegree in node_indegrees.items()], key=lambda x: x[1])
-        M.add(node_max_indegree)
-        marked.add(node_max_indegree)
-        node_indegrees[node_max_indegree] = 0
-        unmarked_nbrs =  set([nbr for nbr in G_star_transposed[node_max_indegree] if nbr not in marked])
-        partition[node_max_indegree] = unmarked_nbrs
+    print("Chosen minimizers:", len(M))
+    for s in G_star:
+        if s not in M:
 
-        for unmarked_nbr in unmarked_nbrs:
-            marked.add(unmarked_nbr) 
-            for v in G_star_transposed[unmarked_nbr]:
-                if v in unmarked_nbrs:
-                    node_indegrees[unmarked_nbr] -= 1
+            # since M covers G_star n has to have a at least one minimizer in M, choose the biggest one, i.e., lowest index
+            lowest_index = len(M) + 1
+            for nbr in G_star[s]:
+                if nbr in M:
+                    if M[nbr] < lowest_index:
+                        lowest_index = M[nbr]
+                        lowest_index_minimizer = nbr
 
-        for n in node_indegrees:
-            assert node_indegrees[n] >= 0
+            partition[lowest_index_minimizer].add(s)
 
-        print(node_indegrees.values())
-
-        # partition_counter +=1
+    total_strings_in_partition = sum([ len(partition[p]) +1 for p in  partition])
+    partition_sequences = set()
+    for m in partition:
+        partition_sequences.add(m)
+        print("partition size:", len(partition[m]))
+        for s in  partition[m]:
+            partition_sequences.add(s)
+    # if the total number of lengths in partition is equal to the original number of strings in s
+    # and the number of unique strings in Partition is the same as in S, then partition is a proper partition S
+    # That is, there are no bugs.
+    print(unique_start_strings == partition_sequences)
+    print(total_strings_in_partition)
+    print(len(partition_sequences))
+    print(len(unique_start_strings))
+    # print(unique_start_strings)
+    # print(partition_sequences)
+    assert unique_start_strings == partition_sequences
 
     return alignment_graph, partition, M, converged
+
 
 def construct_2set_minimizer_bipartite_graph(S, T):
     return
@@ -320,7 +355,7 @@ class TestFunctions(unittest.TestCase):
         # self.assertEqual(alignment_graph, alignment_graph)
         from input_output import fasta_parser
         try:
-            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_200/simulated_pacbio_reads.fa"
+            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_25/simulated_pacbio_reads.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
             S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(fasta_file_name, 'r'))} 
         except:
@@ -354,13 +389,15 @@ class TestFunctions(unittest.TestCase):
     def test_partition_strings(self):
         from input_output import fasta_parser
         try:
-            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_200/simulated_pacbio_reads.fa"
+            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
+            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
             S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(fasta_file_name, 'r'))} 
         except:
             print("test file not found:",fasta_file_name)    
         
-        alignment_graph, partition, M, converged = partition_strings(S)
+        alignment_graph, partition, M, converged = partition_strings2(S)
         print(len(M), len(partition),converged)
 
 if __name__ == '__main__':
