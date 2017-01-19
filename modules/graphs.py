@@ -228,10 +228,15 @@ def construct_minimizer_graph(S):
             (edit_distance, s1_alignment, s2_alignment) = best_exact_matches[s1][s2]
             alignment_graph[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
 
-    # finally, isolated nodes here are the one where we didn't find any alignments to another sequence, point these isolated nodes to themself
+    # finally, nodes here are the one where we didn't find any alignments to another sequence, point these isolated nodes to themself
     # with indegree 1
+    # we also check that theu are not "leaves" in G^* 
+    # that is, a sequence that has no minimizer but is a minimizer to some other sequence, this should not happen in G^*
+    G_star_transposed = functions.transpose(G_star)
+
     for s in G_star:
         if len(G_star[s]) == 0:
+            assert s not in G_star_transposed
             G_star[s][s] = 1
             alignment_graph[s][s] = (0, s, s)
             print("ISOLATED")
@@ -266,9 +271,9 @@ def partition_strings(S):
                 partition[s] = set()
                 partition_counter += 1
                 partition_alignments[s] = {}
-                edit_dist, a1, a2 =  alignment_graph[s][s]
+                edit_dist, a1, a_min =  alignment_graph[s][s]
                 indegree = G_star[s][s]
-                partition_alignments[s][s] = (edit_dist, a1, a2, indegree)
+                partition_alignments[s][s] = (edit_dist, a_min, a1 , indegree)
                 print("DETECTED!!")
     isolated = set(partition.keys())
 
@@ -310,13 +315,13 @@ def partition_strings(S):
 
             partition[lowest_index_minimizer].add(s)
             # print("1")
-            edit_dist, a1, a2 =  alignment_graph[s][lowest_index_minimizer]
+            edit_dist, a1, a_min =  alignment_graph[s][lowest_index_minimizer]
             indegree = G_star[s][lowest_index_minimizer]
 
 
         else:
             lowest_index_minimizer = s
-            edit_dist, a1, a2 =  0, s, s
+            edit_dist, a1, a_min =  0, s, s
             if lowest_index_minimizer in  G_star[s]:
                 indegree = G_star[s][lowest_index_minimizer]
             else:
@@ -327,7 +332,7 @@ def partition_strings(S):
         # print(G_star[s])
         # print(lowest_index_minimizer == s)
         # print(alignment_graph[s])
-        partition_alignments[lowest_index_minimizer][s] = (edit_dist, a1, a2, indegree)
+        partition_alignments[lowest_index_minimizer][s] = (edit_dist, a_min, a1, indegree)
 
 
     total_strings_in_partition = sum([ len(partition[p]) +1 for p in  partition])
@@ -417,7 +422,7 @@ class TestFunctions(unittest.TestCase):
     def test_partition_strings(self):
         from input_output import fasta_parser
         try:
-            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_200/simulated_pacbio_reads.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
