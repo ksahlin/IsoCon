@@ -14,6 +14,43 @@
 import unittest
 from collections import defaultdict
 
+def create_position_probability_matrix(partition):
+    """
+        a partition is a dictionary of pairwise alignments for a given center m. "partition has the following
+        structure:  partition = {s : (edit_distance, m_alignment, s_alignment, degree_of_s)}
+        s can only have a degree larger than 1 if s=m, otherwise s has a degree of 1.
+
+        This function does the following
+
+        query_to_target_positioned_dict = {}
+        for each seq in partition calls:
+            position_query_to_alignment(query_aligned, target_aligned, target_start=0)
+            returns the following data
+            query_to_target_positioned, target_vector_start_position = 0, target_vector_end_position 
+            we store all these pairwise alignments in query_to_target_positioned_dict
+
+        where this function retuns a dictionary with query seq as key in the following form:
+        query_to_target_positioned_dict[query_accession] = (query_to_target_positioned, target_vector_start_position, target_vector_end_position)
+
+        then it calls create_multialignment_format(query_to_target_positioned_dict)
+        This function returns an alignment matric in the following smaple format:
+        alignment_matrix = {"q1" : ["-", "A","-", "C", "-", "G","A","C","C","G", "G", "-", "A", "T","T","T"],
+                            "q2" : ["-", "A","-", "C", "-", "G","A","G","-","-", "G", "-", "A", "T","T","T"],
+                            "q3" : ["-", "A","-", "C", "-", "G","A","-","-","-", "G", "-", "A", "T","T","T"],
+                            "q4" : ["-", "A","-", "C", "-", "G","C","C","-","-", "G", "-", "A", "-","-","-"],
+                            "q5" : ["-", "A","-", "C", "-", "G","-","-","-","-", "G", "-", "A", "T","-","-"],
+                            "q6" : ["G", "A","-", "C", "-", "G","C","-","-","-", "G", "-", "A", "-","-","-"]
+                            }
+
+        finally, we transform the alignment_matrix into a PPM by multiplying each query sequnece with the correct degree and
+        dividing by the total number of sequences in the partition
+
+    """
+    N_t = sum([container_tuple[3] for s, container_tuple in partition]) # total number of sequences in partition
+    print(N_t)
+
+
+    return PPM, alignment_matrix
 
 def transpose(dct):
     d = defaultdict(dict)

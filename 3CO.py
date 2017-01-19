@@ -8,8 +8,24 @@ import unittest
 import math
 from graphs import partition_strings
 
+def get_unique_seq_accessions(S):
+    seq_to_acc = {}
+    for acc, seq in  S.items():
+        if seq in seq_to_acc:
+            seq_to_acc[seq].append(acc)
+        else: 
+            seq_to_acc[seq] = []
+            seq_to_acc[seq] = [acc]
 
-def find_candidate_transcripts(S):
+    unique_seq_to_acc = {seq: acc_list[0] for seq, acc_list in  seq_to_acc.items() if len(acc_list) == 1 } 
+    print("Unique seqs left:", len(unique_seq_to_acc))
+
+    return unique_seq_to_acc
+
+def find_candidate_transcripts(X):
+    S = X
+    # print(len(S))
+    unique_seq_to_acc = get_unique_seq_accessions(S)
     partition_alignments, partition, M, converged = partition_strings(S)
 
     if converged:
@@ -33,21 +49,17 @@ def find_candidate_transcripts(S):
                     J = [j for j, prob in pos_probs_for_s[:nr_pos_to_correct]] # J is the set of the nr_pos_to_correct smallest position probabilities
                     s_new = alignment_matrix[s]
                     for j in J:
-                        highest_prob_character_at_j = max(PPM[j]) max(PPM[j], key=lambda k: PPM[j][k])
+                        highest_prob_character_at_j = max(PPM[j], key=lambda k: PPM[j][k])
                         s_new[j] = highest_prob_character_at_j
-                    s_prime = "".join([nucl for nucl in s_new if nucl != "-" ])
-                #     partition_alignments
+                    s_modified = "".join([nucl for nucl in s_new if nucl != "-" ])
 
-                # s_new = 
+                    # only unique strings can change in this step
 
-            else:
-                s_new = m
+                    accession_of_s = seq_to_acc[s] # this is still unique
+                    S[accession_of_s] = s_modified
 
-
-
-
+        unique_seq_to_acc = get_unique_seq_accessions(S)
         partition_alignments, partition, M, converged = partition_strings(S)
-
 
     return M
 
