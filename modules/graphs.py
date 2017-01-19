@@ -197,13 +197,11 @@ def construct_minimizer_graph(S):
         else:
             if s in G_star[s]:
                 G_star[s][s] += 1  
-                print("More!!!!", G_star[s][s])
             else:
                 G_star[s][s] = 2
-                print("HERE!!!!")
                 alignment_graph[s][s] = (0, s, s)
 
-    # check if converged:
+    # check if converged, that is, if all nodes has self edges here, there will be no other edges added.
     converged = True
     for nbr in G_star.values():
         if len(nbr) == 0:
@@ -230,11 +228,20 @@ def construct_minimizer_graph(S):
             (edit_distance, s1_alignment, s2_alignment) = best_exact_matches[s1][s2]
             alignment_graph[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
 
+    # finally, isolated nodes here are the one where we didn't find any alignments to another sequence, point these isolated nodes to themself
+    # with indegree 1
+    for s in G_star:
+        if len(G_star[s]) == 0:
+            G_star[s][s] = 1
+            alignment_graph[s][s] = (0, s, s)
+            print("ISOLATED")
+
     return G_star, alignment_graph, converged
 
 
-def partition_strings2(S):
+def partition_strings(S):
     G_star, alignment_graph, converged = construct_minimizer_graph(S)
+    partition_alignments = {}
     unique_start_strings = set(G_star.keys())
     partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
 
@@ -242,7 +249,7 @@ def partition_strings2(S):
         M = set(G_star.keys())
         for m in G_star:
             partition[m] = set()
-        return alignment_graph, partition, M, converged
+        return partition_alignments, partition, M, converged
 
     marked = set()
     M = {}
@@ -250,20 +257,25 @@ def partition_strings2(S):
     partition_counter = 1
 
     for s in G_star:
-        if len(G_star[s]) == 0:
-            # isolated += 1
-            # partition[n] = set()
-            M[s] = partition_counter
-            marked.add(s)
-            partition[s] = set()
-            partition_counter += 1
-
+        if s in G_star[s]:
+            if  G_star[s][s] == 1: # isolate
+                # isolated += 1
+                # partition[n] = set()
+                M[s] = partition_counter
+                marked.add(s)
+                partition[s] = set()
+                partition_counter += 1
+                partition_alignments[s] = {}
+                edit_dist, a1, a2 =  alignment_graph[s][s]
+                indegree = G_star[s][s]
+                partition_alignments[s][s] = (edit_dist, a1, a2, indegree)
+                print("DETECTED!!")
     isolated = set(partition.keys())
 
     G_star_transposed = functions.transpose(G_star)
     # check so that there are no "leaves" in G^* (a sequence that has no minimizer but is a minimizer to some other sequence, this should not happen)
-    for n in G_star_transposed:
-        assert n not in isolated
+    # for n in G_star_transposed:
+    #     assert n not in isolated
 
     # do_while as long as there is a node with positive indegree of unmarked nbrs
     while True:
@@ -273,14 +285,13 @@ def partition_strings2(S):
             indegree = sum([indegree for in_nbr, indegree in G_star_transposed[s].items() if in_nbr not in marked ])
             if indegree > max_indegree:
                 m, max_indegree = s, indegree
-        #     indegrees.append( (s, indegree) )
-        # m, max_indegree = max([(s,indegree) for s, indegree in indegrees.items()], key=lambda x: x[1])
         print(max_indegree, len(V_not_in_M), len(marked))
         if max_indegree < 1:
             break
         M[m] = partition_counter
         partition[m] = set()
         V_not_in_M.remove(m)
+        partition_alignments[m] = {}
         partition_counter += 1
         marked.add(m)
         for in_nbr_to_m in G_star_transposed[m]:
@@ -289,7 +300,6 @@ def partition_strings2(S):
     print("Chosen minimizers:", len(M))
     for s in G_star:
         if s not in M:
-
             # since M covers G_star n has to have a at least one minimizer in M, choose the biggest one, i.e., lowest index
             lowest_index = len(M) + 1
             for nbr in G_star[s]:
@@ -299,6 +309,26 @@ def partition_strings2(S):
                         lowest_index_minimizer = nbr
 
             partition[lowest_index_minimizer].add(s)
+            # print("1")
+            edit_dist, a1, a2 =  alignment_graph[s][lowest_index_minimizer]
+            indegree = G_star[s][lowest_index_minimizer]
+
+
+        else:
+            lowest_index_minimizer = s
+            edit_dist, a1, a2 =  0, s, s
+            if lowest_index_minimizer in  G_star[s]:
+                indegree = G_star[s][lowest_index_minimizer]
+            else:
+                indegree = 1
+
+            # print("2")
+
+        # print(G_star[s])
+        # print(lowest_index_minimizer == s)
+        # print(alignment_graph[s])
+        partition_alignments[lowest_index_minimizer][s] = (edit_dist, a1, a2, indegree)
+
 
     total_strings_in_partition = sum([ len(partition[p]) +1 for p in  partition])
     partition_sequences = set()
@@ -314,11 +344,9 @@ def partition_strings2(S):
     print(total_strings_in_partition)
     print(len(partition_sequences))
     print(len(unique_start_strings))
-    # print(unique_start_strings)
-    # print(partition_sequences)
     assert unique_start_strings == partition_sequences
 
-    return alignment_graph, partition, M, converged
+    return partition_alignments, partition, M, converged
 
 
 def construct_2set_minimizer_bipartite_graph(S, T):
@@ -397,8 +425,8 @@ class TestFunctions(unittest.TestCase):
         except:
             print("test file not found:",fasta_file_name)    
         
-        alignment_graph, partition, M, converged = partition_strings2(S)
-        print(len(M), len(partition),converged)
+        partition_alignments, partition, M, converged = partition_strings(S)
+        print(len(M), len(partition), converged)
 
 if __name__ == '__main__':
     unittest.main()
