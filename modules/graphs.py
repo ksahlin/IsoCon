@@ -251,9 +251,12 @@ def partition_strings(S):
     partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
 
     if converged:
-        M = {(key, 1) for key in G_star.keys()}
+        M = {key : 1 for key in G_star.keys()}
         for m in G_star:
             partition[m] = set()
+            partition_alignments[m] = {}
+            indegree = G_star[m][m]
+            partition_alignments[m][m] = (0, m, m , indegree)
         return partition_alignments, partition, M, converged
 
     marked = set()
