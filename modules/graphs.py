@@ -34,16 +34,16 @@ def construct_minimizer_graph(S):
                 alignment_graph[s][s] = (0, s, s)
 
     # check if converged, that is, if all nodes has self edges here, there will be no other edges added.
-    converged = True
-    for nbr in G_star.values():
-        if len(nbr) == 0:
-            converged = False
+    not_in_clusters = set()
+    for s, nbr_dict in G_star.items():
+        if len(nbr_dict) == 0:
+            not_in_clusters.add(s)
 
-    if converged:
+    if len(not_in_clusters) == 0:
         return G_star, alignment_graph, converged
 
     unique_strings = set(S.values())
-    paf_files, acc_to_strings = minimap_alignment_module.minimap_partition(unique_strings)
+    paf_files, acc_to_strings = minimap_alignment_module.minimap_partition(unique_strings, not_in_clusters)
 
     approximate_matches = minimap_alignment_module.paf_to_best_matches(paf_files, acc_to_strings)
     best_exact_matches = SW_alignment_module.find_best_matches(approximate_matches)
