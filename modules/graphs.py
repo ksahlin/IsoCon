@@ -251,7 +251,7 @@ def partition_strings(S):
     partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
 
     if converged:
-        M = set(G_star.keys())
+        M = {(key, 1) for key in G_star.keys()}
         for m in G_star:
             partition[m] = set()
         return partition_alignments, partition, M, converged
@@ -290,7 +290,7 @@ def partition_strings(S):
             indegree = sum([indegree for in_nbr, indegree in G_star_transposed[s].items() if in_nbr not in marked ])
             if indegree > max_indegree:
                 m, max_indegree = s, indegree
-        print(max_indegree, len(V_not_in_M), len(marked))
+        # print(max_indegree, len(V_not_in_M), len(marked))
         if max_indegree < 1:
             break
         M[m] = partition_counter
@@ -339,16 +339,16 @@ def partition_strings(S):
     partition_sequences = set()
     for m in partition:
         partition_sequences.add(m)
-        print("partition size:", len(partition[m]))
+        # print("partition size:", len(partition[m]))
         for s in  partition[m]:
             partition_sequences.add(s)
     # if the total number of lengths in partition is equal to the original number of strings in s
     # and the number of unique strings in Partition is the same as in S, then partition is a proper partition S
     # That is, there are no bugs.
-    print(unique_start_strings == partition_sequences)
+    # print(unique_start_strings == partition_sequences)
     print(total_strings_in_partition)
-    print(len(partition_sequences))
-    print(len(unique_start_strings))
+    # print(len(partition_sequences))
+    # print(len(unique_start_strings))
     assert unique_start_strings == partition_sequences
 
     return partition_alignments, partition, M, converged

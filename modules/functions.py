@@ -14,7 +14,7 @@
 import unittest
 from collections import defaultdict
 
-def create_position_probability_matrix(partition):
+def create_position_probability_matrix(m, partition):
     """
         a partition is a dictionary of pairwise alignments for a given center m. "partition has the following
         structure:  partition = {s : (edit_distance, m_alignment, s_alignment, degree_of_s)}
@@ -23,7 +23,7 @@ def create_position_probability_matrix(partition):
         This function does the following
 
         query_to_target_positioned_dict = {}
-        for each seq in partition calls:
+        for each seq in partition we call function
             position_query_to_alignment(query_aligned, target_aligned, target_start=0)
             returns the following data
             query_to_target_positioned, target_vector_start_position = 0, target_vector_end_position 
@@ -32,7 +32,7 @@ def create_position_probability_matrix(partition):
         where this function retuns a dictionary with query seq as key in the following form:
         query_to_target_positioned_dict[query_accession] = (query_to_target_positioned, target_vector_start_position, target_vector_end_position)
 
-        then it calls create_multialignment_format(query_to_target_positioned_dict)
+        then it calls create_multialignment_format(query_to_target_positioned_dict, start, stop)
         This function returns an alignment matric in the following smaple format:
         alignment_matrix = {"q1" : ["-", "A","-", "C", "-", "G","A","C","C","G", "G", "-", "A", "T","T","T"],
                             "q2" : ["-", "A","-", "C", "-", "G","A","G","-","-", "G", "-", "A", "T","T","T"],
@@ -42,15 +42,33 @@ def create_position_probability_matrix(partition):
                             "q6" : ["G", "A","-", "C", "-", "G","C","-","-","-", "G", "-", "A", "-","-","-"]
                             }
 
-        finally, we transform the alignment_matrix into a PPM by multiplying each query sequnece with the correct degree and
-        dividing by the total number of sequences in the partition
+        finally, we transform the alignment_matrix into a PFM by multiplying each query sequnece with the correct degree.
 
+        PFM is a list of dicts, where the inner dicts are one per column in the PFM matrix, its keys by characters A, C, G, T, -
+        alignment_matrix is a representation of all alignments in a partition. this is a dictionary where sequences s_i belonging to the 
+        partition as keys and the alignment of s_i with respect to the alignment matix.
     """
-    N_t = sum([container_tuple[3] for s, container_tuple in partition]) # total number of sequences in partition
-    print(N_t)
+    query_to_target_positioned_dict = {}
+    for s in partition:
+        (edit_distance, m_alignment, s_alignment, degree_of_s) = partition[s]
+        s_positioned, target_vector_start_position, target_vector_end_position = position_query_to_alignment(s_alignment, m_alignment, 0)
+        assert target_vector_start_position == 0
+        assert target_vector_end_position + 1 == 2*len(m) + 1 # vector positions are 0-indexed
+        query_to_target_positioned_dict[s] = (s_positioned, target_vector_start_position, target_vector_end_position)
 
+    alignment_matrix = create_multialignment_format(query_to_target_positioned_dict, 0, 2*len(m))
 
-    return PPM, alignment_matrix
+    # N_t = sum([container_tuple[3] for s, container_tuple in partition.items()]) # total number of sequences in partition
+    # print("total seq multiset:", N_t, "total seqs in set:", len(partition))
+    PFM = []
+    for j in range(len(alignment_matrix[m])): # for each column
+        PFM.append({"A": 0, "C": 0, "G": 0, "T": 0, "-": 0})
+        for s in alignment_matrix:
+            nucl = alignment_matrix[s][j]
+            indegree = partition[s][3]
+            PFM[j][nucl] += indegree
+    # print( "matrix length:", len(alignment_matrix[m]))
+    return alignment_matrix, PFM
 
 def transpose(dct):
     d = defaultdict(dict)
@@ -169,8 +187,12 @@ def get_non_overlapping_intervals(ranges):
 
 def create_multialignment_format(query_to_target_positioned_dict, start, stop):
     """
-        only create multialignment format of the query sequences that cover the region [start,stop]
+        only create multialignment format of the query sequences that cover the region [start,stop] start stop is the vector 
+        coordinates where vector is of size 2*len(target) + 1
     """
+    assert len(query_to_target_positioned_dict) > 0
+    target_vector_length = len(query_to_target_positioned_dict.values()[0][0])
+    assert stop < target_vector_length # vector coordinates are 0-indexed
 
     # get allreads alignments covering interesting segment
     # row_accessions = []
