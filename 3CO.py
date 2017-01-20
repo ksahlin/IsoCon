@@ -3,7 +3,7 @@
     alignment_matrix is a representation of all alignments in a partition. this is a dictionary where sequences s_i belonging to the 
     partition as keys and the alignment of s_i with respectt to the alignment matix.
 """
-
+import copy
 import unittest
 import math
 from graphs import partition_strings
@@ -69,7 +69,11 @@ def find_candidate_transcripts(X):
                     # find the position probabilities of the alignment of s in PFM
                     pos_freqs_for_s = []
                     for j in range(len(PFM)):
+                        # try:
                         pos_freqs_for_s.append( (j, PFM[j][s_alignment_in_matrix[j]]) )
+                        # except KeyError:
+                        #     print(j, PFM[j], s_alignment_in_matrix[j], N_t, len(partition), len(PFM), len(m) )
+                        #     sys.exit()
 
                     pos_freqs_for_s.sort(key=lambda x: x[1]) # sort with respect to smallest frequencies                    
                     J = [j for j, prob in pos_freqs_for_s[:nr_pos_to_correct]] # J is the set of the nr_pos_to_correct smallest position probabilities
@@ -79,7 +83,7 @@ def find_candidate_transcripts(X):
                         highest_prob_character_at_j = max(PFM[j], key=lambda k: PFM[j][k])
 
                         if highest_prob_character_at_j == old_nucl: # choose the other highest on if tie (should happen only when partition consist of two sequences)
-                            pmf_j_minus_variant = PFM[j]
+                            pmf_j_minus_variant = copy.deepcopy(PFM[j])
                             del pmf_j_minus_variant[old_nucl] 
                             highest_prob_character_at_j = max(pmf_j_minus_variant, key=lambda k: pmf_j_minus_variant[k])
 
