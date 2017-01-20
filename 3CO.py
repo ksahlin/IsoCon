@@ -103,7 +103,7 @@ def find_candidate_transcripts(X):
         print(type(M))
 
     # no isolated nodes in data set makes us return here
-    out_file = open("/Users/kxs624/tmp/minimizer_consensus_TSPY13P_2_constant_constant_0.0001.fa", "w")
+    out_file = open("/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001.fa", "w")
     for i, m in enumerate(partition_alignments):
         N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
         out_file.write(">{0}\n{1}\n".format("read" + str(i)+ "_support_" + str(N_t) , m))
@@ -123,8 +123,10 @@ class TestFunctions(unittest.TestCase):
         try:
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
-            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
+            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
+            
             S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(fasta_file_name, 'r'))} 
         except:
             print("test file not found:",fasta_file_name)  

@@ -16,11 +16,62 @@ import heapq
 from modules import alignment_module
 from modules import functions
 
+def paf_to_best_matches_2set(paf_file_path):
+    """
+        input: a PAF file
+        output: A matches data structure. It is a didcionary on the following form:
+                highest_paf_scores = {read: [target1, target2, ...] }
+                targets as keys and a list sequences where the sequences are the X best target hits.
+                for each sequence found in PAF file, store X best matches based on paf score
+    """
+
+    highest_paf_scores = defaultdict(list)
+
+
+    try:
+        file_object = gzip.open(paf_file_path)
+        file_object.readline()
+        file_object.seek(0)
+    except IOError:
+        file_object = open(paf_file_path)
+
+
+    with file_object as paf_file:
+        for line in paf_file:
+            row_info = line.strip().split()
+            q_acc = row_info[0].decode('ascii')
+            q_len = int(row_info[1])
+            t_acc = row_info[5].decode('ascii')
+            t_len = int(row_info[6])
+
+            if q_acc == t_acc:
+                # print("SELF MAPPING DETECTED")
+                # print(q_acc, q_len, row_info)
+                # print(t_acc, t_len, row_info)
+                continue
+
+            n_min = int(row_info[12].split(":")[-1])
+            #   \frac{\min \{ |q|, |t| \} } {\max \{ |q|,|t| \} }  n^{\text{minimizers}}
+            paf_similarity_score = n_min * min(q_len, t_len)/float(max(q_len, t_len))
+
+            if len(highest_paf_scores[q_acc]) >= 5:
+                # current alignment is better than at least one of previous scores, remove the worst one so far
+                if paf_similarity_score > highest_paf_scores[q_acc][0][0]: 
+                    paf_score, t_acc_out = heapq.heappushpop(highest_paf_scores[q_acc], (paf_similarity_score, t_acc) )
+            else:
+                heapq.heappush(highest_paf_scores[q_acc], (paf_similarity_score, t_acc))
+
+
+    return highest_paf_scores
+
 
 def paf_to_best_matches(paf_files, acc_to_strings):
     """
-        input: PAF file
-        output: for each sequence found in PAF file, store X best matches based on paf score
+        input: a list of PAF files
+        output: A matches data structure. It is a didcionary on the following form:
+                matches = {string1: [string2, string3, ...] }
+                sequences as keys and a list sequences where the sequences are the X best hits to the sequence.
+                for each sequence found in PAF file, store X best matches based on paf score
     """
 
     matches = {}
@@ -81,21 +132,21 @@ def paf_to_best_matches(paf_files, acc_to_strings):
     return matches
 
 
-def map_with_minimap(sequences_file_name):
+def map_with_minimap(targets, queries):
     print('Aligning with minimap.')
     sys.stdout.flush()
     # work_dir = "/tmp/" #tempfile.mkdtemp() 
     # print(work_dir)
-    minimap_output = sequences_file_name + ".paf"
-    stderr_file = open(sequences_file_name + ".minimap.stderr", 'w')
+    minimap_output = targets + ".paf"
+    stderr_file = open(targets + ".minimap.stderr", 'w')
     # print('Output path: ', minimap_output)
     # print('Stderr file: ', stderr_file)
     sys.stdout.flush()
-    # print(type(sequences_file_name))
+    # print(type(targets))
     with open(minimap_output, "w") as minimap_file:
         sys.stdout.flush()
         subprocess.check_call([ "minimap", "-f", "0.0000000001", "-Sw5", "-L100", "-m0",
-                               sequences_file_name, sequences_file_name ],
+                               targets, queries ],
                                 stdout=minimap_file,
                                 stderr=stderr_file)
         sys.stdout.flush()
@@ -133,7 +184,7 @@ def minimap_partition(unique_strings_set):
     # TODO: call minimap, eventually parallelize
     paf_file_names = []
     for fa_file_name in fasta_files:
-        paf_file_name = map_with_minimap(fa_file_name)
+        paf_file_name = map_with_minimap(fa_file_name, fa_file_name)
         paf_file_names.append(paf_file_name)
 
     return paf_file_names, acc_to_strings
@@ -357,7 +408,20 @@ def partition_strings(S):
     return partition_alignments, partition, M, converged
 
 
-def construct_2set_minimizer_bipartite_graph(S, T):
+def construct_2set_minimizer_bipartite_graph(X, C):
+    """
+        X: a dict containing original reads and their accession
+        C: a dict containing consensus transcript candidates
+    """
+
+    paf_file_name = map_with_minimap(targets, queries)
+
+    approximate_matches = paf_to_best_matches_2set(paf_file_name)
+    best_exact_matches = find_best_matches(approximate_matches)
+
+    return
+
+def partition_strings_2set(S):
     return
 
 class TestFunctions(unittest.TestCase):
@@ -373,7 +437,7 @@ class TestFunctions(unittest.TestCase):
         s2 = s2 + "\n"
         s3 = s3 + "\n"
         expected_result = "".join([s1,s2,s3])
-        minimap_paf = map_with_minimap(temp_file_name)
+        minimap_paf = map_with_minimap(temp_file_name, temp_file_name)
         minimap_result = ""
         for line in open(minimap_paf, "r"):
             minimap_result += line
