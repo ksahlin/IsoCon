@@ -105,12 +105,12 @@ def paf_to_best_matches(paf_files, acc_to_strings):
                 else:
                     heapq.heappush(highest_paf_scores[q_acc], (paf_similarity_score, t_acc))
 
-                if len(highest_paf_scores[t_acc]) >= 5:
-                    # current alignment is better than at least one of previous scores, remove the worst one so far
-                    if paf_similarity_score > highest_paf_scores[t_acc][0][0]: 
-                        paf_score, q_acc_out = heapq.heappushpop(highest_paf_scores[t_acc], (paf_similarity_score, q_acc) )
-                else:
-                    heapq.heappush(highest_paf_scores[t_acc], (paf_similarity_score, q_acc))
+                # if len(highest_paf_scores[t_acc]) >= 5:
+                #     # current alignment is better than at least one of previous scores, remove the worst one so far
+                #     if paf_similarity_score > highest_paf_scores[t_acc][0][0]: 
+                #         paf_score, q_acc_out = heapq.heappushpop(highest_paf_scores[t_acc], (paf_similarity_score, q_acc) )
+                # else:
+                #     heapq.heappush(highest_paf_scores[t_acc], (paf_similarity_score, q_acc))
 
     for acc1 in highest_paf_scores:
         # print(acc_to_strings)
@@ -138,7 +138,7 @@ def map_with_minimap(targets, queries):
     # print(type(targets))
     with open(minimap_output, "w") as minimap_file:
         sys.stdout.flush()
-        subprocess.check_call([ "minimap", "-f", "0.0000000001", "-Sw5", "-L100", "-m0",
+        subprocess.check_call([ "minimap", "-f", "0.0000000001", "-Sw5", "-L40", "-m0",
                                targets, queries ],
                                 stdout=minimap_file,
                                 stderr=stderr_file)
@@ -150,44 +150,91 @@ def minimap_partition(targets, queries):
     # partition unique strings (speed optimization for minimap)
     # this works for transcript version of 3CO
 
+    target_strings = list(targets)
+    target_strings.sort(key=lambda x: len(x))
+
     #assign unique accessions to each string
     # queries \subset targets so we only need to have unique inexes for targets
-    query_accessions = {}
-    target_accessions = {}
+    query_acc_to_seq = {}
+    target_acc_to_seq = {}
+    query_seq_to_acc = {}
+    target_seq_to_acc = {}
 
-    for seq in targets:
+    query_strings = []
+    # query_strings = list(queries)
+    # query_strings.sort(key=lambda x: len(x))
+    # print([len(s) for s in query_strings])
+
+    for i, seq in enumerate(target_strings):
+        target_acc_to_seq[str(i)] = seq
+        target_seq_to_acc[seq] = str(i)
+        if seq in queries:
+            # print(i, len(seq))
+            query_acc_to_seq[str(i)] = seq
+            query_seq_to_acc[seq] = str(i)
+            query_strings.append(seq)
 
 
-    unique_strings = list(targets)
-    unique_strings.sort(key=lambda x: len(x))
-    # labeled_unique_strings.sort(key=lambda x: len(x))
-    bins = []
-    bin_size =  min(len(unique_strings), 200 )
-    for i in range(0, len(unique_strings), bin_size):
-        # create overlapping bins
-        bin = unique_strings[i: i+bin_size + 50]
-        labeled_strings_bin = [(i+j, s) for j,s in enumerate(bin)]
-        bins.append(labeled_strings_bin)
+
+    target_bins = []
+    query_bins = []
+    query_bin_size =  min(len(query_strings), 200 )
+    # print("LEN QUERY STRINGS:", len(query_strings))
+    # print("LEN TARGET STRINGS:", len(target_strings))
+    # print([query_seq_to_acc[b] for b in query_strings])
+
+    for i in range(0, len(query_strings), query_bin_size):
+        # create a query bin
+        bin = query_strings[i  : i+query_bin_size ]
+        print(len(bin), len(bin[0]), len(bin[-1]))
+        # print( [ len(b) for b in bin])
+        # print([query_seq_to_acc[b] for b in bin])
+        labeled_query_strings = {}
+        for q_seq in bin:
+            labeled_query_strings[ query_seq_to_acc[q_seq] ] = q_seq
+        query_bins.append(labeled_query_strings)
+
+        min_query_acc, max_query_acc = query_seq_to_acc[bin[0]], query_seq_to_acc[bin[-1]]
+        print("Target bin size:", len(range(max(int(min_query_acc) - 50, 0) , int(max_query_acc) + 50  +1)), int(max_query_acc) - int(min_query_acc) )
+        print("lol", len(range(int(min_query_acc), int(max_query_acc)+1)))
+
+        # create the respective target bin
+        labeled_target_strings = {}
+        for target_acc in range(max(int(min_query_acc) - 50, 0) , min(int(max_query_acc) + 50 +1, len(target_strings)) ):
+            labeled_target_strings[str(target_acc)] = target_acc_to_seq[str(target_acc)]
+
+        target_bins.append(labeled_target_strings)
+        # labeled_strings_bin = [(i+j, s) for j,s in enumerate(bin)]
+
+
 
 
     work_dir = "/tmp/" 
-    fasta_files = []
-    acc_to_strings = {}
-    for i, labeled_strings_bin in enumerate(bins):
-        fasta_file_name = os.path.join(work_dir,str(i)+".fa")
-        fasta_file = open(fasta_file_name, "w")
-        for acc, seq in labeled_strings_bin:
-            fasta_file.write(">{0}\n{1}\n".format(acc, seq))
-            acc_to_strings[str(acc)] = seq
+    fasta_query_files = []
+    fasta_target_files = []
+    # acc_to_strings = {}
+    for i in range(len(query_bins)):
+        fasta_query_name = os.path.join(work_dir, "q" + str(i) + ".fa")
+        fasta_query_file = open(fasta_query_name, "w")
+        for acc, seq in query_bins[i].items():
+            fasta_query_file.write(">{0}\n{1}\n".format(acc, seq))
 
-        fasta_file.close()
-        fasta_files.append(fasta_file_name)
+        fasta_query_file.close()
+        fasta_query_files.append(fasta_query_name)
+
+        fasta_target_name = os.path.join(work_dir, "t" + str(i)+".fa")
+        fasta_target_file = open(fasta_target_name, "w")
+        for acc, seq in target_bins[i].items():
+            fasta_target_file.write(">{0}\n{1}\n".format(acc, seq))
+
+        fasta_target_file.close()
+        fasta_target_files.append(fasta_target_name)
 
     # TODO: call minimap, eventually parallelize
     paf_file_names = []
-    for fa_file_name in fasta_files:
-        paf_file_name = map_with_minimap(fa_file_name, fa_file_name)
+    for fasta_target_file, fasta_query_file in zip(fasta_target_files, fasta_query_files):
+        paf_file_name = map_with_minimap(fasta_target_file, fasta_query_file)
         paf_file_names.append(paf_file_name)
 
-    return paf_file_names, acc_to_strings
+    return paf_file_names, target_acc_to_seq
 

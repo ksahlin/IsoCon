@@ -32,7 +32,7 @@ def find_candidate_transcripts(X):
 
     if converged:
         return M
-
+    step = 1
     while not converged:
         print("candidates:", len(M))
         edit_distances = [ partition_alignments[s1][s2][0] for s1 in partition_alignments for s2 in partition_alignments[s1]  ] 
@@ -46,7 +46,7 @@ def find_candidate_transcripts(X):
 
         for m, partition in partition_alignments.items():
             N_t = sum([container_tuple[3] for s, container_tuple in partition.items()]) # total number of sequences in partition
-            print("cluster size:", N_t)
+            # print("cluster size:", N_t)
             # if N_t < 3:
             #     # print("skipping")
             #     print("lolling")
@@ -100,13 +100,14 @@ def find_candidate_transcripts(X):
         print("Tot seqs:", len(S))
         unique_seq_to_acc = get_unique_seq_accessions(S)
         partition_alignments, partition, M, converged = partition_strings(S)
-        print(type(M))
 
+        out_file = open("/Users/kxs624/tmp/minimizer_consensus_test_1000_step" +  str(step) + ".fa", "w")
+        for i, m in enumerate(partition_alignments):
+            N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
+            out_file.write(">{0}\n{1}\n".format("read" + str(i)+ "_support_" + str(N_t) , m))
+            
+        step += 1
     # no isolated nodes in data set makes us return here
-    out_file = open("/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001.fa", "w")
-    for i, m in enumerate(partition_alignments):
-        N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
-        out_file.write(">{0}\n{1}\n".format("read" + str(i)+ "_support_" + str(N_t) , m))
     return M
 
 def three_CO(X):

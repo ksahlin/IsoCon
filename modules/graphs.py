@@ -34,12 +34,14 @@ def construct_minimizer_graph(S):
                 alignment_graph[s][s] = (0, s, s)
 
     # check if converged, that is, if all nodes has self edges here, there will be no other edges added.
+    converged = False
     not_in_clusters = set()
     for s, nbr_dict in G_star.items():
         if len(nbr_dict) == 0:
             not_in_clusters.add(s)
 
     if len(not_in_clusters) == 0:
+        converged = True
         return G_star, alignment_graph, converged
 
     unique_strings = set(S.values())

@@ -29,7 +29,8 @@ def sw_align_sequences(matches, single_core = False):
                     else:
                         exact_matches[s1] = {}
                         exact_matches[s1][s2]  = stats
-
+                else:
+                    pass
     else:
         ####### parallelize alignment #########
         # pool = Pool(processes=mp.cpu_count())
@@ -54,6 +55,8 @@ def sw_align_sequences(matches, single_core = False):
                 else:
                     exact_matches[s1] = {}
                     exact_matches[s1][s2] = stats
+            else:
+                pass
 
     return exact_matches
 
@@ -214,6 +217,6 @@ def find_best_matches(approximate_matches):
             else:
                 best_exact_matches[s2] = {}
                 best_exact_matches[s2][s1] = (edit_distance, s2_alignment, s1_alignment)
-
+    
     return best_exact_matches
 
