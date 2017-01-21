@@ -33,9 +33,22 @@ def find_candidate_transcripts(X):
     if converged:
         return M
     step = 1
+    prev_edit_distances_2steps_ago = [2**28,2**28,2**28] # prevents 2-cycles
+    prev_edit_distances = [2**28]
+
     while not converged:
         print("candidates:", len(M))
         edit_distances = [ partition_alignments[s1][s2][0] for s1 in partition_alignments for s2 in partition_alignments[s1]  ] 
+
+
+        ###### Different convergence criterion #########
+
+        if prev_edit_distances_2steps_ago == edit_distances:
+            # Only cyclic alignments are left, these are reads that jump between two optimal alignment of two different
+            # target sequeneces. This is a product of our fast heurustics of defining a minmap score + SSW filtering to choose best alignment
+            print("CYCLE!!!")
+            assert len(partition_alignments) == len(M)
+            break             
         if sum(edit_distances) > sum(prev_edit_distances) and  max(edit_distances) > max(prev_edit_distances) :
             #return here if there is some sequence alternating between best alignments and gets corrected and re-corrected to different candidate sequences
             assert len(partition_alignments) == len(M)
@@ -46,7 +59,8 @@ def find_candidate_transcripts(X):
             # we return here if tha data set contain isolated nodes.
             assert len(partition_alignments) == len(M)
             break
-            # return partition_alignments 
+        #######################################################
+
         print("edit distances:", edit_distances)    
 
         for m, partition in partition_alignments.items():
@@ -62,9 +76,7 @@ def find_candidate_transcripts(X):
             if len(partition) > 1:
                 # all strings has not converged
                 alignment_matrix, PFM = create_position_probability_matrix(m, partition) 
-                print(PFM[0])
-                # print(PFM)
-                # sys.exit()         
+
                 for s in partition:
                     nr_pos_to_correct = int(math.ceil(partition_alignments[m][s][0] / 2.0)) #decide how many errors we should correct here
                     # print("positions to correct for sequence s:", nr_pos_to_correct, s ==m)
@@ -107,12 +119,13 @@ def find_candidate_transcripts(X):
         unique_seq_to_acc = get_unique_seq_accessions(S)
         partition_alignments, partition, M, converged = partition_strings(S)
 
-        out_file = open("/Users/kxs624/tmp/minimizer_consensus_test_1000_step" +  str(step) + ".fa", "w")
+        out_file = open("/Users/kxs624/tmp/minimizer_consensus_HSFY2_2_constant_constant_0.0001_step" +  str(step) + ".fa", "w")
         for i, m in enumerate(partition_alignments):
             N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
             out_file.write(">{0}\n{1}\n".format("read" + str(i)+ "_support_" + str(N_t) , m))
 
         step += 1
+        prev_edit_distances_2steps_ago = prev_edit_distances
         prev_edit_distances = edit_distances
     # no isolated nodes in data set makes us return here
     return M
@@ -129,11 +142,11 @@ class TestFunctions(unittest.TestCase):
 
         from input_output import fasta_parser
         try:
-            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
-            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
-            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
+            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
 
             S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(fasta_file_name, 'r'))} 
         except:
