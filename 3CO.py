@@ -138,7 +138,6 @@ def three_CO(X, C = {}):
 
     partition_alignments, partition, M =  partition_strings_2set(X, C):
 
-
     modified = True
 
     while modified:
@@ -146,15 +145,43 @@ def three_CO(X, C = {}):
         modified = False
         for c1 in G_star_C.keys():
             for c2 in G_star_C[c1].keys():
-                reads = partition[c1] + partition[c2] 
+                N_c2_and_c2 = len(partition[c1]) + len(partition[c2])
+                # Identify the \Delta positions and their cordinates in the alignment between c1 and c2 here w.r.t. the coordinates in the alignment matrix
+                # These coordinates are differenet within c1 and c2 respectively, whe need to get both for easy access
+                # Also identify their state here so that we use proper error rates
+
+                S = 0 # the sum of reads supporting m errors
+                # calculate the individual as well as total error rates in each read here for substitutions, insertions and deletions respecively
+
+                for x_i in partition[c1]:
+                    e_s, e_i,e_d = .....
+                    p_i = get the probability that read i has the m = |\delta| errors here given epsilons.      
+                    # Find the number k of reads (in partition[c1] + partition[c2]) that supports the |\Delta| variants in c1.         
+                    Z_i = a binary value 1 if read i supports m errors
+                    S += Z_i
+
+                for x_i in partition[c2]:
+                    e_s, e_i,e_d = .....
+                    p_i = get the probability that read i has the m = |\delta| errors here given epsilons.      
+                    # Find the number k of reads (in partition[c1] + partition[c2]) that supports the |\Delta| variants in c1.         
+                    Z_i = a binary value 1 if read i supports m errors
+                    S += Z_i
+
+                # We send |reads| as the total read support of c2 under the null hypothesis as well as k to the statistical test here. 
+                p_val = significance_test(k, N_c2_and_c2, lambd)                
                 # rearrange the alignments of reads in partition c1 to align to the consensus in partition c2 here in a smark way..
                 # alignment_matrix, PFM = create_position_probability_matrix(m, partition) needs to be modified somehow
-                p_val = significance_test()
+
                 if p_val < 0.05:
                     del G_star_C[c1]
+                    # update partition_alignments, partition, M here!
+                    # update the individual as well as total error rates in each read here for substitutions, insertions and deletions respecively
+                    # for all the reads that has been reassigned
+
+                    print("Modified!", k, N_c2_and_c2, delta, N_c1, N_c2 )
                     break
                     modified = True
-        # what happens if a node c1 is removed that is a minimizer to another secuence that has not been processed in this given step? 
+        # what happens if a node c1 is removed that is a minimizer to another sequence that has not been processed in this given step? 
         # we should do nothing in this step and wait for the new graph C to be generated
     return C
 
