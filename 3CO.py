@@ -36,6 +36,11 @@ def find_candidate_transcripts(X):
     while not converged:
         print("candidates:", len(M))
         edit_distances = [ partition_alignments[s1][s2][0] for s1 in partition_alignments for s2 in partition_alignments[s1]  ] 
+        if sum(edit_distances) > sum(prev_edit_distances) and  max(edit_distances) > max(prev_edit_distances) :
+            #return here if there is some sequence alternating between best alignments and gets corrected and re-corrected to different candidate sequences
+            assert len(partition_alignments) == len(M)
+            break            
+
         has_converged = [True if ed == 0 else False for ed in edit_distances] 
         if all(has_converged):
             # we return here if tha data set contain isolated nodes.
@@ -57,6 +62,7 @@ def find_candidate_transcripts(X):
             if len(partition) > 1:
                 # all strings has not converged
                 alignment_matrix, PFM = create_position_probability_matrix(m, partition) 
+                print(PFM[0])
                 # print(PFM)
                 # sys.exit()         
                 for s in partition:
@@ -105,8 +111,9 @@ def find_candidate_transcripts(X):
         for i, m in enumerate(partition_alignments):
             N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
             out_file.write(">{0}\n{1}\n".format("read" + str(i)+ "_support_" + str(N_t) , m))
-            
+
         step += 1
+        prev_edit_distances = edit_distances
     # no isolated nodes in data set makes us return here
     return M
 

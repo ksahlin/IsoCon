@@ -186,7 +186,7 @@ def minimap_partition(targets, queries):
     for i in range(0, len(query_strings), query_bin_size):
         # create a query bin
         bin = query_strings[i  : i+query_bin_size ]
-        print(len(bin), len(bin[0]), len(bin[-1]))
+        print("q lengths:", len(bin[0]), len(bin[-1]))
         # print( [ len(b) for b in bin])
         # print([query_seq_to_acc[b] for b in bin])
         labeled_query_strings = {}
@@ -195,7 +195,8 @@ def minimap_partition(targets, queries):
         query_bins.append(labeled_query_strings)
 
         min_query_acc, max_query_acc = query_seq_to_acc[bin[0]], query_seq_to_acc[bin[-1]]
-        print("Target bin size:", len(range(max(int(min_query_acc) - 50, 0) , int(max_query_acc) + 50  +1)), int(max_query_acc) - int(min_query_acc) )
+        print("t lengths:", len(target_acc_to_seq[ str(max(int(min_query_acc) - 50, 0)) ]) , len(target_acc_to_seq[ str(min(int(max_query_acc) + 50 +1, len(target_strings) - 1)) ]) )
+        print("Target bin size:", len(range(max(int(min_query_acc) - 50, 0) , min(int(max_query_acc) + 50 +1, len(target_strings)))), int(max_query_acc) - int(min_query_acc) )
         print("lol", len(range(int(min_query_acc), int(max_query_acc)+1)))
 
         # create the respective target bin

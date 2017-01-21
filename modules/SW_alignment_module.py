@@ -217,6 +217,6 @@ def find_best_matches(approximate_matches):
             else:
                 best_exact_matches[s2] = {}
                 best_exact_matches[s2][s1] = (edit_distance, s2_alignment, s1_alignment)
-    
+        
     return best_exact_matches
 
