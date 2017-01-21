@@ -8,6 +8,7 @@ import unittest
 import math
 from partitions import partition_strings
 from functions import create_position_probability_matrix
+from modules import graphs
 
 
 def get_unique_seq_accessions(S):
@@ -52,6 +53,7 @@ def find_candidate_transcripts(X):
         if sum(edit_distances) > sum(prev_edit_distances) and  max(edit_distances) > max(prev_edit_distances) :
             #return here if there is some sequence alternating between best alignments and gets corrected and re-corrected to different candidate sequences
             assert len(partition_alignments) == len(M)
+            print("exiting here!")
             break            
 
         has_converged = [True if ed == 0 else False for ed in edit_distances] 
@@ -119,7 +121,7 @@ def find_candidate_transcripts(X):
         unique_seq_to_acc = get_unique_seq_accessions(S)
         partition_alignments, partition, M, converged = partition_strings(S)
 
-        out_file = open("/Users/kxs624/tmp/minimizer_consensus_HSFY2_2_constant_constant_0.0001_step" +  str(step) + ".fa", "w")
+        out_file = open("/Users/kxs624/tmp/minimizer_test_25_step" +  str(step) + ".fa", "w")
         for i, m in enumerate(partition_alignments):
             N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
             out_file.write(">{0}\n{1}\n".format("read" + str(i)+ "_support_" + str(N_t) , m))
@@ -130,10 +132,31 @@ def find_candidate_transcripts(X):
     # no isolated nodes in data set makes us return here
     return M
 
-def three_CO(X):
-    C = find_candidate_transcripts(X)
-    collapsed = False
+def three_CO(X, C = {}):
+    if not C:
+        C = find_candidate_transcripts(X)
 
+    partition_alignments, partition, M =  partition_strings_2set(X, C):
+
+
+    modified = True
+
+    while modified:
+        G_star_C, alignment_graph, converged = graphs.construct_minimizer_graph(C)
+        modified = False
+        for c1 in G_star_C.keys():
+            for c2 in G_star_C[c1].keys():
+                reads = partition[c1] + partition[c2] 
+                # rearrange the alignments of reads in partition c1 to align to the consensus in partition c2 here in a smark way..
+                # alignment_matrix, PFM = create_position_probability_matrix(m, partition) needs to be modified somehow
+                p_val = significance_test()
+                if p_val < 0.05:
+                    del G_star_C[c1]
+                    break
+                    modified = True
+        # what happens if a node c1 is removed that is a minimizer to another secuence that has not been processed in this given step? 
+        # we should do nothing in this step and wait for the new graph C to be generated
+    return C
 
 class TestFunctions(unittest.TestCase):
 
@@ -142,19 +165,46 @@ class TestFunctions(unittest.TestCase):
 
         from input_output import fasta_parser
         try:
-            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_25/simulated_pacbio_reads.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
-            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
-            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
+            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
 
             S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(fasta_file_name, 'r'))} 
         except:
-            print("test file not found:",fasta_file_name)  
+            print("test file not found:",fasta_file_name) 
+
         partition_alignments = find_candidate_transcripts(S)
         print(len(partition_alignments))
 
+    def test_three_CO(self):
+        self.maxDiff = None
 
+        from input_output import fasta_parser
+        try:
+            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
+            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
+            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
+
+            X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(fasta_file_name, 'r'))} 
+        except:
+            print("test file not found:",fasta_file_name) 
+
+        try:
+            # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
+            # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
+            # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
+
+            C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(consensus_file_name, 'r'))} 
+        except:
+            print("test file not found:",consensus_file_name) 
+        C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(consensus_file_name, 'r'))}
+        three_CO(X, C)
 
 if __name__ == '__main__':
     unittest.main()
