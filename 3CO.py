@@ -38,7 +38,6 @@ def get_partition_alignments(graph_partition, M, G_star):
     partition_alignments = {} 
     for m in M:
         indegree = 1 if m not in G_star[m] else G_star[m][m]
-        print(indegree)
         partition_alignments[m] = { m : (0, m, m, indegree) }
         if m not in exact_alignments:
             continue
@@ -55,16 +54,24 @@ def get_partition_alignments(graph_partition, M, G_star):
     return partition_alignments
 
 def find_candidate_transcripts(X):
+    """
+        input: a dictionary of reads acc : sequence
+        output: a string containing a path to a fasta formatted file with consensus_id_support as accession 
+                    and the sequence as the read
+    """ 
+
     S = X
-    # print(len(S))
+    C = {}
     unique_seq_to_acc = get_unique_seq_accessions(S)
     
     G_star, graph_partition, M, converged = partition_strings_paths(S)
-    if converged:
-        return M
-
     partition_alignments = get_partition_alignments(graph_partition, M, G_star)       
 
+    if converged:
+        for m in M:
+            N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
+            C[m] = N_t           
+        return C
 
     step = 1
     prev_edit_distances_2steps_ago = [2**28,2**28,2**28] # prevents 2-cycles
@@ -73,7 +80,7 @@ def find_candidate_transcripts(X):
     while not converged:
         print("candidates:", len(M))
         edit_distances = [ partition_alignments[s1][s2][0] for s1 in partition_alignments for s2 in partition_alignments[s1]  ] 
-
+        print("edit distances:", edit_distances) 
 
         ###### Different convergence criterion #########
 
@@ -96,7 +103,7 @@ def find_candidate_transcripts(X):
             break
         #######################################################
 
-        print("edit distances:", edit_distances)    
+   
 
         for m, partition in partition_alignments.items():
             N_t = sum([container_tuple[3] for s, container_tuple in partition.items()]) # total number of sequences in partition
@@ -157,11 +164,15 @@ def find_candidate_transcripts(X):
  
 
         G_star, graph_partition, M, converged = partition_strings_paths(S)
+        partition_alignments = get_partition_alignments(graph_partition, M, G_star)  
         if converged:
-            return M
-        partition_alignments = get_partition_alignments(graph_partition, M, G_star)        
+            for m in M:
+                N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
+                C[m] = N_t           
+            return C
+      
 
-        out_file = open("/Users/kxs624/tmp/minimizer_RBMY_44_-_constant_-_step" +  str(step) + ".fa", "w")
+        out_file = open("/Users/kxs624/tmp/minimizer_DAZ2_2_exponential_constant_0.001_step" +  str(step) + ".fa", "w")
         for i, m in enumerate(partition_alignments):
             N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
             out_file.write(">{0}\n{1}\n".format("read" + str(i)+ "_support_" + str(N_t) , m))
@@ -170,25 +181,31 @@ def find_candidate_transcripts(X):
         prev_edit_distances_2steps_ago = prev_edit_distances
         prev_edit_distances = edit_distances
     # no isolated nodes in data set makes us return here
-    return M
+    for m in M:
+        N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
+        C[m] = N_t           
+    return C
+
 
 # def three_CO(X, C = {}):
 #     if not C:
 #         C = find_candidate_transcripts(X)
 
+#     C = {c: support for c, support in C.items() if support > 3}
+
 #     partition_alignments, partition, M =  partition_strings_2set(X, C):
 
-#     modified = True
-#     changed_nodes = set()
+#     modified = set(C.keys())
+#     # changed_nodes = set(C.keys())
 
 #     while modified:
 #         G_star_C, alignment_graph, converged = graphs.construct_minimizer_graph(C)
-#         modified = False
+#         modified = set()
 #         # do not recalculate significance of an edge that has not changed,
 #         # i.e., neither c1 nor c2 has gotten new reads
 #         for c1 in G_star_C.keys():
 #             for c2 in G_star_C[c1].keys():
-#                 if c1 == c2:
+#                 if c1 not in changed_nodes and c2 not in changed_nodes:
 #                     continue
 #                 N_c2_and_c2 = len(partition[c1]) + len(partition[c2])
 #                 # Identify the \Delta positions and their cordinates in the alignment between c1 and c2 here w.r.t. the coordinates in the alignment matrix
@@ -225,7 +242,9 @@ def find_candidate_transcripts(X):
 
 #                     print("Modified!", k, N_c2_and_c2, delta, N_c1, N_c2 )
 #                     break
-#                     modified = True
+#                     modified.add(c2)
+#                 # else:
+#                 #     changed_nodes.remove()
 #         # what happens if a node c1 is removed that is a minimizer to another sequence that has not been processed in this given step? 
 #         # we should do nothing in this step and wait for the new graph C to be generated
 #     return C
@@ -237,10 +256,10 @@ class TestFunctions(unittest.TestCase):
 
         from input_output import fasta_parser
         try:
-            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
-            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
 

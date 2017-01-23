@@ -81,16 +81,16 @@ def construct_minimizer_graph(S):
 
 def construct_2set_minimizer_bipartite_graph(X, C):
     """
-        X: a dict containing original reads and their accession
-        C: a dict containing consensus transcript candidates
+        X: a string pointing to a fasta file with reads  ## a dict containing original reads and their accession
+        C: a string pointing to a fasta file with candidates  ## a dict containing consensus transcript candidates
     """
 
-    paf_file_name = map_with_minimap(targets, queries)
+    paf_file_name = minimap_alignment_module.map_with_minimap(C, X)
+    approximate_matches = minimap_alignment_module.paf_to_best_matches_2set(paf_file_name)
 
-    approximate_matches = paf_to_best_matches_2set(paf_file_name)
-    best_exact_matches = find_best_matches(approximate_matches)
+    best_exact_matches = SW_alignment_module.find_best_matches_2set(approximate_matches)
 
-    return
+    return 
 
 class TestFunctions(unittest.TestCase):
 

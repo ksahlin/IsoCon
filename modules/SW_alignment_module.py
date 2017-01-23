@@ -38,7 +38,9 @@ def sw_align_sequences(matches, single_core = False):
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
         try:
-            res = pool.map_async(ssw_alignment_helper, [(s1, s2, i,j) for j, s2 in enumerate(matches) for i, s1 in enumerate(matches[s2]) ] )
+            is this a bug or not????? start debugging here
+            res = pool.map_async(ssw_alignment_helper, [(s1, s2, i,j) for j, s1 in enumerate(matches) for i, s2 in enumerate(matches[s1]) ] )
+            # res = pool.map_async(ssw_alignment_helper, [(s1, s2, i,j) for j, s2 in enumerate(matches) for i, s1 in enumerate(matches[s2]) ] )
             alignment_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -195,7 +197,6 @@ def find_best_matches(approximate_matches):
         for s2 in exact_matches[s1]:
             s1_alignment, s2_alignment, (matches, mismatches, indels) = exact_matches[s1][s2]
             edit_distance = mismatches + indels
-
             if s1 in best_exact_matches:
                 s1_minimizer = best_exact_matches[s1].keys()[0]
                 if edit_distance < best_exact_matches[s1][s1_minimizer][0]:
@@ -217,6 +218,48 @@ def find_best_matches(approximate_matches):
             else:
                 best_exact_matches[s2] = {}
                 best_exact_matches[s2][s1] = (edit_distance, s2_alignment, s1_alignment)
-        
+    # for s1 in best_exact_matches:
+    #     for s2 in best_exact_matches[s1]:
+    #         print(best_exact_matches[s1][s2][0])
     return best_exact_matches
 
+def find_best_matches_2set(approximate_matches):
+    """
+        input: approximate_matches is a dictionary with a string as key and a list of strings as value
+        output: dictionary with a string as key and a dictionary as value. 
+                the outer dict contains the reads .
+                This inner dict dict contains a tuple (edit_distance, s1_alignment, s2_alignment) as value.
+                Each string in the inner dict has the same (lowest) edit distance to the key 
+    """
+    exact_matches = sw_align_sequences(approximate_matches, single_core = False )
+
+    # process the exact matches here
+    best_exact_matches = {}
+    for x in exact_matches:
+        for c in exact_matches[x]:
+            s1_alignment, c_alignment, (matches, mismatches, indels) = exact_matches[x][c]
+            edit_distance = mismatches + indels
+
+            if x in best_exact_matches:
+                s1_minimizer = best_exact_matches[x].keys()[0]
+                if edit_distance < best_exact_matches[x][s1_minimizer][0]:
+                    best_exact_matches[x] = {}
+                    best_exact_matches[x][c] = (edit_distance, s1_alignment, c_alignment)
+                elif edit_distance == best_exact_matches[x][s1_minimizer][0]:
+                    best_exact_matches[x][c] = (edit_distance, s1_alignment, c_alignment)
+            else:
+                best_exact_matches[x] = {}
+                best_exact_matches[x][c] = (edit_distance, s1_alignment, c_alignment)
+
+            if c in best_exact_matches:
+                c_minimizer = best_exact_matches[c].keys()[0]
+                if edit_distance < best_exact_matches[c][c_minimizer][0]:
+                    best_exact_matches[c] = {}
+                    best_exact_matches[c][x] = (edit_distance, c_alignment, s1_alignment)
+                elif edit_distance == best_exact_matches[c][c_minimizer][0]:
+                    best_exact_matches[c][x] = (edit_distance, c_alignment, s1_alignment)
+            else:
+                best_exact_matches[c] = {}
+                best_exact_matches[c][x] = (edit_distance, s2_alignment, s1_alignment)
+        
+    return best_exact_matches
