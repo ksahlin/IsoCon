@@ -6,10 +6,10 @@
 import copy
 import unittest
 import math
-from partitions import partition_strings
-from functions import create_position_probability_matrix
+from partitions import partition_strings, partition_strings_paths
+from functions import create_position_probability_matrix, transpose
 from modules import graphs
-
+from SW_alignment_module import sw_align_sequences
 
 def get_unique_seq_accessions(S):
     seq_to_acc = {}
@@ -25,14 +25,47 @@ def get_unique_seq_accessions(S):
 
     return unique_seq_to_acc
 
+def get_partition_alignments(graph_partition, M, G_star):
+    graph_partition_tranposed = {}
+
+    for m, s_set in graph_partition.items():
+        for s in s_set:
+            assert s not in graph_partition_tranposed
+            graph_partition_tranposed[s] = [m]
+    
+    exact_alignments = sw_align_sequences(graph_partition_tranposed, single_core = False)
+
+    partition_alignments = {} 
+    for m in M:
+        indegree = 1 if m not in G_star[m] else G_star[m][m]
+        print(indegree)
+        partition_alignments[m] = { m : (0, m, m, indegree) }
+        if m not in exact_alignments:
+            continue
+        else:
+            for s in exact_alignments[m]:
+                aln_m, aln_s, (matches, mismatches, indels) = exact_alignments[m][s]
+                edit_dist = mismatches + indels
+                # indegree =  1 if s not in G_star[m] else G_star[m][s]
+                # if indegree > 1:
+                #     print("Larger than 1!!", indegree)
+                partition_alignments[m][s] = (edit_dist, aln_m, aln_s, 1)
+
+    print("NR candidates:", len(partition_alignments))
+    return partition_alignments
+
 def find_candidate_transcripts(X):
     S = X
     # print(len(S))
     unique_seq_to_acc = get_unique_seq_accessions(S)
-    partition_alignments, partition, M, converged = partition_strings(S)
-
+    
+    G_star, graph_partition, M, converged = partition_strings_paths(S)
     if converged:
         return M
+
+    partition_alignments = get_partition_alignments(graph_partition, M, G_star)       
+
+
     step = 1
     prev_edit_distances_2steps_ago = [2**28,2**28,2**28] # prevents 2-cycles
     prev_edit_distances = [2**28]
@@ -74,7 +107,7 @@ def find_candidate_transcripts(X):
             #     for s in partition:
             #         print(partition_alignments[m][s][0])
             #     continue
-
+            # print(partition)
             if len(partition) > 1:
                 # all strings has not converged
                 alignment_matrix, PFM = create_position_probability_matrix(m, partition) 
@@ -119,9 +152,16 @@ def find_candidate_transcripts(X):
 
         print("Tot seqs:", len(S))
         unique_seq_to_acc = get_unique_seq_accessions(S)
-        partition_alignments, partition, M, converged = partition_strings(S)
+        # partition_alignments, partition, M, converged = partition_strings(S)
 
-        out_file = open("/Users/kxs624/tmp/minimizer_test_25_step" +  str(step) + ".fa", "w")
+ 
+
+        G_star, graph_partition, M, converged = partition_strings_paths(S)
+        if converged:
+            return M
+        partition_alignments = get_partition_alignments(graph_partition, M, G_star)        
+
+        out_file = open("/Users/kxs624/tmp/minimizer_RBMY_44_-_constant_-_step" +  str(step) + ".fa", "w")
         for i, m in enumerate(partition_alignments):
             N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
             out_file.write(">{0}\n{1}\n".format("read" + str(i)+ "_support_" + str(N_t) , m))
@@ -132,58 +172,63 @@ def find_candidate_transcripts(X):
     # no isolated nodes in data set makes us return here
     return M
 
-def three_CO(X, C = {}):
-    if not C:
-        C = find_candidate_transcripts(X)
+# def three_CO(X, C = {}):
+#     if not C:
+#         C = find_candidate_transcripts(X)
 
-    partition_alignments, partition, M =  partition_strings_2set(X, C):
+#     partition_alignments, partition, M =  partition_strings_2set(X, C):
 
-    modified = True
+#     modified = True
+#     changed_nodes = set()
 
-    while modified:
-        G_star_C, alignment_graph, converged = graphs.construct_minimizer_graph(C)
-        modified = False
-        for c1 in G_star_C.keys():
-            for c2 in G_star_C[c1].keys():
-                N_c2_and_c2 = len(partition[c1]) + len(partition[c2])
-                # Identify the \Delta positions and their cordinates in the alignment between c1 and c2 here w.r.t. the coordinates in the alignment matrix
-                # These coordinates are differenet within c1 and c2 respectively, whe need to get both for easy access
-                # Also identify their state here so that we use proper error rates
+#     while modified:
+#         G_star_C, alignment_graph, converged = graphs.construct_minimizer_graph(C)
+#         modified = False
+#         # do not recalculate significance of an edge that has not changed,
+#         # i.e., neither c1 nor c2 has gotten new reads
+#         for c1 in G_star_C.keys():
+#             for c2 in G_star_C[c1].keys():
+#                 if c1 == c2:
+#                     continue
+#                 N_c2_and_c2 = len(partition[c1]) + len(partition[c2])
+#                 # Identify the \Delta positions and their cordinates in the alignment between c1 and c2 here w.r.t. the coordinates in the alignment matrix
+#                 # These coordinates are differenet within c1 and c2 respectively, whe need to get both for easy access
+#                 # Also identify their state here so that we use proper error rates
 
-                S = 0 # the sum of reads supporting m errors
-                # calculate the individual as well as total error rates in each read here for substitutions, insertions and deletions respecively
+#                 S = 0 # the sum of reads supporting m errors
+#                 # calculate the individual as well as total error rates in each read here for substitutions, insertions and deletions respecively
 
-                for x_i in partition[c1]:
-                    e_s, e_i,e_d = .....
-                    p_i = get the probability that read i has the m = |\delta| errors here given epsilons.      
-                    # Find the number k of reads (in partition[c1] + partition[c2]) that supports the |\Delta| variants in c1.         
-                    Z_i = a binary value 1 if read i supports m errors
-                    S += Z_i
+#                 for x_i in partition[c1]:
+#                     e_s, e_i,e_d = .....
+#                     p_i = get the probability that read i has the m = |\delta| errors here given epsilons.      
+#                     # Find the number k of reads (in partition[c1] + partition[c2]) that supports the |\Delta| variants in c1.         
+#                     Z_i = a binary value 1 if read i supports m errors
+#                     S += Z_i
 
-                for x_i in partition[c2]:
-                    e_s, e_i,e_d = .....
-                    p_i = get the probability that read i has the m = |\delta| errors here given epsilons.      
-                    # Find the number k of reads (in partition[c1] + partition[c2]) that supports the |\Delta| variants in c1.         
-                    Z_i = a binary value 1 if read i supports m errors
-                    S += Z_i
+#                 for x_i in partition[c2]:
+#                     e_s, e_i,e_d = .....
+#                     p_i = get the probability that read i has the m = |\delta| errors here given epsilons.      
+#                     # Find the number k of reads (in partition[c1] + partition[c2]) that supports the |\Delta| variants in c1.         
+#                     Z_i = a binary value 1 if read i supports m errors
+#                     S += Z_i
 
-                # We send |reads| as the total read support of c2 under the null hypothesis as well as k to the statistical test here. 
-                p_val = significance_test(k, N_c2_and_c2, lambd)                
-                # rearrange the alignments of reads in partition c1 to align to the consensus in partition c2 here in a smark way..
-                # alignment_matrix, PFM = create_position_probability_matrix(m, partition) needs to be modified somehow
+#                 # We send |reads| as the total read support of c2 under the null hypothesis as well as k to the statistical test here. 
+#                 p_val = significance_test(k, N_c2_and_c2, lambd)                
+#                 # rearrange the alignments of reads in partition c1 to align to the consensus in partition c2 here in a smark way..
+#                 # alignment_matrix, PFM = create_position_probability_matrix(m, partition) needs to be modified somehow
 
-                if p_val < 0.05:
-                    del G_star_C[c1]
-                    # update partition_alignments, partition, M here!
-                    # update the individual as well as total error rates in each read here for substitutions, insertions and deletions respecively
-                    # for all the reads that has been reassigned
+#                 if p_val < 0.05:
+#                     del G_star_C[c1]
+#                     # update partition_alignments, partition, M here!
+#                     # update the individual as well as total error rates in each read here for substitutions, insertions and deletions respecively
+#                     # for all the reads that has been reassigned
 
-                    print("Modified!", k, N_c2_and_c2, delta, N_c1, N_c2 )
-                    break
-                    modified = True
-        # what happens if a node c1 is removed that is a minimizer to another sequence that has not been processed in this given step? 
-        # we should do nothing in this step and wait for the new graph C to be generated
-    return C
+#                     print("Modified!", k, N_c2_and_c2, delta, N_c1, N_c2 )
+#                     break
+#                     modified = True
+#         # what happens if a node c1 is removed that is a minimizer to another sequence that has not been processed in this given step? 
+#         # we should do nothing in this step and wait for the new graph C to be generated
+#     return C
 
 class TestFunctions(unittest.TestCase):
 
@@ -192,9 +237,10 @@ class TestFunctions(unittest.TestCase):
 
         from input_output import fasta_parser
         try:
-            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_25/simulated_pacbio_reads.fa"
+            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
-            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
             # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
 
@@ -205,33 +251,33 @@ class TestFunctions(unittest.TestCase):
         partition_alignments = find_candidate_transcripts(S)
         print(len(partition_alignments))
 
-    def test_three_CO(self):
-        self.maxDiff = None
+    # def test_three_CO(self):
+    #     self.maxDiff = None
 
-        from input_output import fasta_parser
-        try:
-            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
-            fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
-            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
-            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
-            # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
+    #     from input_output import fasta_parser
+    #     try:
+    #         # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+    #         fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
+    #         # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+    #         # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
+    #         # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
 
-            X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(fasta_file_name, 'r'))} 
-        except:
-            print("test file not found:",fasta_file_name) 
+    #         X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(fasta_file_name, 'r'))} 
+    #     except:
+    #         print("test file not found:",fasta_file_name) 
 
-        try:
-            # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
-            consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
-            # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
-            # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
-            # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
+    #     try:
+    #         # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+    #         consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
+    #         # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+    #         # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
+    #         # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
 
-            C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(consensus_file_name, 'r'))} 
-        except:
-            print("test file not found:",consensus_file_name) 
-        C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(consensus_file_name, 'r'))}
-        three_CO(X, C)
+    #         C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(consensus_file_name, 'r'))} 
+    #     except:
+    #         print("test file not found:",consensus_file_name) 
+    #     C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(consensus_file_name, 'r'))}
+    #     three_CO(X, C)
 
 if __name__ == '__main__':
     unittest.main()

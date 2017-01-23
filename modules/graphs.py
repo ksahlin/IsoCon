@@ -73,7 +73,7 @@ def construct_minimizer_graph(S):
             assert s not in G_star_transposed
             G_star[s][s] = 1
             alignment_graph[s][s] = (0, s, s)
-            print("ISOLATED")
+            # print("ISOLATED")
 
     return G_star, alignment_graph, converged
 
