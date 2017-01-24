@@ -6,6 +6,8 @@
 
 import unittest
 
+from input_output import fasta_parser
+
 from modules import SW_alignment_module
 from modules import minimap_alignment_module
 from modules import functions
@@ -87,15 +89,20 @@ def construct_2set_minimizer_bipartite_graph(X, C):
 
     # TODO: eventually filter candidates with lower support than 2-3? Here?
     paf_file_name = minimap_alignment_module.map_with_minimap(C, X)
-    highest_paf_scores = minimap_alignment_module.paf_to_best_matches_2set(paf_file_name)
-    best_exact_matches = SW_alignment_module.find_best_matches_2set(highest_paf_scores)
-
     X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(X, 'r'))} 
     C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(C, 'r'))} 
+
+    highest_paf_scores = minimap_alignment_module.paf_to_best_matches_2set(paf_file_name)
+    best_exact_matches = SW_alignment_module.find_best_matches_2set(highest_paf_scores, X, C)
+
     G_star= {}
     alignment_graph = {}
 
     for x_acc in best_exact_matches:
+        G_star[x_acc] = {}
+        alignment_graph[x_acc] = {}
+        if len(best_exact_matches[x_acc]) >1:
+            print(len(best_exact_matches[x_acc]), "best matches for read to consensus")
         for c_acc in best_exact_matches[x_acc]:
             assert c_acc not in G_star[x_acc]
             G_star[x_acc][c_acc] = 1
@@ -107,19 +114,23 @@ def construct_2set_minimizer_bipartite_graph(X, C):
     # finally, if there are x in X that is not in best_exact_matches, these x had no (decent) alignment to any of
     # the candidates, simply skip them.
 
-    print("total read:", len(X), "total reads with an alignment:", len(best_exact_matches) )
+    print("total reads:", len(X), "total reads with an alignment:", len(best_exact_matches) )
 
-    for x in X:
+    for x in X.keys():
         if x not in best_exact_matches:
             print("read missing alignment",x)
             del X[x]
 
     # also, filter out the candidates that did not get any alignments here.
     G_star_transposed = functions.transpose(G_star)
-    for c in C:
+    print("total consensus:", len(C), "total consensus with at least one alignment:", len(G_star_transposed) )
+
+    for c in C.keys():
         if c not in G_star_transposed:
             print("candidate missing hit:", c)
             del C[c]
+        else:
+            print(c, "hits:", len(G_star_transposed[c]))
 
     return G_star, alignment_graph
 

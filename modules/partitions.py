@@ -255,5 +255,6 @@ def partition_strings_2set(S, T):
 
     G_star, alignment_graph = graphs.construct_2set_minimizer_bipartite_graph(S, T)
 
+
     return partition_alignments, partition, M
 

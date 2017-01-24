@@ -22,7 +22,7 @@ def sw_align_sequences(matches, single_core = False):
                     if s2 in exact_matches[s1]:
                         continue
                 # print(s1,s2)
-                s1, s2, stats = ssw_alignment_helper( (s1, s2, i, j) )
+                s1, s2, stats = ssw_alignment_helper( ((s1, s2, i, j), {}) )
                 if stats:
                     if s1 in exact_matches:
                         exact_matches[s1][s2] = stats
@@ -38,8 +38,7 @@ def sw_align_sequences(matches, single_core = False):
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
         try:
-            res = pool.map_async(ssw_alignment_helper, [(s1, s2, i,j) for j, s1 in enumerate(matches) for i, s2 in enumerate(matches[s1]) ] )
-            # res = pool.map_async(ssw_alignment_helper, [(s1, s2, i,j) for j, s2 in enumerate(matches) for i, s1 in enumerate(matches[s2]) ] )
+            res = pool.map_async(ssw_alignment_helper, [ ((s1, s2, i,j), {}) for j, s1 in enumerate(matches) for i, s2 in enumerate(matches[s1]) ] )
             alignment_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -64,14 +63,15 @@ def sw_align_sequences(matches, single_core = False):
 
 def sw_align_sequences_keeping_accession(matches, single_core = False):
     exact_matches = {}
+
     if single_core:
-        for j, (s1_acc, s1) in enumerate(matches):
-            for i, (s2_acc, s2) in enumerate(matches[s1_acc]):
+        for j, s1_acc in enumerate(matches):
+            for i, s2_acc in enumerate(matches[s1_acc]):
+                s1, s2 = matches[s1_acc][s2_acc]
                 if s1_acc in exact_matches:
                     if s2_acc in exact_matches[s1_acc]:
                         continue
-                # print(s1,s2)
-                s1_acc, s2_acc, stats = ssw_alignment_helper( (s1, s2, i, j, x_acc=s1_acc, y_acc=s2_acc ) )
+                s1_acc, s2_acc, stats = ssw_alignment_helper( ((s1, s2, i, j), {"x_acc" : s1_acc, "y_acc" :s2_acc }) )
                 if stats:
                     if s1_acc in exact_matches:
                         exact_matches[s1_acc][s2_acc] = stats
@@ -87,8 +87,7 @@ def sw_align_sequences_keeping_accession(matches, single_core = False):
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
         try:
-            res = pool.map_async(ssw_alignment_helper, [(s1, s2, i,j, x_acc=s1_acc, y_acc=s2_acc) for j, (s1_acc, s1) in enumerate(matches.items()) for i, (s2_acc,s2) in enumerate(matches[s1_acc].items()) ] )
-            # res = pool.map_async(ssw_alignment_helper, [(s1, s2, i,j) for j, s2 in enumerate(matches) for i, s1 in enumerate(matches[s2]) ] )
+            res = pool.map_async(ssw_alignment_helper, [ ((matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j), {"x_acc": s1_acc, "y_acc" : s2_acc}) for j, s1_acc in enumerate(matches) for i, s2_acc in enumerate(matches[s1_acc]) ] )
             alignment_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -106,13 +105,15 @@ def sw_align_sequences_keeping_accession(matches, single_core = False):
                     exact_matches[s1_acc] = {}
                     exact_matches[s1_acc][s2_acc] = stats
             else:
+                print("OMG!")
+                print(len(matches[s1_acc][s2_acc][0]), len(matches[s1_acc][s2_acc][0]) )
                 pass
-
     return exact_matches
 
 
-def ssw_alignment_helper(args):
-    return ssw_alignment(*args)
+def ssw_alignment_helper(arguments):
+    args, kwargs = arguments
+    return ssw_alignment(*args, **kwargs)
 
 def ssw_alignment(x, y, i,j, ends_discrepancy_threshold = 25 , x_acc = "", y_acc = "" ):
     """
@@ -121,7 +122,7 @@ def ssw_alignment(x, y, i,j, ends_discrepancy_threshold = 25 , x_acc = "", y_acc
         y: reference
 
     """
-    if i % 10000 == 0 and j % 100 == 0:
+    if i % 10000 == 0 and j % 10 == 0:
         print("processing alignments on y_j with j={0}".format(j+1))
 
     score_matrix = ssw.DNA_ScoreMatrix(match=1, mismatch=-1)
@@ -279,7 +280,7 @@ def find_best_matches(approximate_matches):
     #         print(best_exact_matches[s1][s2][0])
     return best_exact_matches
 
-def find_best_matches_2set(highest_paf_scores):
+def find_best_matches_2set(highest_paf_scores, X, C):
     """
         input: approximate_matches is a dictionary with a string as key and a list of strings as value
         output: dictionary with a string as key and a dictionary as value. 
@@ -290,11 +291,13 @@ def find_best_matches_2set(highest_paf_scores):
 
     approximate_matches = {}
     for read_acc, best_hits in  highest_paf_scores.items():
-        approximate_matches[read_acc] = []
+        approximate_matches[read_acc] = {}
+        # print("NEW")
         for score, t_acc in best_hits:
-            approximate_matches[read_acc].append(t_acc)
-
-    exact_matches = sw_align_sequences(approximate_matches, single_core = False )
+            # print(score)
+            approximate_matches[read_acc][t_acc] = (X[read_acc], C[t_acc])
+        # print(len(approximate_matches[read_acc]))
+    exact_matches = sw_align_sequences_keeping_accession(approximate_matches, single_core = False )
 
     # process the exact matches here
     best_exact_matches = {}
@@ -310,6 +313,9 @@ def find_best_matches_2set(highest_paf_scores):
                     best_exact_matches[x_acc][c_acc] = (edit_distance, x_alignment, c_alignment)
                 elif edit_distance == best_exact_matches[x_acc][x_minimizer][0]:
                     best_exact_matches[x_acc][c_acc] = (edit_distance, x_alignment, c_alignment)
+                else:
+                    pass
+                    # print("opt:", best_exact_matches[x_acc][x_minimizer][0], "sub:", edit_distance)
             else:
                 best_exact_matches[x_acc] = {}
                 best_exact_matches[x_acc][c_acc] = (edit_distance, x_alignment, c_alignment)
@@ -324,5 +330,5 @@ def find_best_matches_2set(highest_paf_scores):
             # else:
             #     best_exact_matches[c_acc] = {}
             #     best_exact_matches[c_acc][x_acc] = (edit_distance, s2_alignment, x_alignment)
-        
+    
     return best_exact_matches
