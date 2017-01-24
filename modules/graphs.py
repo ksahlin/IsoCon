@@ -85,12 +85,47 @@ def construct_2set_minimizer_bipartite_graph(X, C):
         C: a string pointing to a fasta file with candidates  ## a dict containing consensus transcript candidates
     """
 
+    # TODO: eventually filter candidates with lower support than 2-3? Here?
     paf_file_name = minimap_alignment_module.map_with_minimap(C, X)
-    approximate_matches = minimap_alignment_module.paf_to_best_matches_2set(paf_file_name)
+    highest_paf_scores = minimap_alignment_module.paf_to_best_matches_2set(paf_file_name)
+    best_exact_matches = SW_alignment_module.find_best_matches_2set(highest_paf_scores)
 
-    best_exact_matches = SW_alignment_module.find_best_matches_2set(approximate_matches)
+    X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(X, 'r'))} 
+    C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(C, 'r'))} 
+    G_star= {}
+    alignment_graph = {}
 
-    return 
+    for x_acc in best_exact_matches:
+        for c_acc in best_exact_matches[x_acc]:
+            assert c_acc not in G_star[x_acc]
+            G_star[x_acc][c_acc] = 1
+            (edit_distance, x_alignment, c_alignment) = best_exact_matches[x_acc][c_acc]
+            alignment_graph[x_acc][c_acc] = (edit_distance, x_alignment, c_alignment)
+
+
+
+    # finally, if there are x in X that is not in best_exact_matches, these x had no (decent) alignment to any of
+    # the candidates, simply skip them.
+
+    print("total read:", len(X), "total reads with an alignment:", len(best_exact_matches) )
+
+    for x in X:
+        if x not in best_exact_matches:
+            print("read missing alignment",x)
+            del X[x]
+
+    # also, filter out the candidates that did not get any alignments here.
+    G_star_transposed = functions.transpose(G_star)
+    for c in C:
+        if c not in G_star_transposed:
+            print("candidate missing hit:", c)
+            del C[c]
+
+    return G_star, alignment_graph
+
+
+
+
 
 class TestFunctions(unittest.TestCase):
 
