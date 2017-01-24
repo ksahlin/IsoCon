@@ -26,14 +26,14 @@ def get_unique_seq_accessions(S):
     return unique_seq_to_acc
 
 def get_partition_alignments(graph_partition, M, G_star):
-    graph_partition_tranposed = {}
+    # graph_partition_tranposed = {}
 
-    for m, s_set in graph_partition.items():
-        for s in s_set:
-            assert s not in graph_partition_tranposed
-            graph_partition_tranposed[s] = [m]
+    # for m, s_set in graph_partition.items():
+    #     for s in s_set:
+    #         assert s not in graph_partition_tranposed
+    #         graph_partition_tranposed[s] = [m]
     
-    exact_alignments = sw_align_sequences(graph_partition_tranposed, single_core = False)
+    exact_alignments = sw_align_sequences(graph_partition, single_core = False)
 
     partition_alignments = {} 
     for m in M:
@@ -52,6 +52,36 @@ def get_partition_alignments(graph_partition, M, G_star):
 
     print("NR candidates:", len(partition_alignments))
     return partition_alignments
+
+
+# def get_partition_alignments(graph_partition, M, G_star):
+#     graph_partition_tranposed = {}
+
+#     for m, s_set in graph_partition.items():
+#         for s in s_set:
+#             assert s not in graph_partition_tranposed
+#             graph_partition_tranposed[s] = [m]
+    
+#     exact_alignments = sw_align_sequences(graph_partition_tranposed, single_core = False)
+
+#     partition_alignments = {} 
+#     for m in M:
+#         indegree = 1 if m not in G_star[m] else G_star[m][m]
+#         partition_alignments[m] = { m : (0, m, m, indegree) }
+#         if m not in exact_alignments:
+#             continue
+#         else:
+#             for s in exact_alignments[m]:
+#                 aln_m, aln_s, (matches, mismatches, indels) = exact_alignments[m][s]
+#                 edit_dist = mismatches + indels
+#                 print(edit_dist)
+#                 # indegree =  1 if s not in G_star[m] else G_star[m][s]
+#                 # if indegree > 1:
+#                 #     print("Larger than 1!!", indegree)
+#                 partition_alignments[m][s] = (edit_dist, aln_m, aln_s, 1)
+
+#     print("NR candidates:", len(partition_alignments))
+#     return partition_alignments
 
 def find_candidate_transcripts(X):
     """
@@ -172,7 +202,7 @@ def find_candidate_transcripts(X):
             return C
       
 
-        out_file = open("/Users/kxs624/tmp/minimizer_DAZ2_2_exponential_constant_0.001_step" +  str(step) + ".fa", "w")
+        out_file = open("/Users/kxs624/tmp/minimizer_test_1000_step" +  str(step) + ".fa", "w")
         for i, m in enumerate(partition_alignments):
             N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
             out_file.write(">{0}\n{1}\n".format("read" + str(i)+ "_support_" + str(N_t) , m))

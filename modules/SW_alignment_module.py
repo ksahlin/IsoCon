@@ -38,7 +38,6 @@ def sw_align_sequences(matches, single_core = False):
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
         try:
-            is this a bug or not????? start debugging here
             res = pool.map_async(ssw_alignment_helper, [(s1, s2, i,j) for j, s1 in enumerate(matches) for i, s2 in enumerate(matches[s1]) ] )
             # res = pool.map_async(ssw_alignment_helper, [(s1, s2, i,j) for j, s2 in enumerate(matches) for i, s1 in enumerate(matches[s2]) ] )
             alignment_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
