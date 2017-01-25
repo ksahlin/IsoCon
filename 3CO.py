@@ -6,10 +6,12 @@
 import copy
 import unittest
 import math
-from partitions import partition_strings, partition_strings_paths, partition_strings_2set
+from partitions import partition_strings_paths, partition_strings_2set_paths
 from functions import create_position_probability_matrix, transpose
 from modules import graphs
-from SW_alignment_module import sw_align_sequences
+from SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
+from input_output import fasta_parser
+
 
 def get_unique_seq_accessions(S):
     seq_to_acc = {}
@@ -45,6 +47,7 @@ def get_partition_alignments(graph_partition, M, G_star):
 
     print("NR candidates:", len(partition_alignments))
     return partition_alignments
+
 
 
 def find_candidate_transcripts(X):
@@ -179,15 +182,71 @@ def find_candidate_transcripts(X):
     out_file.close()    
     return out_file
 
+def get_partition_alignments_2set(graph_partition, C, X, G_star):
+    partition_dict = {}
+    for c, x_hits in graph_partition.items():
+        partition_dict[c] = {}
+        for x in x_hits:
+            partition_dict[c][x] = (C[c], X[x]) 
 
-def three_CO(X, C = ""):
-    if not C:
-        C = find_candidate_transcripts(X)
+
+    exact_alignments = sw_align_sequences_keeping_accession(partition_dict, single_core = False)
+    partition_alignments = {} 
+
+    for c in exact_alignments:
+        partition_alignments[c] = {}
+        for x in exact_alignments[c]:
+            aln_c, aln_x, (matches, mismatches, indels) = exact_alignments[c][x]
+            edit_dist = mismatches + indels
+            # indegree =  1 if x not in G_star[C] else G_star[C][x]
+            # if indegree > 1:
+            #     print("Larger than 1!!", indegree)
+            partition_alignments[c][x] = (edit_dist, aln_c, aln_x, 1)
+
+    # for c in partition_alignments:
+    #     if len(partition_alignments[c]) < 1: 
+    #         del partition_alignments[c]
+    print("NR candidates with at least one hit:", len(partition_alignments))
+
+    return partition_alignments
+
+def three_CO(read_file, candidate_file = ""):
+    if not candidate_file:
+        candidate_file = find_candidate_transcripts(read_file)
+    X_file = read_file
+    C_file = candidate_file
+    X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
+    C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))} 
 
     # C = {c: support for c, support in C.items() if support > 3}
     # TODO: eventually filter candidates with lower support than 2-3? Here?
-    partition_alignments, partition, M =  partition_strings_2set(X, C)
+    G_star, graph_partition =  partition_strings_2set_paths(X, C, X_file, C_file)
+    partition_alignments = get_partition_alignments_2set(graph_partition, C, X, G_star)       
 
+
+    # if there are x in X that is not in best_exact_matches, these x had no (decent) alignment to any of
+    # the candidates, simply skip them.
+
+    print("total reads:", len(X), "total reads with an alignment:", len(G_star) )
+
+    for x in X.keys():
+        if x not in G_star:
+            print("read missing alignment",x)
+            del X[x]
+
+    # also, filter out the candidates that did not get any alignments here.
+
+    print("total consensus:", len(C), "total consensus with at least one alignment:", len(partition_alignments) )
+
+    for c in C.keys():
+        if c not in partition_alignments:
+            print("candidate missing hit:", c)
+            del C[c]
+        else:
+            print(c, "hits:", len(partition_alignments[c]))
+
+    #########################################################################################
+    sys.exit()
     modified = set(C.keys())
     # changed_nodes = set(C.keys())
 
@@ -279,8 +338,8 @@ class TestFunctions(unittest.TestCase):
             print("test file not found:",read_file_name) 
 
         try:
-            # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_200_converged.fa"
             consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
+            # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"

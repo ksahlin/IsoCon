@@ -86,6 +86,10 @@ def sw_align_sequences_keeping_accession(matches, single_core = False):
         original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
+
+        # for j, s1_acc in enumerate(matches):
+        #     for i, s2_acc in enumerate(matches[s1_acc]):
+        #         print("lool", matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j, {"x_acc": s1_acc, "y_acc" : s2_acc} ) 
         try:
             res = pool.map_async(ssw_alignment_helper, [ ((matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j), {"x_acc": s1_acc, "y_acc" : s2_acc}) for j, s1_acc in enumerate(matches) for i, s2_acc in enumerate(matches[s1_acc]) ] )
             alignment_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
@@ -105,8 +109,8 @@ def sw_align_sequences_keeping_accession(matches, single_core = False):
                     exact_matches[s1_acc] = {}
                     exact_matches[s1_acc][s2_acc] = stats
             else:
-                print("OMG!")
-                print(len(matches[s1_acc][s2_acc][0]), len(matches[s1_acc][s2_acc][0]) )
+                # print("OMG!")
+                # print(len(matches[s1_acc][s2_acc][0]), len(matches[s1_acc][s2_acc][0]) )
                 pass
     return exact_matches
 
