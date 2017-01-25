@@ -2,7 +2,8 @@
 from modules import graphs
 from modules import functions
 
-def partition_strings_paths(S):
+def partition_strings_paths(S, node_weights = {}):
+    print(node_weights)
     G_star, alignment_graph, converged = graphs.construct_minimizer_graph(S)
     unique_start_strings = set(G_star.keys())
     partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
@@ -46,10 +47,23 @@ def partition_strings_paths(S):
 
         # find node with biggest indegree
         max_indegree = -1
+        max_node_weight = -1
         for s in unmarked:
-            indegree = sum([indegree for in_nbr, indegree in G_star_transposed[s].items() if in_nbr not in marked ])
-            if indegree > max_indegree:
-                m, max_indegree = s, indegree
+            if node_weights:
+                indegree = node_weights[s] 
+                for in_nbr, indegree in G_star_transposed[s].items():
+                    if in_nbr not in marked:
+                        indegree += node_weights[in_nbr] # the number of reads aligned to a given candidate      
+
+                if indegree >= max_indegree and node_weights[s] > max_node_weight:
+                    m, max_indegree = s, indegree        
+                    max_node_weight = node_weights[s]
+
+            else:
+                indegree = sum([indegree for in_nbr, indegree in G_star_transposed[s].items() if in_nbr not in marked ])
+
+                if indegree > max_indegree:
+                    m, max_indegree = s, indegree
         # print(max_indegree, len(unmarked), len(marked))
 
         # mark all nodes leading to paths to m and remove them from unmarked set
