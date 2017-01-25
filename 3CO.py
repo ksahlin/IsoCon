@@ -210,20 +210,7 @@ def get_partition_alignments_2set(graph_partition, C, X, G_star):
 
     return partition_alignments
 
-def three_CO(read_file, candidate_file = ""):
-    if not candidate_file:
-        candidate_file = find_candidate_transcripts(read_file)
-    X_file = read_file
-    C_file = candidate_file
-    X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
-    C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))} 
-
-    # C = {c: support for c, support in C.items() if support > 3}
-    # TODO: eventually filter candidates with lower support than 2-3? Here?
-    G_star, graph_partition =  partition_strings_2set_paths(X, C, X_file, C_file)
-    partition_alignments = get_partition_alignments_2set(graph_partition, C, X, G_star)       
-
-
+def filter_C_and_X(X, C, G_star, partition):
     # if there are x in X that is not in best_exact_matches, these x had no (decent) alignment to any of
     # the candidates, simply skip them.
 
@@ -236,22 +223,42 @@ def three_CO(read_file, candidate_file = ""):
 
     # also, filter out the candidates that did not get any alignments here.
 
-    print("total consensus:", len(C), "total consensus with at least one alignment:", len(partition_alignments) )
+    print("total consensus:", len(C), "total consensus with at least one alignment:", len(partition) )
 
     for c in C.keys():
-        if c not in partition_alignments:
+        if c not in partition:
             print("candidate missing hit:", c)
             del C[c]
         else:
-            print(c, "hits:", len(partition_alignments[c]))
+            print(c, "hits:", len(partition[c]))
 
+
+def three_CO(read_file, candidate_file = ""):
+
+    ################################### PROCESS INDATA #####################################
+    if not candidate_file:
+        candidate_file = find_candidate_transcripts(read_file)
+    X_file = read_file
+    C_file = candidate_file
+    X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
+    C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))} 
+
+    # C = {c: support for c, support in C.items() if support > 3}
+    # TODO: eventually filter candidates with lower support than 2-3? Here?
+    G_star, partition =  partition_strings_2set_paths(X, C, X_file, C_file)
+    filter_C_and_X(X, C, G_star, partition)
     #########################################################################################
-    sys.exit()
-    modified = set(C.keys())
+
+
+    modified = set(partition.keys())
     # changed_nodes = set(C.keys())
 
     # while modified:
+    #     # based on how G_star is formed, we decide which reads to align to align to the candidate under the null-hypothesis
+    #     # i.e., all reads in partition[c1] + partition[c2] should be aligned to c1. After that we estimate error rates etc.
     #     G_star_C, alignment_graph, converged = graphs.construct_minimizer_graph(C)
+    #     partition_alignments = get_partition_alignments_2set(graph_partition, C, X, G_star)       
+
     #     modified = set()
     #     # do not recalculate significance of an edge that has not changed,
     #     # i.e., neither c1 nor c2 has gotten new reads
@@ -327,7 +334,7 @@ class TestFunctions(unittest.TestCase):
 
         from input_output import fasta_parser
         try:
-            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_200/simulated_pacbio_reads.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
@@ -338,7 +345,7 @@ class TestFunctions(unittest.TestCase):
             print("test file not found:",read_file_name) 
 
         try:
-            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
+            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_200_converged.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
