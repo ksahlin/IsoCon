@@ -7,7 +7,7 @@ import copy
 import unittest
 import math
 from partitions import partition_strings_paths, partition_strings_2set_paths
-from functions import create_position_probability_matrix, transpose
+from functions import create_position_probability_matrix, transpose, get_error_rates
 from modules import graphs
 from SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from input_output import fasta_parser
@@ -185,13 +185,15 @@ def find_candidate_transcripts(X):
     out_file.close()    
     return out_file
 
-def get_partition_alignments_2set(graph_partition, C, X, G_star):
+def get_partition_alignments_2set(graph_partition, C, X):
     partition_dict = {}
-    for c, x_hits in graph_partition.items():
-        partition_dict[c] = {}
+    for t, x_hits in graph_partition.items():
+        partition_dict[t] = {}
         for x in x_hits:
-            partition_dict[c][x] = (C[c], X[x]) 
-
+            if x in X: # read assigned to alignment matrix
+                partition_dict[t][x] = (C[t], X[x]) 
+            else: # a candidate we incluse to test, it needs to be aligned w.r.t. the alignment matrix
+                partition_dict[t][x] = (C[t], C[x]) 
 
     exact_alignments = sw_align_sequences_keeping_accession(partition_dict, single_core = False)
     partition_alignments = {} 
@@ -201,9 +203,6 @@ def get_partition_alignments_2set(graph_partition, C, X, G_star):
         for x in exact_alignments[c]:
             aln_c, aln_x, (matches, mismatches, indels) = exact_alignments[c][x]
             edit_dist = mismatches + indels
-            # indegree =  1 if x not in G_star[C] else G_star[C][x]
-            # if indegree > 1:
-            #     print("Larger than 1!!", indegree)
             partition_alignments[c][x] = (edit_dist, aln_c, aln_x, 1)
 
     # for c in partition_alignments:
@@ -262,9 +261,8 @@ def three_CO(read_file, candidate_file = ""):
         # G_star_C, alignment_graph, converged = graphs.construct_minimizer_graph(C)
         weights = { C[c_acc] : len(x_hits) for c_acc, x_hits in transpose(G_star).items()} 
         G_star_C, partition_of_C, M, converged = partition_strings_paths(C, node_weights = weights)
-        partition_alignments = get_partition_alignments(partition_of_C, M, G_star_C) 
         # self edges not allowed
-        print(len(C), len(partition_alignments), len(partition_of_C) )
+        print(len(C), len(partition_of_C), len(M) )
 
 
         # get all candidats that serve as null-hypothesis references and have neighbors subject to testing
@@ -304,65 +302,100 @@ def three_CO(read_file, candidate_file = ""):
         # do one reference candidate at a time, these are all modular and this loop 
         # can easily be parallellized if we break this up to a function
         for t in null_hypothesis_references_to_candidates:
-            reads_to_map = set()
-            for c in partition_alignments[t]:
+            t_acc = C_seq_to_acc[t]
+            reads_to_t = [x_acc for x_acc in  partition_of_X[t_acc] ]
+            reads_to_map = set(reads_to_t)
+            reads_to_map.update([t_acc])
+            for c in partition_of_C[t]:
                 c_acc = C_seq_to_acc[c]
-                reads_to_c = [X[x_acc] for x_acc in  partition_of_X[c_acc] ]
+                reads_to_c = [x_acc for x_acc in  partition_of_X[c_acc] ]
                 # print(type(reads_to_c))
                 reads_to_map.update(reads_to_c) 
+                reads_to_map.update([c_acc]) # ad the candidate consensus too!
             print(len(reads_to_map))
-            # all sets of positions differing to t here
 
-        # partition_alignments = get_partition_alignments_2set(partition_of_C, C, X, G_star)       
+            # create alignment matrix A of reads to t
+            graph_partition_t = {t_acc : reads_to_map }
+            partition_alignments_t = get_partition_alignments_2set(graph_partition_t, C, X)
+            alignment_matrix_to_t, PFM_to_t = create_position_probability_matrix(t, partition_alignments_t[t_acc])
+            print("done", len(alignment_matrix_to_t), "of which is candidates:", len(partition_of_C[t]))
+            N_t = len(alignment_matrix_to_t) -  len(partition_of_C[t]) - 1 # all reads minus all candidates and the reference transcript
+            print("reads N_t:", N_t)
 
-        modified = set()
-        # do not recalculate significance of an edge that has not changed,
-        # i.e., neither c1 nor c2 has gotten new reads
-        for c1 in G_star_C.keys():
-            for c2 in G_star_C[c1].keys():
-                if c1 not in changed_nodes and c2 not in changed_nodes:
-                    continue
-                N_c2_and_c2 = len(partition[c1]) + len(partition[c2])
-                # Identify the \Delta positions and their cordinates in the alignment between c1 and c2 here w.r.t. the coordinates in the alignment matrix
-                # These coordinates are differenet within c1 and c2 respectively, whe need to get both for easy access
-                # Also identify their state here so that we use proper error rates
+            # get error rates  # e_s, e_i,e_d = ..... from matrix
+            epsilon = get_error_rates(t_acc, len(t), alignment_matrix_to_t) # format: { x_acc1 : (state : prob), x_acc2 : (state, prob) ,... }
+            
+            # Get all positions in A where c and t differ, as well as the state and character
 
-                S = 0 # the sum of reads supporting m errors
-                # calculate the individual as well as total error rates in each read here for substitutions, insertions and deletions respecively
+            for c in partition_alignments[t]:
+                Delta_c = {}  # pos : (type, character)
 
-                # for x_i in partition[c1]:
-                    # e_s, e_i,e_d = .....
-                    # p_i = get the probability that read i has the m = |\delta| errors here given epsilons.      
-                    # Find the number k of reads (in partition[c1] + partition[c2]) that supports the |\Delta| variants in c1.         
-                    # Z_i = a binary value 1 if read i supports m errors
-                    # S += Z_i
+        sys.exit() 
+    #         # get number of reads k supporting the given set of variants
+    #             N = len(reads_to_map)
+    #             lambda_poisson = 0
+               
+    #             for x in read_supporting_delta:
+    #                 p_i = 0
+    #                 for delta in Delta:
+    #                     p_i *= # product of all the error probabilities in delta
+    #             lambda_poisson += p_i
+    #             p_val = significance_test(k, N , lambda_poisson)  
+    #             StatisticalTest()
+    # return C
 
-                # for x_i in partition[c2]:
-                #     e_s, e_i,e_d = .....
-                #     p_i = get the probability that read i has the m = |\delta| errors here given epsilons.      
-                #     # Find the number k of reads (in partition[c1] + partition[c2]) that supports the |\Delta| variants in c1.         
-                #     Z_i = a binary value 1 if read i supports m errors
-                #     S += Z_i
 
-                # We send |reads| as the total read support of c2 under the null hypothesis as well as k to the statistical test here. 
-                p_val = significance_test(k, N_c2_and_c2, lambd)                
-                # rearrange the alignments of reads in partition c1 to align to the consensus in partition c2 here in a smark way..
-                # alignment_matrix, PFM = create_position_probability_matrix(m, partition) needs to be modified somehow
 
-                if p_val < 0.05:
-                    del G_star_C[c1]
-                    # update partition_alignments, partition, M here!
-                    # update the individual as well as total error rates in each read here for substitutions, insertions and deletions respecively
-                    # for all the reads that has been reassigned
 
-                    print("Modified!", k, N_c2_and_c2, delta, N_c1, N_c2 )
-                    break
-                    modified.add(c2)
-                # else:
-                #     changed_nodes.remove()
-        # what happens if a node c1 is removed that is a minimizer to another sequence that has not been processed in this given step? 
-        # we should do nothing in this step and wait for the new graph C to be generated
-    return C
+
+    #     modified = set()
+    #     # do not recalculate significance of an edge that has not changed,
+    #     # i.e., neither c1 nor c2 has gotten new reads
+    #     for c1 in G_star_C.keys():
+    #         for c2 in G_star_C[c1].keys():
+    #             if c1 not in changed_nodes and c2 not in changed_nodes:
+    #                 continue
+    #             N_c2_and_c2 = len(partition[c1]) + len(partition[c2])
+    #             # Identify the \Delta positions and their cordinates in the alignment between c1 and c2 here w.r.t. the coordinates in the alignment matrix
+    #             # These coordinates are differenet within c1 and c2 respectively, whe need to get both for easy access
+    #             # Also identify their state here so that we use proper error rates
+
+    #             S = 0 # the sum of reads supporting m errors
+    #             # calculate the individual as well as total error rates in each read here for substitutions, insertions and deletions respecively
+
+    #             # for x_i in partition[c1]:
+    #                 # e_s, e_i,e_d = .....
+    #                 # p_i = get the probability that read i has the m = |\delta| errors here given epsilons.      
+    #                 # Find the number k of reads (in partition[c1] + partition[c2]) that supports the |\Delta| variants in c1.         
+    #                 # Z_i = a binary value 1 if read i supports m errors
+    #                 # S += Z_i
+
+    #             # for x_i in partition[c2]:
+    #             #     e_s, e_i,e_d = .....
+    #             #     p_i = get the probability that read i has the m = |\delta| errors here given epsilons.      
+    #             #     # Find the number k of reads (in partition[c1] + partition[c2]) that supports the |\Delta| variants in c1.         
+    #             #     Z_i = a binary value 1 if read i supports m errors
+    #             #     S += Z_i
+
+    #             # We send |reads| as the total read support of c2 under the null hypothesis as well as k to the statistical test here. 
+    #             p_val = significance_test(k, N_c2_and_c2, lambd)                
+    #             # rearrange the alignments of reads in partition c1 to align to the consensus in partition c2 here in a smark way..
+    #             # alignment_matrix, PFM = create_position_probability_matrix(m, partition) needs to be modified somehow
+
+    #             if p_val < 0.05:
+    #                 del G_star_C[c1]
+    #                 # update partition_alignments, partition, M here!
+    #                 # update the individual as well as total error rates in each read here for substitutions, insertions and deletions respecively
+    #                 # for all the reads that has been reassigned
+
+    #                 print("Modified!", k, N_c2_and_c2, delta, N_c1, N_c2 )
+    #                 break
+    #                 modified.add(c2)
+    #             # else:
+    #             #     changed_nodes.remove()
+    #     # what happens if a node c1 is removed that is a minimizer to another sequence that has not been processed in this given step? 
+    #     # we should do nothing in this step and wait for the new graph C to be generated
+    # return C
 
 class TestFunctions(unittest.TestCase):
 

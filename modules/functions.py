@@ -14,6 +14,34 @@
 import unittest
 from collections import defaultdict
 
+def get_error_rates(target_accession, segment_length, alignment_matrix):
+    epsilon = {}
+    target_alignment = alignment_matrix[target_accession]
+    
+    for q_acc in alignment_matrix:
+        if q_acc == target_accession:
+            continue
+        epsilon[q_acc] = {}
+        query_alignment = alignment_matrix[q_acc]
+        ed_i, ed_s, ed_d = 0, 0, 0
+        for j in range(len(query_alignment)):
+            q_base = query_alignment[j]
+            t_base = target_alignment[j]
+            if q_base != t_base:
+                if t_base == "-":
+                    ed_i += 1
+                elif q_base == "-":
+                    ed_d += 1
+                else:
+                    ed_s += 1
+
+
+        epsilon[q_acc]["I"] = (ed_i/float(segment_length))/3.0 
+        epsilon[q_acc]["S"] = (ed_s/float(segment_length))/4.0  
+        epsilon[q_acc]["D"] = ed_d/float(segment_length)
+        print(segment_length, ed_i, ed_s, ed_d, epsilon[q_acc]["I"], epsilon[q_acc]["S"], epsilon[q_acc]["D"])
+    return epsilon
+
 def create_position_probability_matrix(m, partition):
     """
         a partition is a dictionary of pairwise alignments for a given center m. "partition has the following
@@ -49,19 +77,19 @@ def create_position_probability_matrix(m, partition):
         partition as keys and the alignment of s_i with respect to the alignment matix.
     """
     query_to_target_positioned_dict = {}
-    for s in partition:
-        (edit_distance, m_alignment, s_alignment, degree_of_s) = partition[s]
+    for q in partition:
+        (edit_distance, m_alignment, s_alignment, degree_of_s) = partition[q]
         s_positioned, target_vector_start_position, target_vector_end_position = position_query_to_alignment(s_alignment, m_alignment, 0)
         assert target_vector_start_position == 0
         assert target_vector_end_position + 1 == 2*len(m) + 1 # vector positions are 0-indexed
-        query_to_target_positioned_dict[s] = (s_positioned, target_vector_start_position, target_vector_end_position)
+        query_to_target_positioned_dict[q] = (s_positioned, target_vector_start_position, target_vector_end_position)
 
     alignment_matrix = create_multialignment_format(query_to_target_positioned_dict, 0, 2*len(m))
 
-    # N_t = sum([container_tuple[3] for s, container_tuple in partition.items()]) # total number of sequences in partition
+    # N_t = sum([container_tuple[3] for q, container_tuple in partition.items()]) # total number of sequences in partition
     # print("total seq multiset:", N_t, "total seqs in set:", len(partition))
     PFM = []
-    for j in range(len(alignment_matrix[m])): # for each column
+    for j in range(len(alignment_matrix[q])): # for each column
         PFM.append({"A": 0, "C": 0, "G": 0, "T": 0, "-": 0})
         for s in alignment_matrix:
             nucl = alignment_matrix[s][j]
