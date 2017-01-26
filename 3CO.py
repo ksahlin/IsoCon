@@ -7,7 +7,7 @@ import copy
 import unittest
 import math
 from partitions import partition_strings_paths, partition_strings_2set_paths
-from functions import create_position_probability_matrix, transpose, get_error_rates
+from functions import create_position_probability_matrix, transpose, get_error_rates, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates
 from modules import graphs
 from SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from input_output import fasta_parser
@@ -319,19 +319,34 @@ def three_CO(read_file, candidate_file = ""):
             partition_alignments_t = get_partition_alignments_2set(graph_partition_t, C, X)
             alignment_matrix_to_t, PFM_to_t = create_position_probability_matrix(t, partition_alignments_t[t_acc])
             print("done", len(alignment_matrix_to_t), "of which is candidates:", len(partition_of_C[t]))
-            N_t = len(alignment_matrix_to_t) -  len(partition_of_C[t]) - 1 # all reads minus all candidates and the reference transcript
-            print("reads N_t:", N_t)
+
 
             # get error rates  # e_s, e_i,e_d = ..... from matrix
-            epsilon = get_error_rates(t_acc, len(t), alignment_matrix_to_t) # format: { x_acc1 : (state : prob), x_acc2 : (state, prob) ,... }
+            epsilon = get_error_rates(t_acc, len(t), alignment_matrix_to_t) # format: { x_acc1 : {state : prob}, x_acc2 : {state, prob} ,... }
             
             # Get all positions in A where c and t differ, as well as the state and character
+            candidate_accessions = set([C_seq_to_acc[c] for c in partition_of_C[t]])
+            delta_t = get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
+           
+            # get number of reads k supporting the given set of variants
+            candidate_support = get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
 
-            for c in partition_alignments[t]:
-                Delta_c = {}  # pos : (type, character)
+            for c_acc in candidate_accessions:
+                k = len(candidate_support[c_acc])
+                N_t = len(alignment_matrix_to_t) -  len(partition_of_C[t]) - 1 # all reads minus all candidates and the reference transcript
+                # print("reads N_t:", N_t)
+                lambda_poisson = 0
+                for x_acc in epsilon:
+                    x_probabilities = epsilon[x_acc]
+                    p_i = 1
+                    for pos, (state, char) in delta_t[c_acc].items():
+                        p_i *= x_probabilities[state]
+
+                    lambda_poisson += p_i
+                print("Stats parameters:", lambda_poisson, k, N_t)
+                # p_val = significance_test(k, N_t , lambda_poisson) 
 
         sys.exit() 
-    #         # get number of reads k supporting the given set of variants
     #             N = len(reads_to_map)
     #             lambda_poisson = 0
                
@@ -423,7 +438,7 @@ class TestFunctions(unittest.TestCase):
 
         from input_output import fasta_parser
         try:
-            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_200/simulated_pacbio_reads.fa"
+            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
@@ -434,7 +449,7 @@ class TestFunctions(unittest.TestCase):
             print("test file not found:",read_file_name) 
 
         try:
-            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_200_converged.fa"
+            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"

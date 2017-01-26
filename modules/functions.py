@@ -14,6 +14,52 @@
 import unittest
 from collections import defaultdict
 
+def get_supporting_reads_for_candidates(target_accession, candidate_accessions, alignment_matrix, Delta_t):
+    # candidate_support = { c : [] for c in candidate_accessions }
+    # target_alignment = alignment_matrix[target_accession]
+    candidate_support = {}
+    for c in candidate_accessions:
+        candidate_support[c] = []
+        # candidate_alignment = alignment_matrix[c]
+        for q_acc in alignment_matrix:
+            if q_acc == target_accession or q_acc in candidate_accessions:
+                continue
+
+            query_alignment = alignment_matrix[q_acc]    
+            support = 1
+            for delta in Delta_t[c]:
+                q_base = query_alignment[delta]
+                c_state, c_base = Delta_t[c][delta]
+                if q_base != c_base:
+                    support = 0
+
+            if support:
+                candidate_support[c].append(q_acc)
+        print(candidate_support[c])
+    return candidate_support
+
+def get_difference_coordinates_for_candidates(target_accession, candidate_accessions, alignment_matrix):
+    position_differences = {}
+    target_alignment = alignment_matrix[target_accession]
+    
+    for q_acc in candidate_accessions:
+        position_differences[q_acc] = {}
+        query_alignment = alignment_matrix[q_acc]
+        for j in range(len(query_alignment)):
+            q_base = query_alignment[j]
+            t_base = target_alignment[j]
+            if q_base != t_base:
+                if t_base == "-":
+                    position_differences[q_acc][j] = ("I", q_base)
+                elif q_base == "-":
+                    position_differences[q_acc][j] = ("D", q_base)
+                else:
+                    position_differences[q_acc][j] = ("S", q_base)
+
+        print("nr v:",len(position_differences[q_acc]))
+    return position_differences
+
+
 def get_error_rates(target_accession, segment_length, alignment_matrix):
     epsilon = {}
     target_alignment = alignment_matrix[target_accession]
