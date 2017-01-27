@@ -6,6 +6,9 @@
 import copy
 import unittest
 import math
+
+from scipy.stats import poisson, binom
+
 from partitions import partition_strings_paths, partition_strings_2set_paths
 from functions import create_position_probability_matrix, transpose, get_error_rates, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates
 from modules import graphs
@@ -235,8 +238,22 @@ def filter_C_and_X(X, C, G_star, partition):
             print(c, "hits:", len(partition[c]))
     return X, C
 
-def three_CO(read_file, candidate_file = ""):
+def choose(n, k):
+    """
+    A fast way to calculate binomial coefficients by Andrew Dalke (contrib).
+    """
+    if 0 <= k <= n:
+        ntok = 1
+        ktok = 1
+        for t in xrange(1, min(k, n - k) + 1):
+            ntok *= n
+            ktok *= t
+            n -= 1
+        return ntok // ktok
+    else:
+        return 0
 
+def three_CO(read_file, candidate_file = ""):
     ################################### PROCESS INDATA #####################################
     if not candidate_file:
         candidate_file = find_candidate_transcripts(read_file)
@@ -290,6 +307,9 @@ def three_CO(read_file, candidate_file = ""):
         nx.draw_networkx_edge_labels(D, pos, arrows=True, edge_labels=labels)
         nx.draw_networkx_edges(D, pos, arrows=True, edge_labels=labels)
         plt.savefig("/Users/kxs624/tmp/Graph.png", format="PNG")
+        plt.clf()
+        p_vals = []
+
         ####################################################
 
         # based on how G_star is shaped, we decide which reads to align to the candidate under the null-hypothesis
@@ -322,7 +342,8 @@ def three_CO(read_file, candidate_file = ""):
 
 
             # get error rates  # e_s, e_i,e_d = ..... from matrix
-            epsilon = get_error_rates(t_acc, len(t), alignment_matrix_to_t) # format: { x_acc1 : {state : prob}, x_acc2 : {state, prob} ,... }
+            # epsilon format: { x_acc1 : {state : prob}, x_acc2 : {state, prob} ,... }
+            epsilon = get_error_rates(t_acc, len(t), alignment_matrix_to_t) 
             
             # Get all positions in A where c and t differ, as well as the state and character
             candidate_accessions = set([C_seq_to_acc[c] for c in partition_of_C[t]])
@@ -331,11 +352,14 @@ def three_CO(read_file, candidate_file = ""):
             # get number of reads k supporting the given set of variants
             candidate_support = get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
 
+            m = len(t)
+
             for c_acc in candidate_accessions:
                 k = len(candidate_support[c_acc])
                 N_t = len(alignment_matrix_to_t) -  len(partition_of_C[t]) - 1 # all reads minus all candidates and the reference transcript
                 # print("reads N_t:", N_t)
                 lambda_poisson = 0
+                print("varinats:",delta_t[c_acc].items())
                 for x_acc in epsilon:
                     x_probabilities = epsilon[x_acc]
                     p_i = 1
@@ -343,9 +367,27 @@ def three_CO(read_file, candidate_file = ""):
                         p_i *= x_probabilities[state]
 
                     lambda_poisson += p_i
-                print("Stats parameters:", lambda_poisson, k, N_t)
-                # p_val = significance_test(k, N_t , lambda_poisson) 
+                if len(delta_t[c_acc]) < 11:
+                    m_choose_delta = choose(m, len(delta_t[c_acc])) 
+                    # print("Stats parameters:", lambda_poisson, lambda_poisson * m_choose_delta, k, N_t)
+                    # Use Bin(n,p) with Bin(len(t), lambda_poisson)??
+                    prob_delta = poisson.sf(k-1, lambda_poisson)
+                    new_lambd_mult_test = prob_delta* m_choose_delta
+                    print(prob_delta, m_choose_delta, new_lambd_mult_test)
+                    if new_lambd_mult_test <= 10:
+                        p_value = poisson.sf(0, new_lambd_mult_test)
+                    else:
+                        print("here")
+                        p_value = 1 # binom.sf(0, m_choose_delta, prob_delta)
+                    print('length of A:', m, "k:", k, "delta size:", len(delta_t[c_acc]),  "nr tests:", m_choose_delta, "lambda:", lambda_poisson, "prob_delta:", prob_delta, "new_lambd_mult_test:", new_lambd_mult_test, "p val:", p_value)
+                else:
+                    pass
+                    p_value = 1
+                p_vals.append(p_value)
 
+        print(p_vals)
+        plt.hist(p_vals)
+        plt.savefig("/Users/kxs624/tmp/p_vals.png", format="PNG")
         sys.exit() 
     #             N = len(reads_to_map)
     #             lambda_poisson = 0
