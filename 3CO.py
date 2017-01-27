@@ -169,7 +169,7 @@ def find_candidate_transcripts(X):
         G_star, graph_partition, M, converged = partition_strings_paths(S)
         partition_alignments = get_partition_alignments(graph_partition, M, G_star)  
 
-        out_file = open("/Users/kxs624/tmp/minimizer_test_1000_step" +  str(step) + ".fa", "w")
+        out_file = open("/Users/kxs624/tmp/minimizer_test_1000_step_" +  str(step) + ".fa", "w")
         for i, m in enumerate(partition_alignments):
             N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
             out_file.write(">{0}\n{1}\n".format("read" + str(i)+ "_support_" + str(N_t) , m))
@@ -271,12 +271,14 @@ def three_CO(read_file, candidate_file = ""):
     #########################################################################################
 
 
-    modified = set(partition_of_X.keys())
+    modified = True
     # changed_nodes = set(C.keys())
-
+    step = 1
     while modified:
+        modified = False
+        print("NEW STEP")
         # G_star_C, alignment_graph, converged = graphs.construct_minimizer_graph(C)
-        weights = { C[c_acc] : len(x_hits) for c_acc, x_hits in transpose(G_star).items()} 
+        weights = { C[c_acc] : len(x_hits) for c_acc, x_hits in partition_of_X.items()} 
         G_star_C, partition_of_C, M, converged = partition_strings_paths(C, node_weights = weights)
         # self edges not allowed
         print(len(C), len(partition_of_C), len(M) )
@@ -306,7 +308,7 @@ def three_CO(read_file, candidate_file = ""):
         nx.draw_networkx_nodes(D, pos, node_size=50 )
         nx.draw_networkx_edge_labels(D, pos, arrows=True, edge_labels=labels)
         nx.draw_networkx_edges(D, pos, arrows=True, edge_labels=labels)
-        plt.savefig("/Users/kxs624/tmp/Graph.png", format="PNG")
+        plt.savefig("/Users/kxs624/tmp/Graph_step_" + str(step) + ".png", format="PNG")
         plt.clf()
         p_vals = []
 
@@ -321,11 +323,14 @@ def three_CO(read_file, candidate_file = ""):
 
         # do one reference candidate at a time, these are all modular and this loop 
         # can easily be parallellized if we break this up to a function
+        C_pvals = { c : (partition_of_X[c], "not_tested") for c in partition_of_C if not partition_of_C[c]} # initialize with transcripts not tested
         for t in null_hypothesis_references_to_candidates:
             t_acc = C_seq_to_acc[t]
             reads_to_t = [x_acc for x_acc in  partition_of_X[t_acc] ]
             reads_to_map = set(reads_to_t)
             reads_to_map.update([t_acc])
+            C_pvals[t_acc] = (len(reads_to_t), -1) 
+
             for c in partition_of_C[t]:
                 c_acc = C_seq_to_acc[c]
                 reads_to_c = [x_acc for x_acc in  partition_of_X[c_acc] ]
@@ -352,8 +357,8 @@ def three_CO(read_file, candidate_file = ""):
             # get number of reads k supporting the given set of variants
             candidate_support = get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
 
+            # get p_value
             m = len(t)
-
             for c_acc in candidate_accessions:
                 k = len(candidate_support[c_acc])
                 N_t = len(alignment_matrix_to_t) -  len(partition_of_C[t]) - 1 # all reads minus all candidates and the reference transcript
@@ -382,77 +387,34 @@ def three_CO(read_file, candidate_file = ""):
                     print('length of A:', m, "k:", k, "delta size:", len(delta_t[c_acc]),  "nr tests:", m_choose_delta, "lambda:", lambda_poisson, "prob_delta:", prob_delta, "new_lambd_mult_test:", new_lambd_mult_test, "p val:", p_value)
                 else:
                     pass
-                    p_value = 1
+                    p_value = 0
                 p_vals.append(p_value)
 
+                if p_value > 0.05:
+                    modified = True
+                    del C[c_acc]
+                    partition_of_X[t_acc].update(partition_of_X[c_acc])
+                    del partition_of_X[c_acc]
+                    print("deleting:",p_value, "k:", k, "delta size:", len(delta_t[c_acc]))
+                else:
+                    C_pvals[c_acc] = (k, p_value)
+
+        print("nr candidates left:", len(C))
         print(p_vals)
         plt.hist(p_vals)
         plt.savefig("/Users/kxs624/tmp/p_vals.png", format="PNG")
-        sys.exit() 
-    #             N = len(reads_to_map)
-    #             lambda_poisson = 0
-               
-    #             for x in read_supporting_delta:
-    #                 p_i = 0
-    #                 for delta in Delta:
-    #                     p_i *= # product of all the error probabilities in delta
-    #             lambda_poisson += p_i
-    #             p_val = significance_test(k, N , lambda_poisson)  
-    #             StatisticalTest()
-    # return C
+        plt.clf()
+        step += 1
+        # sys.exit()
+ 
+    out_file = open("/Users/kxs624/tmp/final_candidates_RBMY_200_.fa", "w")
+    for c_acc, seq in C.items():
+        support, p_value = C_pvals[c_acc] 
+        out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + str(p_value) , seq))
+
+    return C
 
 
-
-
-
-    #     modified = set()
-    #     # do not recalculate significance of an edge that has not changed,
-    #     # i.e., neither c1 nor c2 has gotten new reads
-    #     for c1 in G_star_C.keys():
-    #         for c2 in G_star_C[c1].keys():
-    #             if c1 not in changed_nodes and c2 not in changed_nodes:
-    #                 continue
-    #             N_c2_and_c2 = len(partition[c1]) + len(partition[c2])
-    #             # Identify the \Delta positions and their cordinates in the alignment between c1 and c2 here w.r.t. the coordinates in the alignment matrix
-    #             # These coordinates are differenet within c1 and c2 respectively, whe need to get both for easy access
-    #             # Also identify their state here so that we use proper error rates
-
-    #             S = 0 # the sum of reads supporting m errors
-    #             # calculate the individual as well as total error rates in each read here for substitutions, insertions and deletions respecively
-
-    #             # for x_i in partition[c1]:
-    #                 # e_s, e_i,e_d = .....
-    #                 # p_i = get the probability that read i has the m = |\delta| errors here given epsilons.      
-    #                 # Find the number k of reads (in partition[c1] + partition[c2]) that supports the |\Delta| variants in c1.         
-    #                 # Z_i = a binary value 1 if read i supports m errors
-    #                 # S += Z_i
-
-    #             # for x_i in partition[c2]:
-    #             #     e_s, e_i,e_d = .....
-    #             #     p_i = get the probability that read i has the m = |\delta| errors here given epsilons.      
-    #             #     # Find the number k of reads (in partition[c1] + partition[c2]) that supports the |\Delta| variants in c1.         
-    #             #     Z_i = a binary value 1 if read i supports m errors
-    #             #     S += Z_i
-
-    #             # We send |reads| as the total read support of c2 under the null hypothesis as well as k to the statistical test here. 
-    #             p_val = significance_test(k, N_c2_and_c2, lambd)                
-    #             # rearrange the alignments of reads in partition c1 to align to the consensus in partition c2 here in a smark way..
-    #             # alignment_matrix, PFM = create_position_probability_matrix(m, partition) needs to be modified somehow
-
-    #             if p_val < 0.05:
-    #                 del G_star_C[c1]
-    #                 # update partition_alignments, partition, M here!
-    #                 # update the individual as well as total error rates in each read here for substitutions, insertions and deletions respecively
-    #                 # for all the reads that has been reassigned
-
-    #                 print("Modified!", k, N_c2_and_c2, delta, N_c1, N_c2 )
-    #                 break
-    #                 modified.add(c2)
-    #             # else:
-    #             #     changed_nodes.remove()
-    #     # what happens if a node c1 is removed that is a minimizer to another sequence that has not been processed in this given step? 
-    #     # we should do nothing in this step and wait for the new graph C to be generated
-    # return C
 
 class TestFunctions(unittest.TestCase):
 
@@ -480,7 +442,7 @@ class TestFunctions(unittest.TestCase):
 
         from input_output import fasta_parser
         try:
-            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_200/simulated_pacbio_reads.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
@@ -491,7 +453,7 @@ class TestFunctions(unittest.TestCase):
             print("test file not found:",read_file_name) 
 
         try:
-            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
+            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_200_converged.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
