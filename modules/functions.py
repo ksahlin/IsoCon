@@ -35,7 +35,7 @@ def get_supporting_reads_for_candidates(target_accession, candidate_accessions, 
 
             if support:
                 candidate_support[c].append(q_acc)
-        print(candidate_support[c])
+        # print(candidate_support[c])
     return candidate_support
 
 def get_difference_coordinates_for_candidates(target_accession, candidate_accessions, alignment_matrix):
@@ -56,7 +56,7 @@ def get_difference_coordinates_for_candidates(target_accession, candidate_access
                 else:
                     position_differences[q_acc][j] = ("S", q_base)
 
-        print("nr v:",len(position_differences[q_acc]))
+        # print("nr v:",len(position_differences[q_acc]))
     return position_differences
 
 
@@ -85,7 +85,7 @@ def get_error_rates(target_accession, segment_length, alignment_matrix):
         epsilon[q_acc]["I"] = (ed_i/float(segment_length))/3.0 
         epsilon[q_acc]["S"] = (ed_s/float(segment_length))/4.0  
         epsilon[q_acc]["D"] = ed_d/float(segment_length)
-        print(segment_length, ed_i, ed_s, ed_d, epsilon[q_acc]["I"], epsilon[q_acc]["S"], epsilon[q_acc]["D"])
+        # print(segment_length, ed_i, ed_s, ed_d, epsilon[q_acc]["I"], epsilon[q_acc]["S"], epsilon[q_acc]["D"])
     return epsilon
 
 def create_position_probability_matrix(m, partition):

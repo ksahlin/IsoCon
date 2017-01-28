@@ -58,12 +58,12 @@ def get_partition_alignments(graph_partition, M, G_star):
 
 def find_candidate_transcripts(X):
     """
-        input: a dictionary of reads acc : sequence
+        input: a string pointing to a fasta file
         output: a string containing a path to a fasta formatted file with consensus_id_support as accession 
                     and the sequence as the read
     """ 
-
-    S = X
+    S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(X, 'r'))}
+    # S = X
     C = {}
     unique_seq_to_acc = get_unique_seq_accessions(S)
     
@@ -289,7 +289,8 @@ def three_CO(read_file, candidate_file = ""):
         # candidatate in G_star_C
         null_hypothesis_references_to_candidates = [c for c in partition_of_C if partition_of_C[c] ]
         print("References in testing:", len(null_hypothesis_references_to_candidates))
-        
+        nr_of_tests_this_round = len([1 for c1 in partition_of_C for c2 in  partition_of_C[c1]])
+
         ######### just for vizualization ###############
         # D=nx.DiGraph(G_star_C)
         D=nx.DiGraph()
@@ -304,11 +305,16 @@ def three_CO(read_file, candidate_file = ""):
                 w_c2 = len(reads_to_c2)
                 D.add_edge(c2,c1, weight = str(w_c2) + "->" + str(w_c1)  )
         labels = nx.get_edge_attributes(D, 'weight')
-        pos = nx.circular_layout(D)
+        # pos = nx.circular_layout(D)
+        pos = dict()
+        XX = [c2 for c1 in partition_of_C for c2 in partition_of_C[c1] ] # have in-edges
+        YY = [c1 for c1 in partition_of_C ] # not
+        pos.update( (n, (1, 4*i)) for i, n in enumerate(XX) ) # put nodes from X at x=1
+        pos.update( (n, (2, 2*i)) for i, n in enumerate(YY) ) # put nodes from Y at x=2
         nx.draw_networkx_nodes(D, pos, node_size=50 )
         nx.draw_networkx_edge_labels(D, pos, arrows=True, edge_labels=labels)
         nx.draw_networkx_edges(D, pos, arrows=True, edge_labels=labels)
-        plt.savefig("/Users/kxs624/tmp/Graph_step_" + str(step) + ".png", format="PNG")
+        plt.savefig("/Users/kxs624/tmp/Graph_bip_1000_step_" + str(step) + ".png", format="PNG")
         plt.clf()
         p_vals = []
 
@@ -323,13 +329,12 @@ def three_CO(read_file, candidate_file = ""):
 
         # do one reference candidate at a time, these are all modular and this loop 
         # can easily be parallellized if we break this up to a function
-        C_pvals = { c : (partition_of_X[c], "not_tested") for c in partition_of_C if not partition_of_C[c]} # initialize with transcripts not tested
+        C_pvals = { C_seq_to_acc[c] : (len(partition_of_X[C_seq_to_acc[c]]), "not_tested", len(partition_of_X[C_seq_to_acc[c]]) ) for c in partition_of_C if not partition_of_C[c]} # initialize with transcripts not tested
         for t in null_hypothesis_references_to_candidates:
             t_acc = C_seq_to_acc[t]
             reads_to_t = [x_acc for x_acc in  partition_of_X[t_acc] ]
             reads_to_map = set(reads_to_t)
             reads_to_map.update([t_acc])
-            C_pvals[t_acc] = (len(reads_to_t), -1) 
 
             for c in partition_of_C[t]:
                 c_acc = C_seq_to_acc[c]
@@ -337,6 +342,8 @@ def three_CO(read_file, candidate_file = ""):
                 # print(type(reads_to_c))
                 reads_to_map.update(reads_to_c) 
                 reads_to_map.update([c_acc]) # ad the candidate consensus too!
+            
+            C_pvals[t_acc] = (len(reads_to_t), -1, len(reads_to_map)) 
             print(len(reads_to_map))
 
             # create alignment matrix A of reads to t
@@ -364,7 +371,7 @@ def three_CO(read_file, candidate_file = ""):
                 N_t = len(alignment_matrix_to_t) -  len(partition_of_C[t]) - 1 # all reads minus all candidates and the reference transcript
                 # print("reads N_t:", N_t)
                 lambda_poisson = 0
-                print("varinats:",delta_t[c_acc].items())
+                # print("varinats:",delta_t[c_acc].items())
                 for x_acc in epsilon:
                     x_probabilities = epsilon[x_acc]
                     p_i = 1
@@ -378,39 +385,40 @@ def three_CO(read_file, candidate_file = ""):
                     # Use Bin(n,p) with Bin(len(t), lambda_poisson)??
                     prob_delta = poisson.sf(k-1, lambda_poisson)
                     new_lambd_mult_test = prob_delta* m_choose_delta
-                    print(prob_delta, m_choose_delta, new_lambd_mult_test)
-                    if new_lambd_mult_test <= 10:
+                    # print(prob_delta, m_choose_delta, new_lambd_mult_test)
+                    if new_lambd_mult_test == 0:
+                        p_value = 0.0
+                    elif new_lambd_mult_test <= 10:
                         p_value = poisson.sf(0, new_lambd_mult_test)
                     else:
                         print("here")
                         p_value = 1 # binom.sf(0, m_choose_delta, prob_delta)
                     print('length of A:', m, "k:", k, "delta size:", len(delta_t[c_acc]),  "nr tests:", m_choose_delta, "lambda:", lambda_poisson, "prob_delta:", prob_delta, "new_lambd_mult_test:", new_lambd_mult_test, "p val:", p_value)
                 else:
-                    pass
                     p_value = 0
                 p_vals.append(p_value)
 
-                if p_value > 0.05:
+                if p_value > 0.05/nr_of_tests_this_round or k == 0:
                     modified = True
                     del C[c_acc]
                     partition_of_X[t_acc].update(partition_of_X[c_acc])
                     del partition_of_X[c_acc]
                     print("deleting:",p_value, "k:", k, "delta size:", len(delta_t[c_acc]))
                 else:
-                    C_pvals[c_acc] = (k, p_value)
+                    C_pvals[c_acc] = (k, p_value, N_t)
 
         print("nr candidates left:", len(C))
         print(p_vals)
         plt.hist(p_vals)
-        plt.savefig("/Users/kxs624/tmp/p_vals.png", format="PNG")
+        plt.savefig("/Users/kxs624/tmp/p_vals_step_" + str(step) +".png", format="PNG")
         plt.clf()
         step += 1
         # sys.exit()
  
-    out_file = open("/Users/kxs624/tmp/final_candidates_RBMY_200_.fa", "w")
+    out_file = open("/Users/kxs624/tmp/final_candidates_RBMY_10000_.fa", "w")
     for c_acc, seq in C.items():
-        support, p_value = C_pvals[c_acc] 
-        out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + str(p_value) , seq))
+        support, p_value, N_t = C_pvals[c_acc] 
+        out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
 
     return C
 
@@ -442,7 +450,8 @@ class TestFunctions(unittest.TestCase):
 
         from input_output import fasta_parser
         try:
-            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_200/simulated_pacbio_reads.fa"
+            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
+            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
@@ -453,7 +462,8 @@ class TestFunctions(unittest.TestCase):
             print("test file not found:",read_file_name) 
 
         try:
-            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_200_converged.fa"
+            # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
+            consensus_file_name = ""
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"

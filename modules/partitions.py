@@ -49,8 +49,8 @@ def partition_strings_paths(S, node_weights = {}):
         max_node_weight = -1
         for s in unmarked:
             if node_weights:
-                indegree = node_weights[s] 
-                for in_nbr, indegree in G_star_transposed[s].items():
+                indegree = node_weights[s]  # choose the node with the max support of reads, this is found in the node weight if specified
+                for in_nbr, edge_indegree in G_star_transposed[s].items():
                     if in_nbr not in marked:
                         indegree += node_weights[in_nbr] # the number of reads aligned to a given candidate      
 
