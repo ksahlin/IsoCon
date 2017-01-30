@@ -7,14 +7,15 @@ import copy
 import unittest
 import math
 
-from scipy.stats import poisson, binom, multinomial
+from scipy.stats import poisson, binom
 
 from partitions import partition_strings_paths, partition_strings_2set_paths, partition_strings
-from functions import create_position_probability_matrix, transpose, get_error_rates, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates
+from functions import create_position_probability_matrix, transpose, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates
 from modules import graphs
 from SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from input_output import fasta_parser
 
+from multinomial_distr import multinomial_
 
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -354,14 +355,22 @@ def three_CO(read_file, candidate_file = ""):
 
 
             candidate_accessions = set([C_seq_to_acc[c] for c in partition_of_C[t]])
-            # get error rates  # e_s, e_i,e_d = ..... from matrix
-            # epsilon format: { x_acc1 : {state : prob}, x_acc2 : {state, prob} ,... }
-            # also get base pair errors distribution (approximated as poisson)
-            epsilon, lambda_S, lambda_D, lambda_I = get_error_rates_and_lambda(t_acc, len(t), candidate_accessions, alignment_matrix_to_t) 
-            
+
             # Get all positions in A where c and t differ, as well as the state and character
             delta_t = get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
-           
+ 
+            # get error rates  # e_s, e_i,e_d = ..... from matrix
+            # epsilon format: { x_acc1 : {state : prob}, x_acc2 : {state, prob} ,... }
+            # also get base pair errors distribution (approximated as poisson), 
+            # estimate this from all positions andvariants except for the variant and position combination of the candidates
+            forbidden_positions = {} # read_acc: set(positions)
+            for c_acc in delta_t:
+                forbidden_estimation_pos_in_c = delta_t[c_acc].keys() 
+                for x_acc in partition_of_X[c_acc]:
+                    forbidden_positions[x_acc] = set(forbidden_estimation_pos_in_c)
+            epsilon, lambda_S, lambda_D, lambda_I = get_error_rates_and_lambda(t_acc, len(t), candidate_accessions, alignment_matrix_to_t, forbidden_positions) 
+            
+          
             # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
             candidate_support = get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
 
@@ -373,10 +382,57 @@ def three_CO(read_file, candidate_file = ""):
                 N_t = len(alignment_matrix_to_t) -  len(partition_of_C[t]) - 1 # all reads minus all candidates and the reference transcript
                 # print("reads N_t:", N_t)
                 # print("varinats:",delta_t[c_acc].items())
-                k_I, k_S, k_D = k, k, k
-                p_value = 0
-                # p_val = 1 - \sum_{(i,j,l) s.t., i < k_I, j < k_S , l < k_D } P(i < k_I, j < k_S , l < k_D)
-                print("lols:", multinomial.pmf([k_S, k_D, k_I, m - k_I - k_S - k_D], n=m, p=[lambda_S, lambda_D, lambda_I, 1 - lambda_S - lambda_D - lambda_I ]) )
+
+                ############################################################################################
+                ############################################################################################
+                if k == 0:
+                    p_value = 1
+                else:
+                    k_I, k_S, k_D = k, k, k
+                    p_I = poisson.sf(k_I - 1, lambda_I)  # SF defined as 1-P(S_I > k), we want 1-P(S_I >= k)
+                    p_S = poisson.sf(k_S - 1, lambda_S)
+                    p_D = poisson.sf(k_D - 1, lambda_D)
+
+                    x_S, x_D, x_I, = 0, 0, 0
+                    for pos, (state, char) in delta_t[c_acc].items():
+                        if state == "S":
+                            x_S += 1
+                        elif state == "D":
+                            x_D += 1
+                        if state == "I":
+                            x_I += 1
+
+                    # we have two independen multinomials here that we multipy in the end to get p-value. 
+                    # the first multinomial is over the base pairs in the transcript with possibilitie of states: subs, del, and match
+                    # second one is between base pairs with possibilities: ins, match
+                    # p_value = 1
+                    # p_val = 1 - \sum_{(i,j,l) s.t., i < k_I, j < k_S , l < k_D } P(i < k_I, j < k_S , l < k_D)
+                    print("lambda:", lambda_D, lambda_S, lambda_I)
+                    print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
+                    p_value = 1
+
+                    print("lols:", multinomial_( [x_S, x_D, x_I , m - x_S - x_D - x_I], [3*p_S, p_D, 4*p_I, 1 - 3*p_S - p_D - 4*p_I ]) )
+                    for i in range(x_S + 1):
+                        for j in range(x_D + 1):
+                            for l in range(x_I + 1):
+                                p_value -= multinomial_( [i, j, l, m - i - j - l], [p_S, p_D, p_I, 1 - 3*p_S - p_D - 4*p_I ]) 
+                    p_value += multinomial_( [x_S, x_D, x_I, m - x_S - x_D - x_I], [p_S, p_D, p_I, 1 - 3*p_S - p_D - 4*p_I ])
+
+                    # p_between_bp = 1
+
+                    # print("lols:", multinomial_( [x_S, x_D, x_I , m - x_S - x_D - x_I], [3*p_S, p_D, 4*p_I, 1 - 3*p_S - p_D - 4*p_I ]) )
+                    # for l in range(x_I + 1):
+                    #     p_between_bp -= multinomial_( [l, 0, 0, 0, m+1 - l], [p_I, p_I,p_I,p_I, 1 - 4*p_I ]) 
+                    # p_between_bp += multinomial_( [x_I, 0, 0, 0, m+1 - x_I], [p_I, p_I,p_I,p_I, 1 - 4*p_I ])
+                    # p_value = p_between_bp*p_on_bp
+                    print("P-VALUE:", p_value )
+
+                    p_value_bin = binom.sf(k_D - 1, m , p_D)
+                    print("P-VALUE bin:", p_value_bin )
+
+                ############################################################################################
+                ############################################################################################
+
 
                 # lambda_poisson = 0
                 # for x_acc in epsilon:
@@ -410,7 +466,7 @@ def three_CO(read_file, candidate_file = ""):
 
                 p_vals.append(p_value)
 
-                if p_value > 0.05/nr_of_tests_this_round or k == 0:
+                if p_value > 0.01/nr_of_tests_this_round or k == 0:
                     modified = True
                     del C[c_acc]
                     partition_of_X[t_acc].update(partition_of_X[c_acc])
@@ -427,7 +483,7 @@ def three_CO(read_file, candidate_file = ""):
         step += 1
         # sys.exit()
  
-    out_file = open("/Users/kxs624/tmp/final_candidates_RBMY_10000_.fa", "w")
+    out_file = open("/Users/kxs624/tmp/final_candidates_RBMY_1000_.fa", "w")
     for c_acc, seq in C.items():
         support, p_value, N_t = C_pvals[c_acc] 
         out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
@@ -463,7 +519,7 @@ class TestFunctions(unittest.TestCase):
         from input_output import fasta_parser
         try:
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
-            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_200/simulated_pacbio_reads.fa"
+            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
@@ -474,7 +530,7 @@ class TestFunctions(unittest.TestCase):
             print("test file not found:",read_file_name) 
 
         try:
-            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_200_converged.fa"
+            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
             # consensus_file_name = ""
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_final_RBMY_44_-_constant_-.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"

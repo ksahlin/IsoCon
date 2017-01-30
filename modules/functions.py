@@ -60,7 +60,7 @@ def get_difference_coordinates_for_candidates(target_accession, candidate_access
     return position_differences
 
 
-def get_error_rates_and_lambda(target_accession, segment_length, candidate_accessions, alignment_matrix):
+def get_error_rates_and_lambda(target_accession, segment_length, candidate_accessions, alignment_matrix, forbidden_positions):
     epsilon = {}
     target_alignment = alignment_matrix[target_accession]
     lambda_S, lambda_D, lambda_I = 0,0,0
@@ -72,6 +72,8 @@ def get_error_rates_and_lambda(target_accession, segment_length, candidate_acces
         epsilon[q_acc] = {}
         query_alignment = alignment_matrix[q_acc]
         ed_i, ed_s, ed_d = 0, 0, 0
+        ed_poisson_i, ed_poisson_s, ed_poisson_d = 0, 0, 0
+
         for j in range(len(query_alignment)):
             q_base = query_alignment[j]
             t_base = target_alignment[j]
@@ -83,20 +85,33 @@ def get_error_rates_and_lambda(target_accession, segment_length, candidate_acces
                 else:
                     ed_s += 1
 
+
+                if q_acc in forbidden_positions and j not in forbidden_positions[q_acc]:
+                    if t_base == "-":
+                        ed_poisson_i += 1
+                    elif q_base == "-":
+                        ed_poisson_d += 1
+                    else:
+                        ed_poisson_s += 1                 
+
+
         # here we get the probabilities for the poisson counts over each position
         if q_acc not in candidate_accessions:
-            lambda_S += ed_s
-            lambda_D += ed_d
-            lambda_i += ed_i
+            # lambda_S += ed_s
+            # lambda_D += ed_d
+            # lambda_I += ed_i
             read_depth += 1
 
 
         epsilon[q_acc]["I"] = (ed_i/float(segment_length))/4.0 
         epsilon[q_acc]["S"] = (ed_s/float(segment_length))/3.0  
         epsilon[q_acc]["D"] = ed_d/float(segment_length)
-        lambda_S = lambda_S / (float(read_depth) * segment_length * 3.0) # divisioan by 3 because we have 3 different subs, all eaqually liekly under our model 
-        lambda_D = lambda_D / (float(read_depth) * segment_length)
-        lambda_I = lambda_I / (float(read_depth) * segment_length * 4.0)  # divisioan by 4 because we have 4 different ins, all eaqually liekly under our model 
+
+
+    print(lambda_S, lambda_D, lambda_I, float(read_depth), segment_length )
+    lambda_S = ed_poisson_s / (float(segment_length) * 3.0) # divisioan by 3 because we have 3 different subs, all eaqually liekly under our model 
+    lambda_D = ed_poisson_d / float(segment_length)
+    lambda_I = ed_poisson_i / (float(segment_length) * 4.0)  # divisioan by 4 because we have 4 different ins, all eaqually liekly under our model 
 
         # print(segment_length, ed_i, ed_s, ed_d, epsilon[q_acc]["I"], epsilon[q_acc]["S"], epsilon[q_acc]["D"])
     return epsilon, lambda_S, lambda_D, lambda_I
@@ -345,6 +360,9 @@ class TestFunctions(unittest.TestCase):
 
         q, t, t_start = "ACGGCC", "ACGG--", 0
         self.assertEqual(position_query_to_alignment(q, t, t_start), (["-", "A","-", "C", "-","G","-", "G", "CC"], 0, 8) )
+
+        q, t, t_start = "AC-GA", "ACGGA", 0
+        self.assertEqual(position_query_to_alignment(q, t, t_start), (["-", "A","-", "C", "-","-","-", "G", "-", "A", "-"], 0, 10) )
 
     def test_intervals(self):
         ranges = [(0,100,'a'),(0,75,'b'),(95,150,'c'),(120,130,'d')]
