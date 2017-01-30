@@ -7,9 +7,9 @@ import copy
 import unittest
 import math
 
-from scipy.stats import poisson, binom
+from scipy.stats import poisson, binom, multinomial
 
-from partitions import partition_strings_paths, partition_strings_2set_paths
+from partitions import partition_strings_paths, partition_strings_2set_paths, partition_strings
 from functions import create_position_probability_matrix, transpose, get_error_rates, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates
 from modules import graphs
 from SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
@@ -186,7 +186,7 @@ def find_candidate_transcripts(X):
     for i, m in enumerate(partition_alignments):
         out_file.write(">{0}\n{1}\n".format("read_" + str(i)+ "_support_" + str(C[m]) , m))   
     out_file.close()    
-    return out_file
+    return out_file.name
 
 def get_partition_alignments_2set(graph_partition, C, X):
     partition_dict = {}
@@ -353,16 +353,18 @@ def three_CO(read_file, candidate_file = ""):
             print("done", len(alignment_matrix_to_t), "of which is candidates:", len(partition_of_C[t]))
 
 
+            candidate_accessions = set([C_seq_to_acc[c] for c in partition_of_C[t]])
             # get error rates  # e_s, e_i,e_d = ..... from matrix
             # epsilon format: { x_acc1 : {state : prob}, x_acc2 : {state, prob} ,... }
-            epsilon = get_error_rates(t_acc, len(t), alignment_matrix_to_t) 
+            # also get base pair errors distribution (approximated as poisson)
+            epsilon, lambda_S, lambda_D, lambda_I = get_error_rates_and_lambda(t_acc, len(t), candidate_accessions, alignment_matrix_to_t) 
             
             # Get all positions in A where c and t differ, as well as the state and character
-            candidate_accessions = set([C_seq_to_acc[c] for c in partition_of_C[t]])
             delta_t = get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
            
-            # get number of reads k supporting the given set of variants
+            # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
             candidate_support = get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
+
 
             # get p_value
             m = len(t)
@@ -370,32 +372,42 @@ def three_CO(read_file, candidate_file = ""):
                 k = len(candidate_support[c_acc])
                 N_t = len(alignment_matrix_to_t) -  len(partition_of_C[t]) - 1 # all reads minus all candidates and the reference transcript
                 # print("reads N_t:", N_t)
-                lambda_poisson = 0
                 # print("varinats:",delta_t[c_acc].items())
-                for x_acc in epsilon:
-                    x_probabilities = epsilon[x_acc]
-                    p_i = 1
-                    for pos, (state, char) in delta_t[c_acc].items():
-                        p_i *= x_probabilities[state]
+                k_I, k_S, k_D = k, k, k
+                p_value = 0
+                # p_val = 1 - \sum_{(i,j,l) s.t., i < k_I, j < k_S , l < k_D } P(i < k_I, j < k_S , l < k_D)
+                print("lols:", multinomial.pmf([k_S, k_D, k_I, m - k_I - k_S - k_D], n=m, p=[lambda_S, lambda_D, lambda_I, 1 - lambda_S - lambda_D - lambda_I ]) )
 
-                    lambda_poisson += p_i
-                if len(delta_t[c_acc]) < 11:
-                    m_choose_delta = choose(m, len(delta_t[c_acc])) 
-                    # print("Stats parameters:", lambda_poisson, lambda_poisson * m_choose_delta, k, N_t)
-                    # Use Bin(n,p) with Bin(len(t), lambda_poisson)??
-                    prob_delta = poisson.sf(k-1, lambda_poisson)
-                    new_lambd_mult_test = prob_delta* m_choose_delta
-                    # print(prob_delta, m_choose_delta, new_lambd_mult_test)
-                    if new_lambd_mult_test == 0:
-                        p_value = 0.0
-                    elif new_lambd_mult_test <= 10:
-                        p_value = poisson.sf(0, new_lambd_mult_test)
-                    else:
-                        print("here")
-                        p_value = 1 # binom.sf(0, m_choose_delta, prob_delta)
-                    print('length of A:', m, "k:", k, "delta size:", len(delta_t[c_acc]),  "nr tests:", m_choose_delta, "lambda:", lambda_poisson, "prob_delta:", prob_delta, "new_lambd_mult_test:", new_lambd_mult_test, "p val:", p_value)
-                else:
-                    p_value = 0
+                # lambda_poisson = 0
+                # for x_acc in epsilon:
+                #     x_probabilities = epsilon[x_acc]
+                #     p_i = 1
+                #     for pos, (state, char) in delta_t[c_acc].items():
+                #         p_i *= x_probabilities[state]
+
+                #     lambda_poisson += p_i
+                # if len(delta_t[c_acc]) < 11:
+                #     m_choose_delta = choose(m, len(delta_t[c_acc])) # number of position combinations where delta could happen
+                #     # Nt_choose_k = choose(N_t, k) # possible combinations of k reads where the matches between N_t reads could occur
+                #     # print("Stats parameters:", lambda_poisson, lambda_poisson * m_choose_delta, k, N_t)
+                #     # Use Bin(n,p) with Bin(len(t), lambda_poisson)??
+                #     prob_delta = poisson.sf(k-1, lambda_poisson)
+                    
+
+
+                #     multi_corrected_lambda = prob_delta* m_choose_delta   #*Nt_choose_k
+                #     # print(prob_delta, m_choose_delta, multi_corrected_lambda)
+                #     # if multi_corrected_lambda == 0:
+                #     p_value = multi_corrected_lambda
+                #     # elif multi_corrected_lambda <= 10:
+                #     #     p_value = poisson.sf(0, multi_corrected_lambda)
+                #     # else:
+                #     #     print("here")
+                #     #     p_value = 1 # binom.sf(0, m_choose_delta, prob_delta)
+                #     print('length of A:', m, "k:", k, "delta size:", len(delta_t[c_acc]),  "nr support pos:", m_choose_delta, "lambda:", lambda_poisson, "prob_delta:", prob_delta, "p val:", p_value)
+                # else:
+                #     p_value = 0
+
                 p_vals.append(p_value)
 
                 if p_value > 0.05/nr_of_tests_this_round or k == 0:
@@ -450,8 +462,8 @@ class TestFunctions(unittest.TestCase):
 
         from input_output import fasta_parser
         try:
-            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
-            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
+            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_200/simulated_pacbio_reads.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
@@ -462,9 +474,9 @@ class TestFunctions(unittest.TestCase):
             print("test file not found:",read_file_name) 
 
         try:
-            # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
-            consensus_file_name = ""
-            # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
+            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_200_converged.fa"
+            # consensus_file_name = ""
+            # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_final_RBMY_44_-_constant_-.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"

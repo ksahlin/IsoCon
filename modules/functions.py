@@ -60,10 +60,12 @@ def get_difference_coordinates_for_candidates(target_accession, candidate_access
     return position_differences
 
 
-def get_error_rates(target_accession, segment_length, alignment_matrix):
+def get_error_rates_and_lambda(target_accession, segment_length, candidate_accessions, alignment_matrix):
     epsilon = {}
     target_alignment = alignment_matrix[target_accession]
-    
+    lambda_S, lambda_D, lambda_I = 0,0,0
+    read_depth = 0
+
     for q_acc in alignment_matrix:
         if q_acc == target_accession:
             continue
@@ -81,12 +83,23 @@ def get_error_rates(target_accession, segment_length, alignment_matrix):
                 else:
                     ed_s += 1
 
+        # here we get the probabilities for the poisson counts over each position
+        if q_acc not in candidate_accessions:
+            lambda_S += ed_s
+            lambda_D += ed_d
+            lambda_i += ed_i
+            read_depth += 1
 
-        epsilon[q_acc]["I"] = (ed_i/float(segment_length))/3.0 
-        epsilon[q_acc]["S"] = (ed_s/float(segment_length))/4.0  
+
+        epsilon[q_acc]["I"] = (ed_i/float(segment_length))/4.0 
+        epsilon[q_acc]["S"] = (ed_s/float(segment_length))/3.0  
         epsilon[q_acc]["D"] = ed_d/float(segment_length)
+        lambda_S = lambda_S / (float(read_depth) * segment_length * 3.0) # divisioan by 3 because we have 3 different subs, all eaqually liekly under our model 
+        lambda_D = lambda_D / (float(read_depth) * segment_length)
+        lambda_I = lambda_I / (float(read_depth) * segment_length * 4.0)  # divisioan by 4 because we have 4 different ins, all eaqually liekly under our model 
+
         # print(segment_length, ed_i, ed_s, ed_d, epsilon[q_acc]["I"], epsilon[q_acc]["S"], epsilon[q_acc]["D"])
-    return epsilon
+    return epsilon, lambda_S, lambda_D, lambda_I
 
 def create_position_probability_matrix(m, partition):
     """
