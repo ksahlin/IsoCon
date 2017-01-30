@@ -368,6 +368,9 @@ def three_CO(read_file, candidate_file = ""):
                 forbidden_estimation_pos_in_c = delta_t[c_acc].keys() 
                 for x_acc in partition_of_X[c_acc]:
                     forbidden_positions[x_acc] = set(forbidden_estimation_pos_in_c)
+            for x_acc in partition_of_X[t_acc]:
+                forbidden_positions[x_acc] = set([])
+            forbidden_positions[t_acc] = set([])
             epsilon, lambda_S, lambda_D, lambda_I = get_error_rates_and_lambda(t_acc, len(t), candidate_accessions, alignment_matrix_to_t, forbidden_positions) 
             
           

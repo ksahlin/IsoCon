@@ -65,14 +65,14 @@ def get_error_rates_and_lambda(target_accession, segment_length, candidate_acces
     target_alignment = alignment_matrix[target_accession]
     lambda_S, lambda_D, lambda_I = 0,0,0
     read_depth = 0
-
+    ed_poisson_i, ed_poisson_s, ed_poisson_d = 0, 0, 0
+    
     for q_acc in alignment_matrix:
         if q_acc == target_accession:
             continue
         epsilon[q_acc] = {}
         query_alignment = alignment_matrix[q_acc]
         ed_i, ed_s, ed_d = 0, 0, 0
-        ed_poisson_i, ed_poisson_s, ed_poisson_d = 0, 0, 0
 
         for j in range(len(query_alignment)):
             q_base = query_alignment[j]
@@ -85,14 +85,20 @@ def get_error_rates_and_lambda(target_accession, segment_length, candidate_acces
                 else:
                     ed_s += 1
 
+        if q_acc in candidate_accessions:
+            continue   
 
-                if q_acc in forbidden_positions and j not in forbidden_positions[q_acc]:
-                    if t_base == "-":
-                        ed_poisson_i += 1
-                    elif q_base == "-":
-                        ed_poisson_d += 1
-                    else:
-                        ed_poisson_s += 1                 
+        # get poisson counts on all positions except positions in reads associated to a candidate where the candidate has a variant
+        forbidden = forbidden_positions[q_acc]
+        for j in range(len(query_alignment)):
+            if j not in forbidden:
+                if t_base == "-":
+                    ed_poisson_i += 1
+                elif q_base == "-":
+                    ed_poisson_d += 1
+                else:
+                    ed_poisson_s += 1      
+
 
 
         # here we get the probabilities for the poisson counts over each position
