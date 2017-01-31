@@ -183,7 +183,7 @@ def find_candidate_transcripts(X):
     for m in M:
         N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
         C[m] = N_t    
-    out_file = open("/Users/kxs624/tmp/minimizer_test_1000_converged.fa", "w")
+    out_file = open("/Users/kxs624/tmp/TSPY13P_2_constant_constant_0.0001_converged.fa", "w")
     for i, m in enumerate(partition_alignments):
         out_file.write(">{0}\n{1}\n".format("read_" + str(i)+ "_support_" + str(C[m]) , m))   
     out_file.close()    
@@ -429,7 +429,7 @@ def three_CO(read_file, candidate_file = ""):
                     elif x_S + x_D + x_I > 20 and (p_I + p_D + p_S)*m < 10 :
                         # approximate with poisson
                         lambda_prob = p_I + p_D + p_S
-                        print("LOOOOL approx:")
+                        print("LOOOOL poisson approx:")
                         print("lambda:", lambda_D, lambda_S, lambda_I)
                         print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
                         p_value = poisson.sf(x_S + x_D + x_I - 1, lambda_prob)
@@ -500,7 +500,13 @@ def three_CO(read_file, candidate_file = ""):
                 #     print('length of A:', m, "k:", k, "delta size:", len(delta_t[c_acc]),  "nr support pos:", m_choose_delta, "lambda:", lambda_poisson, "prob_delta:", prob_delta, "p val:", p_value)
                 # else:
                 #     p_value = 0
-
+                if math.isnan(p_value):
+                    print("LOOOOL math is nan!:")
+                    print("lambda:", lambda_D, lambda_S, lambda_I)
+                    print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
+                    print("Approx p-val: ", p_value)
+                    print("lengths:", len(t), len(C[c_acc]))
+                    sys.exit()
                 p_vals.append(p_value)
 
                 if p_value > 0.05/nr_of_tests_this_round or k == 0:
@@ -520,7 +526,7 @@ def three_CO(read_file, candidate_file = ""):
         step += 1
         # sys.exit()
  
-    out_file = open("/Users/kxs624/tmp/final_candidates_RBMY_1000_.fa", "w")
+    out_file = open("/Users/kxs624/tmp/final_candidates_TSPY13P_2_constant_constant_0.0001.fa", "w")
     for c_acc, seq in C.items():
         support, p_value, N_t = C_pvals[c_acc] 
         out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
@@ -556,9 +562,9 @@ class TestFunctions(unittest.TestCase):
         from input_output import fasta_parser
         try:
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
-            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
-            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
 
@@ -567,8 +573,8 @@ class TestFunctions(unittest.TestCase):
             print("test file not found:",read_file_name) 
 
         try:
-            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
-            # consensus_file_name = ""
+            # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
+            consensus_file_name = ""
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_final_RBMY_44_-_constant_-.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"

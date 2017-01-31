@@ -7,7 +7,7 @@ import subprocess
 import gzip
 import heapq
 from collections import defaultdict
-
+import math
 
 def paf_to_best_matches_2set(paf_file_path):
     """
@@ -96,7 +96,7 @@ def paf_to_best_matches(paf_files, acc_to_strings):
 
                 n_min = int(row_info[12].split(":")[-1])
                 #   \frac{\min \{ |q|, |t| \} } {\max \{ |q|,|t| \} }  n^{\text{minimizers}}
-                paf_similarity_score = n_min * min(q_len, t_len)/float(max(q_len, t_len))
+                paf_similarity_score = math.sqrt(n_min) * min(q_len, t_len)/float(max(q_len, t_len))
 
                 if len(highest_paf_scores[q_acc]) >= 5:
                     # current alignment is better than at least one of previous scores, remove the worst one so far
