@@ -60,10 +60,10 @@ def get_difference_coordinates_for_candidates(target_accession, candidate_access
     return position_differences
 
 
-def get_error_rates_and_lambda(target_accession, segment_length, candidate_accessions, alignment_matrix, forbidden_positions):
+def get_error_rates_and_lambda(target_accession, segment_length, candidate_accessions, alignment_matrix, forbidden_positions, x_to_c_acc):
     epsilon = {}
     target_alignment = alignment_matrix[target_accession]
-    lambda_S, lambda_D, lambda_I = 0,0,0
+    # lambda_S, lambda_D, lambda_I = 0,0,0
     read_depth = 0
     ed_poisson_i, ed_poisson_s, ed_poisson_d = 0, 0, 0
     
@@ -89,9 +89,13 @@ def get_error_rates_and_lambda(target_accession, segment_length, candidate_acces
             continue   
 
         # get poisson counts on all positions except positions in reads associated to a candidate where the candidate has a variant
-        forbidden = forbidden_positions[q_acc]
+        # forbidden = forbidden_positions[q_acc]
         for j in range(len(query_alignment)):
-            if j not in forbidden:
+            candidate_alignment = alignment_matrix[x_to_c_acc[q_acc]]
+            # if j not in forbidden:
+            q_base = query_alignment[j]
+            t_base = candidate_alignment[j]
+            if q_base != t_base:
                 if t_base == "-":
                     ed_poisson_i += 1
                 elif q_base == "-":
@@ -114,7 +118,7 @@ def get_error_rates_and_lambda(target_accession, segment_length, candidate_acces
         epsilon[q_acc]["D"] = ed_d/float(segment_length)
 
 
-    print(lambda_S, lambda_D, lambda_I, float(read_depth), segment_length )
+    print(ed_poisson_s, ed_poisson_d, ed_poisson_i, float(read_depth), segment_length )
     lambda_S = ed_poisson_s / (float(segment_length) * 3.0) # divisioan by 3 because we have 3 different subs, all eaqually liekly under our model 
     lambda_D = ed_poisson_d / float(segment_length)
     lambda_I = ed_poisson_i / (float(segment_length) * 4.0)  # divisioan by 4 because we have 4 different ins, all eaqually liekly under our model 

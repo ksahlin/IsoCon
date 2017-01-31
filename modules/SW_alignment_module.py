@@ -45,7 +45,7 @@ def sw_align_sequences(matches, single_core = False):
             pool.terminate()
             sys.exit()
         else:
-            print("Normal termination")
+            # print("Normal termination")
             pool.close()
         pool.join()
         for s1, s2, stats in alignment_results:
@@ -98,7 +98,7 @@ def sw_align_sequences_keeping_accession(matches, single_core = False):
             pool.terminate()
             sys.exit()
         else:
-            print("Normal termination")
+            # print("Normal termination")
             pool.close()
         pool.join()
         for s1_acc, s2_acc, stats in alignment_results:

@@ -7,7 +7,7 @@ import copy
 import unittest
 import math
 
-from scipy.stats import poisson, binom
+from scipy.stats import poisson, binom, norm
 
 from partitions import partition_strings_paths, partition_strings_2set_paths, partition_strings
 from functions import create_position_probability_matrix, transpose, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates
@@ -364,6 +364,14 @@ def three_CO(read_file, candidate_file = ""):
             # also get base pair errors distribution (approximated as poisson), 
             # estimate this from all positions andvariants except for the variant and position combination of the candidates
             forbidden_positions = {} # read_acc: set(positions)
+            x_to_c_acc = {}
+            for c_acc in candidate_accessions:
+                for x_acc in partition_of_X[c_acc]:
+                    x_to_c_acc[x_acc] = c_acc
+
+            for x_acc in partition_of_X[t_acc]:
+                x_to_c_acc[x_acc] = t_acc
+
             for c_acc in delta_t:
                 forbidden_estimation_pos_in_c = delta_t[c_acc].keys() 
                 for x_acc in partition_of_X[c_acc]:
@@ -371,7 +379,7 @@ def three_CO(read_file, candidate_file = ""):
             for x_acc in partition_of_X[t_acc]:
                 forbidden_positions[x_acc] = set([])
             forbidden_positions[t_acc] = set([])
-            epsilon, lambda_S, lambda_D, lambda_I = get_error_rates_and_lambda(t_acc, len(t), candidate_accessions, alignment_matrix_to_t, forbidden_positions) 
+            epsilon, lambda_S, lambda_D, lambda_I = get_error_rates_and_lambda(t_acc, len(t), candidate_accessions, alignment_matrix_to_t, forbidden_positions, x_to_c_acc) 
             
           
             # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
@@ -388,7 +396,7 @@ def three_CO(read_file, candidate_file = ""):
 
                 ############################################################################################
                 ############################################################################################
-                if k == 0:
+                if k <= 1:
                     p_value = 1
                 else:
                     k_I, k_S, k_D = k, k, k
@@ -396,7 +404,7 @@ def three_CO(read_file, candidate_file = ""):
                     p_S = poisson.sf(k_S - 1, lambda_S)
                     p_D = poisson.sf(k_D - 1, lambda_D)
 
-                    x_S, x_D, x_I, = 0, 0, 0
+                    x_S, x_D, x_I = 0, 0, 0
                     for pos, (state, char) in delta_t[c_acc].items():
                         if state == "S":
                             x_S += 1
@@ -405,38 +413,64 @@ def three_CO(read_file, candidate_file = ""):
                         if state == "I":
                             x_I += 1
 
-                    # we have two independen multinomials here that we multipy in the end to get p-value. 
-                    # the first multinomial is over the base pairs in the transcript with possibilitie of states: subs, del, and match
-                    # second one is between base pairs with possibilities: ins, match
-                    # p_value = 1
-                    # p_val = 1 - \sum_{(i,j,l) s.t., i < k_I, j < k_S , l < k_D } P(i < k_I, j < k_S , l < k_D)
-                    print("lambda:", lambda_D, lambda_S, lambda_I)
-                    print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
-                    p_value = 1
+                    # add special case if: k>1 but probabilities get too big here and delta is big or small.., then just say p_value = 1
+                    if x_S + x_D + x_I > 20 and (p_I + p_D + p_S)*m >= 10 :
+                        # approximate with normal
+                        p_bin = (p_I + p_D + p_S)
+                        mu = p_bin*m
+                        sigma = math.sqrt( (1 - p_bin)* p_bin*m )
+                        norm.sf(x_S + x_D + x_I , loc=mu , scale=sigma)
+                        print("LOOOOL NORMAL approx:")
+                        print("lambda:", lambda_D, lambda_S, lambda_I)
+                        print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
+                        p_value = poisson.sf(x_S + x_D + x_I - 1, lambda_prob)
+                        print("Approx p-val: ", p_value)
+                        print("lengths:", len(t), len(C[c_acc]))
+                    elif x_S + x_D + x_I > 20 and (p_I + p_D + p_S)*m < 10 :
+                        # approximate with poisson
+                        lambda_prob = p_I + p_D + p_S
+                        print("LOOOOL approx:")
+                        print("lambda:", lambda_D, lambda_S, lambda_I)
+                        print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
+                        p_value = poisson.sf(x_S + x_D + x_I - 1, lambda_prob)
+                        print("Approx p-val: ", p_value)
+                        print("lengths:", len(t), len(C[c_acc]))
 
-                    print("lols:", multinomial_( [x_S, x_D, x_I , m - x_S - x_D - x_I], [3*p_S, p_D, 4*p_I, 1 - 3*p_S - p_D - 4*p_I ]) )
-                    for i in range(x_S + 1):
-                        for j in range(x_D + 1):
-                            for l in range(x_I + 1):
-                                p_value -= multinomial_( [i, j, l, m - i - j - l], [p_S, p_D, p_I, 1 - 3*p_S - p_D - 4*p_I ]) 
-                    p_value += multinomial_( [x_S, x_D, x_I, m - x_S - x_D - x_I], [p_S, p_D, p_I, 1 - 3*p_S - p_D - 4*p_I ])
+                    else:
+                        #exact!
+                        # p_val = 1 - \sum_{(i,j,l) s.t., i < k_I, j < k_S , l < k_D } P(i < k_I, j < k_S , l < k_D)
+                        # print("lambda:", lambda_D, lambda_S, lambda_I)
+                        # print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
+                        p_value = 1
 
-                    # p_between_bp = 1
+                        # print("lols:", multinomial_( [x_S, x_D, x_I , m - x_S - x_D - x_I], [3*p_S, p_D, 4*p_I, 1 - 3*p_S - p_D - 4*p_I ]) )
+                        for i in range(x_S + 1):
+                            for j in range(x_D + 1):
+                                for l in range(x_I + 1):
+                                    p_value -= multinomial_( [i, j, l, m - i - j - l], [p_S, p_D, p_I, 1 - 3*p_S - p_D - 4*p_I ]) 
+                        p_value += multinomial_( [x_S, x_D, x_I, m - x_S - x_D - x_I], [p_S, p_D, p_I, 1 - 3*p_S - p_D - 4*p_I ])
 
-                    # print("lols:", multinomial_( [x_S, x_D, x_I , m - x_S - x_D - x_I], [3*p_S, p_D, 4*p_I, 1 - 3*p_S - p_D - 4*p_I ]) )
-                    # for l in range(x_I + 1):
-                    #     p_between_bp -= multinomial_( [l, 0, 0, 0, m+1 - l], [p_I, p_I,p_I,p_I, 1 - 4*p_I ]) 
-                    # p_between_bp += multinomial_( [x_I, 0, 0, 0, m+1 - x_I], [p_I, p_I,p_I,p_I, 1 - 4*p_I ])
-                    # p_value = p_between_bp*p_on_bp
-                    print("P-VALUE:", p_value )
+                        # p_between_bp = 1
 
-                    p_value_bin = binom.sf(k_D - 1, m , p_D)
-                    print("P-VALUE bin:", p_value_bin )
+                        # print("lols:", multinomial_( [x_S, x_D, x_I , m - x_S - x_D - x_I], [3*p_S, p_D, 4*p_I, 1 - 3*p_S - p_D - 4*p_I ]) )
+                        # for l in range(x_I + 1):
+                        #     p_between_bp -= multinomial_( [l, 0, 0, 0, m+1 - l], [p_I, p_I,p_I,p_I, 1 - 4*p_I ]) 
+                        # p_between_bp += multinomial_( [x_I, 0, 0, 0, m+1 - x_I], [p_I, p_I,p_I,p_I, 1 - 4*p_I ])
+                        # p_value = p_between_bp*p_on_bp
+                        # print("P-VALUE:", p_value )
+
+                        # p_value_bin = binom.sf(k_D - 1, m , p_D)
+                        # print("P-VALUE bin:", p_value_bin )
 
                 ############################################################################################
                 ############################################################################################
-
-
+                    if c_acc == "read_62_support_7":
+                        print("HEEEERE!!!")
+                        print("P-VALUE:", p_value )
+                        print("reads N_t:", N_t)
+                        print("lambda:", lambda_D, lambda_S, lambda_I)
+                        print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
+                        # sys.exit()
                 # lambda_poisson = 0
                 # for x_acc in epsilon:
                 #     x_probabilities = epsilon[x_acc]
@@ -469,7 +503,7 @@ def three_CO(read_file, candidate_file = ""):
 
                 p_vals.append(p_value)
 
-                if p_value > 0.01/nr_of_tests_this_round or k == 0:
+                if p_value > 0.05/nr_of_tests_this_round or k == 0:
                     modified = True
                     del C[c_acc]
                     partition_of_X[t_acc].update(partition_of_X[c_acc])
