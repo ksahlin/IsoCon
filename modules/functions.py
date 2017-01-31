@@ -14,17 +14,19 @@
 import unittest
 from collections import defaultdict
 
-def get_supporting_reads_for_candidates(target_accession, candidate_accessions, alignment_matrix, Delta_t):
+def get_supporting_reads_for_candidates(target_accession, candidate_accessions, alignment_matrix, Delta_t, partition_of_X):
     # candidate_support = { c : [] for c in candidate_accessions }
     # target_alignment = alignment_matrix[target_accession]
     candidate_support = {}
     for c in candidate_accessions:
         candidate_support[c] = []
-        # candidate_alignment = alignment_matrix[c]
-        for q_acc in alignment_matrix:
-            if q_acc == target_accession or q_acc in candidate_accessions:
-                continue
 
+        # candidate_alignment = alignment_matrix[c]
+        # for q_acc in alignment_matrix:
+        #     if q_acc == target_accession or q_acc in candidate_accessions:
+        #         continue
+
+        for q_acc in partition_of_X[c]:
             query_alignment = alignment_matrix[q_acc]    
             support = 1
             for delta in Delta_t[c]:
@@ -91,10 +93,11 @@ def get_error_rates_and_lambda(target_accession, segment_length, candidate_acces
         # get poisson counts on all positions except positions in reads associated to a candidate where the candidate has a variant
         # forbidden = forbidden_positions[q_acc]
         for j in range(len(query_alignment)):
-            candidate_alignment = alignment_matrix[x_to_c_acc[q_acc]]
+            target_alignment = alignment_matrix[target_accession]
+            # candidate_alignment = alignment_matrix[x_to_c_acc[q_acc]]
             # if j not in forbidden:
             q_base = query_alignment[j]
-            t_base = candidate_alignment[j]
+            t_base = target_alignment[j]
             if q_base != t_base:
                 if t_base == "-":
                     ed_poisson_i += 1

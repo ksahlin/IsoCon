@@ -2,8 +2,8 @@
 from modules import graphs
 from modules import functions
 
-def partition_strings_paths(S, node_weights = {}):
-    G_star, alignment_graph, converged = graphs.construct_minimizer_graph(S)
+def partition_strings_paths(S, node_weights = {}, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
+    G_star, alignment_graph, converged = graphs.construct_minimizer_graph(S, edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold)
     unique_start_strings = set(G_star.keys())
     partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
 
@@ -104,9 +104,11 @@ def partition_strings_paths(S, node_weights = {}):
     partition_sequences = set()
     for m in partition:
         partition_sequences.add(m)
-        # print("partition size:", len(partition[m]))
+        print("partition size:", len(partition[m]))
+        print(len(m))
         for s in  partition[m]:
             partition_sequences.add(s)
+            print(len(s))
     # if the total number of lengths in partition is equal to the original number of strings in s
     # and the number of unique strings in Partition is the same as in S, then partition is a proper partition S
     # That is, there are no bugs.

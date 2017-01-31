@@ -12,7 +12,7 @@ from modules import minimap_alignment_module
 from modules import functions
 
 
-def construct_minimizer_graph(S):
+def construct_minimizer_graph(S,  edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
 
     """
         input: a dict of strings, not necesarily unique
@@ -49,7 +49,7 @@ def construct_minimizer_graph(S):
     paf_files, acc_to_strings = minimap_alignment_module.minimap_partition(unique_strings, not_in_clusters)
 
     approximate_matches = minimap_alignment_module.paf_to_best_matches(paf_files, acc_to_strings)
-    best_exact_matches = SW_alignment_module.find_best_matches(approximate_matches)
+    best_exact_matches = SW_alignment_module.find_best_matches(approximate_matches,  edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold )
 
     #add remaining edges to  G_star and alignment_graph
     for s1 in best_exact_matches:

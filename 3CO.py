@@ -284,7 +284,7 @@ def three_CO(read_file, candidate_file = ""):
         print("NEW STEP")
         # G_star_C, alignment_graph, converged = graphs.construct_minimizer_graph(C)
         weights = { C[c_acc] : len(x_hits) for c_acc, x_hits in partition_of_X.items()} 
-        G_star_C, partition_of_C, M, converged = partition_strings_paths(C, node_weights = weights)
+        G_star_C, partition_of_C, M, converged = partition_strings_paths(C, node_weights = weights, edge_creating_min_treshold = 5,  edge_creating_max_treshold = 10)
         # self edges not allowed
         print(len(C), len(partition_of_C), len(M) )
 
@@ -334,16 +334,18 @@ def three_CO(read_file, candidate_file = ""):
 
         # do one reference candidate at a time, these are all modular and this loop 
         # can easily be parallellized if we break this up to a function
-        # p_values = wrapper_statistical_test()
+        # p_values_to_t = wrapper_statistical_test()
 
         C_pvals = { C_seq_to_acc[c] : (len(partition_of_X[C_seq_to_acc[c]]), "not_tested", len(partition_of_X[C_seq_to_acc[c]]) ) for c in partition_of_C if not partition_of_C[c]} # initialize with transcripts not tested
         for t in null_hypothesis_references_to_candidates:
             t_acc = C_seq_to_acc[t]
+            print("t length:", len(t))
             reads_to_t = [x_acc for x_acc in  partition_of_X[t_acc] ]
             reads_to_map = set(reads_to_t)
             reads_to_map.update([t_acc])
 
             for c in partition_of_C[t]:
+                print("c len:", len(c))
                 c_acc = C_seq_to_acc[c]
                 reads_to_c = [x_acc for x_acc in  partition_of_X[c_acc] ]
                 # print(type(reads_to_c))
@@ -389,7 +391,7 @@ def three_CO(read_file, candidate_file = ""):
             
           
             # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
-            candidate_support = get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
+            candidate_support = get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
 
 
             # get p_value
@@ -402,7 +404,18 @@ def three_CO(read_file, candidate_file = ""):
 
                 ############################################################################################
                 ############################################################################################
+                # if c_acc == "read_81_support_3":
+                #     print("HEEEERE!!!")
+                #     # print("P-VALUE:", p_value )
+                #     print("reads N_t:", N_t)
+                #     print("lambda:", lambda_D, lambda_S, lambda_I)
+                #     print("k:",k)
+                #     print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
+                #     sys.exit()
+        
                 if k <= 1:
+                    print("NO support!")
+                    print("lengths:", len(t), len(C[c_acc]))                    
                     p_value = 1
                 else:
                     k_I, k_S, k_D = k, k, k
@@ -419,10 +432,13 @@ def three_CO(read_file, candidate_file = ""):
                         if state == "I":
                             x_I += 1
 
-                    # add special case if: k>1 but probabilities get too big here and delta is big or small.., then just say p_value = 1
-                    if (p_I + p_D + p_S)*m >= 10 :
+                    # special cases that are obvious or can be accurately approximated
+                    if (p_I == 0.0 and x_I > 0) or (p_S == 0.0 and x_S > 0) or (p_D == 0.0 and x_D > 0):
+                        print("here approx")
+                        p_value = 0.0
+                    elif (p_I + p_D + p_S)*m >= 10 :
                         # approximate with normal
-                        p_bin = min(1, (p_I + p_D + p_S)) # cannot be larger than one, but may be due to approximation errors when lambda is huge
+                        p_bin = min(0.99, (p_I + p_D + p_S)) # cannot be larger than one, but may be due to approximation errors when lambda is huge
                         mu = p_bin*m
                         sigma = math.sqrt( (1 - p_bin)* p_bin*m )
                         p_value = norm.sf(x_S + x_D + x_I , loc=mu , scale=sigma)
@@ -469,13 +485,7 @@ def three_CO(read_file, candidate_file = ""):
 
                 ############################################################################################
                 ############################################################################################
-                    if c_acc == "read_62_support_7":
-                        print("HEEEERE!!!")
-                        print("P-VALUE:", p_value )
-                        print("reads N_t:", N_t)
-                        print("lambda:", lambda_D, lambda_S, lambda_I)
-                        print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
-                        # sys.exit()
+
                 # lambda_poisson = 0
                 # for x_acc in epsilon:
                 #     x_probabilities = epsilon[x_acc]
@@ -531,7 +541,7 @@ def three_CO(read_file, candidate_file = ""):
         step += 1
         # sys.exit()
  
-    out_file = open("/Users/kxs624/tmp/final_candidates_1000.fa", "w")
+    out_file = open("/Users/kxs624/tmp/final_candidates_TSPY13P_pass2_2_constant_constant_0.0001.fa", "w")
     for c_acc, seq in C.items():
         support, p_value, N_t = C_pvals[c_acc] 
         out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
@@ -567,9 +577,9 @@ class TestFunctions(unittest.TestCase):
         from input_output import fasta_parser
         try:
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
-            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
-            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
 
@@ -578,11 +588,12 @@ class TestFunctions(unittest.TestCase):
             print("test file not found:",read_file_name) 
 
         try:
-            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
+            # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
             # consensus_file_name = ""
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_final_RBMY_44_-_constant_-.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
-            # consensus_file_name = "/Users/kxs624/tmp/TSPY13P_2_constant_constant_0.0001_converged.fa"
+            consensus_file_name = "/Users/kxs624/tmp/TSPY13P_2_constant_constant_0.0001_converged.fa"
+            # consensus_file_name = "/Users/kxs624/tmp/final_candidates_TSPY13P_2_constant_constant_0.0001.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
 

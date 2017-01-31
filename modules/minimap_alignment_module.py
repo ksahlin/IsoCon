@@ -9,6 +9,8 @@ import heapq
 from collections import defaultdict
 import math
 
+import multiprocessing as mp
+
 def paf_to_best_matches_2set(paf_file_path):
     """
         input: a PAF file
@@ -73,6 +75,7 @@ def paf_to_best_matches(paf_files, acc_to_strings):
 
 
     for paf_file_path in paf_files:
+        print(paf_file_path)
         try:
             file_object = gzip.open(paf_file_path)
             file_object.readline()
@@ -97,7 +100,8 @@ def paf_to_best_matches(paf_files, acc_to_strings):
 
                 n_min = int(row_info[12].split(":")[-1])
                 #   \frac{\min \{ |q|, |t| \} } {\max \{ |q|,|t| \} }  n^{\text{minimizers}}
-                paf_similarity_score = math.sqrt(n_min) * min(q_len, t_len)/float(max(q_len, t_len))
+                # paf_similarity_score = math.sqrt(n_min) * min(q_len, t_len)/float(max(q_len, t_len))
+                paf_similarity_score = n_min - ( max(q_len, t_len) - min(q_len, t_len))
 
                 if len(highest_paf_scores[q_acc]) >= 5:
                     # current alignment is better than at least one of previous scores, remove the worst one so far
@@ -137,9 +141,11 @@ def map_with_minimap(targets, queries):
     # print('Stderr file: ', stderr_file)
     sys.stdout.flush()
     # print(type(targets))
+    processes = mp.cpu_count()
     with open(minimap_output, "w") as minimap_file:
         sys.stdout.flush()
-        subprocess.check_call([ "minimap", "-f", "0.0000000001", "-Sw5", "-L40", "-m0",
+        subprocess.check_call([ "minimap", "-f", "0.0000000001", "-Sw5", "-L40", "-m0", 
+                                "-t", str(processes),
                                targets, queries ],
                                 stdout=minimap_file,
                                 stderr=stderr_file)
