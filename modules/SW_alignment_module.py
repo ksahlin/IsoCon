@@ -254,57 +254,40 @@ def find_best_matches(approximate_matches, edge_creating_min_treshold = -1, edge
 
     # process the exact matches here
     best_exact_matches = {}
+
+
+
     for s1 in exact_matches:
-        # if len(s1) == 1527:
-        #     print('1727:')
-        #     for s2 in exact_matches[s1]:
-        #         print(len(s2), exact_matches[s1][s2][2])
-
-        # if len(s1) == 1524:
-        #     print('1724:')
-        #     for s2 in exact_matches[s1]:
-        #         print(len(s2), exact_matches[s1][s2][2])
-
-
         for s2 in exact_matches[s1]:
             s1_alignment, s2_alignment, (matches, mismatches, indels) = exact_matches[s1][s2]
             edit_distance = mismatches + indels
-            if s1 in best_exact_matches:
-                s1_minimizer = min(best_exact_matches[s1], key = lambda x: best_exact_matches[s1][x][0])
-                min_edit_distance = best_exact_matches[s1][s1_minimizer][0]
-
-                # print(min_edit_distance)
-                if edit_distance < edge_creating_min_treshold:
-                    # print(edit_distance,len(s1_alignment), len(s2_alignment))
-                    best_exact_matches[s1][s2] = (edit_distance, s1_alignment, s2_alignment)               
-                elif edit_distance < min_edit_distance:
-                    best_exact_matches[s1] = {}
+            if edit_distance < edge_creating_max_treshold:
+                if s1 in best_exact_matches:
                     best_exact_matches[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
-                elif edit_distance == min_edit_distance:
-                    best_exact_matches[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
-            else:
-                if edit_distance < edge_creating_max_treshold:
+                else:
                     best_exact_matches[s1] = {}
                     best_exact_matches[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
                     # print( "lol", edit_distance, edge_creating_max_treshold)
 
-            if s2 in best_exact_matches:
-                s2_minimizer = min(best_exact_matches[s2], key = lambda x: best_exact_matches[s2][x][0])
-                min_edit_distance = best_exact_matches[s2][s2_minimizer][0]
-
-                if edit_distance < edge_creating_min_treshold:
+                if s2 in best_exact_matches:
                     best_exact_matches[s2][s1] = (edit_distance, s2_alignment, s1_alignment)    
-                elif edit_distance < min_edit_distance:
-                    # print(edit_distance,len(s1_alignment), len(s2_alignment))
+                else:
                     best_exact_matches[s2] = {}
                     best_exact_matches[s2][s1] = (edit_distance, s2_alignment, s1_alignment)
-                elif edit_distance == min_edit_distance:
-                    best_exact_matches[s2][s1] = (edit_distance, s2_alignment, s1_alignment)
-            else:
-                if edit_distance < edge_creating_max_treshold:
-                    best_exact_matches[s2] = {}
-                    best_exact_matches[s2][s1] = (edit_distance, s2_alignment, s1_alignment)
-                    # print( "lol", edit_distance,edge_creating_max_treshold )
+
+
+
+    ## filter best exact matches here
+    for s1 in best_exact_matches.keys():
+        s1_minimizer = min(best_exact_matches[s1], key = lambda x: best_exact_matches[s1][x][0])
+        min_edit_distance = best_exact_matches[s1][s1_minimizer][0]
+        for s2 in best_exact_matches[s1].keys():
+            ed =  best_exact_matches[s1][s2][0]
+            if ed > min_edit_distance:
+                if ed > edge_creating_min_treshold:
+                    del best_exact_matches[s1][s2]
+
+
 
     # for s1 in best_exact_matches:
     #     for s2 in best_exact_matches[s1]:

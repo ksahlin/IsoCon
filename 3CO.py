@@ -284,7 +284,7 @@ def three_CO(read_file, candidate_file = ""):
         print("NEW STEP")
         # G_star_C, alignment_graph, converged = graphs.construct_minimizer_graph(C)
         weights = { C[c_acc] : len(x_hits) for c_acc, x_hits in partition_of_X.items()} 
-        G_star_C, partition_of_C, M, converged = partition_strings_paths(C, node_weights = weights, edge_creating_min_treshold = 5,  edge_creating_max_treshold = 10)
+        G_star_C, partition_of_C, M, converged = partition_strings_paths(C, node_weights = weights, edge_creating_min_treshold = 5,  edge_creating_max_treshold = 15)
         # self edges not allowed
         print(len(C), len(partition_of_C), len(M) )
 
@@ -412,7 +412,7 @@ def three_CO(read_file, candidate_file = ""):
                 #     print("k:",k)
                 #     print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
                 #     sys.exit()
-        
+
                 if k <= 1:
                     print("NO support!")
                     print("lengths:", len(t), len(C[c_acc]))                    
@@ -525,11 +525,13 @@ def three_CO(read_file, candidate_file = ""):
                 p_vals.append(p_value)
 
                 if p_value > 0.05/nr_of_tests_this_round or k == 0:
+                    print("deleting:",p_value, "k:", k, "delta size:", len(delta_t[c_acc]))
+                    print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
+                    print("lengths:", len(t), len(C[c_acc]), "p-val:", p_value )
                     modified = True
                     del C[c_acc]
                     partition_of_X[t_acc].update(partition_of_X[c_acc])
                     del partition_of_X[c_acc]
-                    print("deleting:",p_value, "k:", k, "delta size:", len(delta_t[c_acc]))
                 else:
                     C_pvals[c_acc] = (k, p_value, N_t)
 
@@ -544,8 +546,9 @@ def three_CO(read_file, candidate_file = ""):
     out_file = open("/Users/kxs624/tmp/final_candidates_TSPY13P_pass2_2_constant_constant_0.0001.fa", "w")
     for c_acc, seq in C.items():
         support, p_value, N_t = C_pvals[c_acc] 
-        out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
-
+        #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
+        if support >= 4:
+            out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
     return C
 
 
@@ -577,9 +580,9 @@ class TestFunctions(unittest.TestCase):
         from input_output import fasta_parser
         try:
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
-            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
-            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
 
@@ -588,11 +591,11 @@ class TestFunctions(unittest.TestCase):
             print("test file not found:",read_file_name) 
 
         try:
-            # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
+            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
             # consensus_file_name = ""
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_final_RBMY_44_-_constant_-.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
-            consensus_file_name = "/Users/kxs624/tmp/TSPY13P_2_constant_constant_0.0001_converged.fa"
+            # consensus_file_name = "/Users/kxs624/tmp/TSPY13P_2_constant_constant_0.0001_converged.fa"
             # consensus_file_name = "/Users/kxs624/tmp/final_candidates_TSPY13P_2_constant_constant_0.0001.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
