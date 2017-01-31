@@ -216,7 +216,7 @@ def get_partition_alignments_2set(graph_partition, C, X):
 
     return partition_alignments
 
-def filter_C_and_X(X, C, G_star, partition):
+def filter_C_X_and_partition(X, C, G_star, partition):
     # if there are x in X that is not in best_exact_matches, these x had no (decent) alignment to any of
     # the candidates, simply skip them.
 
@@ -235,8 +235,12 @@ def filter_C_and_X(X, C, G_star, partition):
         if c not in partition:
             print("candidate missing hit:", c)
             del C[c]
+        elif len(partition[c]) == 0:
+            print("candidate had edges in minimizer graph but they were all shared and it did not get chosen:", c)
+            del C[c]            
+            del partition[c]
         else:
-            print(c, "hits:", len(partition[c]))
+            print(c, " read hits:", len(partition[c]))
     return X, C
 
 def choose(n, k):
@@ -266,7 +270,7 @@ def three_CO(read_file, candidate_file = ""):
     # C = {c: support for c, support in C.items() if support > 3}
     # TODO: eventually filter candidates with lower support than 2-3? Here?
     G_star, partition_of_X =  partition_strings_2set_paths(X, C, X_file, C_file)
-    X, C = filter_C_and_X(X, C, G_star, partition_of_X)
+    X, C = filter_C_X_and_partition(X, C, G_star, partition_of_X)
     C_seq_to_acc = {seq : acc for acc, seq in C.items()}
 
     #########################################################################################
@@ -331,7 +335,7 @@ def three_CO(read_file, candidate_file = ""):
         # do one reference candidate at a time, these are all modular and this loop 
         # can easily be parallellized if we break this up to a function
         # p_values = wrapper_statistical_test()
-        
+
         C_pvals = { C_seq_to_acc[c] : (len(partition_of_X[C_seq_to_acc[c]]), "not_tested", len(partition_of_X[C_seq_to_acc[c]]) ) for c in partition_of_C if not partition_of_C[c]} # initialize with transcripts not tested
         for t in null_hypothesis_references_to_candidates:
             t_acc = C_seq_to_acc[t]
@@ -416,19 +420,18 @@ def three_CO(read_file, candidate_file = ""):
                             x_I += 1
 
                     # add special case if: k>1 but probabilities get too big here and delta is big or small.., then just say p_value = 1
-                    if x_S + x_D + x_I > 20 and (p_I + p_D + p_S)*m >= 10 :
+                    if (p_I + p_D + p_S)*m >= 10 :
                         # approximate with normal
-                        p_bin = (p_I + p_D + p_S)
+                        p_bin = min(1, (p_I + p_D + p_S)) # cannot be larger than one, but may be due to approximation errors when lambda is huge
                         mu = p_bin*m
                         sigma = math.sqrt( (1 - p_bin)* p_bin*m )
-                        norm.sf(x_S + x_D + x_I , loc=mu , scale=sigma)
+                        p_value = norm.sf(x_S + x_D + x_I , loc=mu , scale=sigma)
                         print("LOOOOL NORMAL approx:")
                         print("lambda:", lambda_D, lambda_S, lambda_I)
                         print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
-                        p_value = poisson.sf(x_S + x_D + x_I - 1, lambda_prob)
                         print("Approx p-val: ", p_value)
                         print("lengths:", len(t), len(C[c_acc]))
-                    elif x_S + x_D + x_I > 20 and (p_I + p_D + p_S)*m < 10 :
+                    elif x_S + x_D + x_I > 10 and (p_I + p_D + p_S)*m < 10 :
                         # approximate with poisson
                         lambda_prob = p_I + p_D + p_S
                         print("LOOOOL poisson approx:")
@@ -528,7 +531,7 @@ def three_CO(read_file, candidate_file = ""):
         step += 1
         # sys.exit()
  
-    out_file = open("/Users/kxs624/tmp/final_candidates_TSPY13P_2_constant_constant_0.0001.fa", "w")
+    out_file = open("/Users/kxs624/tmp/final_candidates_1000.fa", "w")
     for c_acc, seq in C.items():
         support, p_value, N_t = C_pvals[c_acc] 
         out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
@@ -564,9 +567,9 @@ class TestFunctions(unittest.TestCase):
         from input_output import fasta_parser
         try:
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
-            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
-            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
 
@@ -575,11 +578,11 @@ class TestFunctions(unittest.TestCase):
             print("test file not found:",read_file_name) 
 
         try:
-            # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
+            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
             # consensus_file_name = ""
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_final_RBMY_44_-_constant_-.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
-            consensus_file_name = "/Users/kxs624/tmp/TSPY13P_2_constant_constant_0.0001_converged.fa"
+            # consensus_file_name = "/Users/kxs624/tmp/TSPY13P_2_constant_constant_0.0001_converged.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
 
