@@ -119,9 +119,9 @@ def get_error_rates_and_lambda(target_accession, segment_length, candidate_acces
 
 
     print(ed_poisson_s, ed_poisson_d, ed_poisson_i, float(read_depth), segment_length )
-    lambda_S = ed_poisson_s / (float(segment_length) * 3.0) # divisioan by 3 because we have 3 different subs, all eaqually liekly under our model 
-    lambda_D = ed_poisson_d / float(segment_length)
-    lambda_I = ed_poisson_i / (float(segment_length) * 4.0)  # divisioan by 4 because we have 4 different ins, all eaqually liekly under our model 
+    lambda_S = max(ed_poisson_s, 2 ) / (float(segment_length) * 3.0) # divisioan by 3 because we have 3 different subs, all equally liekly under our model 
+    lambda_D = max(ed_poisson_d, 2 ) / float(segment_length)
+    lambda_I = max(ed_poisson_i, 2 ) / (float(segment_length) * 4.0)  # divisioan by 4 because we have 4 different ins, all equally liekly under our model 
 
         # print(segment_length, ed_i, ed_s, ed_d, epsilon[q_acc]["I"], epsilon[q_acc]["S"], epsilon[q_acc]["D"])
     return epsilon, lambda_S, lambda_D, lambda_I

@@ -330,6 +330,8 @@ def three_CO(read_file, candidate_file = ""):
 
         # do one reference candidate at a time, these are all modular and this loop 
         # can easily be parallellized if we break this up to a function
+        # p_values = wrapper_statistical_test()
+        
         C_pvals = { C_seq_to_acc[c] : (len(partition_of_X[C_seq_to_acc[c]]), "not_tested", len(partition_of_X[C_seq_to_acc[c]]) ) for c in partition_of_C if not partition_of_C[c]} # initialize with transcripts not tested
         for t in null_hypothesis_references_to_candidates:
             t_acc = C_seq_to_acc[t]
@@ -574,10 +576,10 @@ class TestFunctions(unittest.TestCase):
 
         try:
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
-            consensus_file_name = ""
+            # consensus_file_name = ""
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_final_RBMY_44_-_constant_-.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
-            # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
+            consensus_file_name = "/Users/kxs624/tmp/TSPY13P_2_constant_constant_0.0001_converged.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
             # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
 
