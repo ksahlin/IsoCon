@@ -104,11 +104,11 @@ def partition_strings_paths(S, node_weights = {}, edge_creating_min_treshold = -
     partition_sequences = set()
     for m in partition:
         partition_sequences.add(m)
-        print("partition size:", len(partition[m]))
-        print(len(m))
+        # print("partition size:", len(partition[m]))
+        # print(len(m))
         for s in  partition[m]:
             partition_sequences.add(s)
-            print(len(s))
+            # print(len(s))
     # if the total number of lengths in partition is equal to the original number of strings in s
     # and the number of unique strings in Partition is the same as in S, then partition is a proper partition S
     # That is, there are no bugs.

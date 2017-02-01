@@ -14,6 +14,51 @@
 import unittest
 from collections import defaultdict
 
+def get_invariant_adjustment(delta_t, alignment_matrix, t_acc):
+    invariant_factors = {}
+    target_alignment = alignment_matrix[t_acc]
+    stop = len(target_alignment) - 1
+    for c_acc in delta_t:
+        min_u_candidate = 10000
+        candidate_alignment = alignment_matrix[c_acc]
+        for pos in delta_t[c_acc]:
+            state, char = delta_t[c_acc][pos]
+            u_pos = 1
+            if state == "D":
+                v = target_alignment[pos]
+            elif state == "I":
+                v = char
+            else:
+                min_u_candidate = 1 # substitution by defintion has uniqueness 1 we can go to the next candidate
+                break 
+            offset = 1
+            upper_stop = False
+            lower_stop = False
+            while True:
+                if pos + offset > stop:
+                    upper_stop = True
+                elif target_alignment[pos + offset] == candidate_alignment[pos + offset] == v:
+                        u_pos += 1
+                else:
+                    upper_stop = True
+
+                if pos - offset < 0:
+                    lower_stop = True                    
+                elif target_alignment[pos - offset] == candidate_alignment[pos - offset] == v:
+                        u_pos += 1
+                else:
+                    lower_stop = True
+                if lower_stop == upper_stop == True:
+                    break
+                offset += 1
+
+            if u_pos < min_u_candidate:
+                min_u_candidate = u_pos
+
+        invariant_factors[c_acc] = u_pos
+
+    return invariant_factors
+
 def get_supporting_reads_for_candidates(target_accession, candidate_accessions, alignment_matrix, Delta_t, partition_of_X):
     # candidate_support = { c : [] for c in candidate_accessions }
     # target_alignment = alignment_matrix[target_accession]
@@ -62,7 +107,7 @@ def get_difference_coordinates_for_candidates(target_accession, candidate_access
     return position_differences
 
 
-def get_error_rates_and_lambda(target_accession, segment_length, candidate_accessions, alignment_matrix, forbidden_positions, x_to_c_acc):
+def get_error_rates_and_lambda(target_accession, segment_length, candidate_accessions, alignment_matrix):
     epsilon = {}
     target_alignment = alignment_matrix[target_accession]
     # lambda_S, lambda_D, lambda_I = 0,0,0
@@ -90,8 +135,7 @@ def get_error_rates_and_lambda(target_accession, segment_length, candidate_acces
         if q_acc in candidate_accessions:
             continue   
 
-        # get poisson counts on all positions except positions in reads associated to a candidate where the candidate has a variant
-        # forbidden = forbidden_positions[q_acc]
+        # get poisson counts on all positions
         for j in range(len(query_alignment)):
             target_alignment = alignment_matrix[target_accession]
             # candidate_alignment = alignment_matrix[x_to_c_acc[q_acc]]

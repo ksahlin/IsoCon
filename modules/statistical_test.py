@@ -8,7 +8,7 @@ from scipy.stats import poisson, binom, norm
 
 from modules.multinomial_distr import multinomial_
 from SW_alignment_module import sw_align_sequences_keeping_accession
-from functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates
+from functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, get_invariant_adjustment
 
 
 def do_statistical_tests(null_hypothesis_references_t, C_seq_to_acc, partition_of_X, partition_of_C, X, C, single_core = False):
@@ -84,33 +84,27 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
     # epsilon format: { x_acc1 : {state : prob}, x_acc2 : {state, prob} ,... }
     # also get base pair errors distribution (approximated as poisson), 
     # estimate this from all positions andvariants except for the variant and position combination of the candidates
-    forbidden_positions = {} # read_acc: set(positions)
-    x_to_c_acc = {}
-    for c_acc in candidate_accessions:
-        for x_acc in partition_of_X[c_acc]:
-            x_to_c_acc[x_acc] = c_acc
 
-    for x_acc in partition_of_X[t_acc]:
-        x_to_c_acc[x_acc] = t_acc
 
-    for c_acc in delta_t:
-        forbidden_estimation_pos_in_c = delta_t[c_acc].keys() 
-        for x_acc in partition_of_X[c_acc]:
-            forbidden_positions[x_acc] = set(forbidden_estimation_pos_in_c)
-    for x_acc in partition_of_X[t_acc]:
-        forbidden_positions[x_acc] = set([])
-    forbidden_positions[t_acc] = set([])
-    epsilon, lambda_S, lambda_D, lambda_I = get_error_rates_and_lambda(t_acc, len(t), candidate_accessions, alignment_matrix_to_t, forbidden_positions, x_to_c_acc) 
+    epsilon, lambda_S, lambda_D, lambda_I = get_error_rates_and_lambda(t_acc, len(t), candidate_accessions, alignment_matrix_to_t) 
     
   
     # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
     candidate_support = get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
 
+    # get the factor to which we divide the candidate support with, this is defined as 
+    # u_delta = min_{d in Delta} {u_d}  where u_d is the number of possible insertions/deletions to create an identical alignment 
+    # format:  { c_acc1 : u_delta, c_acc2 : u_delta, ... , }
+    invariant_factors = get_invariant_adjustment(delta_t, alignment_matrix_to_t, t_acc)
 
+    print()
+    print("INVARIANT FACTROS:", invariant_factors)
+    print()
     # get p_value
     m = len(t)
     for c_acc in candidate_accessions:
-        k = len(candidate_support[c_acc])
+        u_c = invariant_factors[c_acc]
+        k = len(candidate_support[c_acc])/ float(u_c)
         N_t = len(alignment_matrix_to_t) -  len(partition_of_C[t]) - 1 # all reads minus all candidates and the reference transcript
         # print("reads N_t:", N_t)
         # print("varinats:",delta_t[c_acc].items())
