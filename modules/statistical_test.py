@@ -147,7 +147,10 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
 
             # special cases that are obvious or can be accurately approximated
             if (p_I == 0.0 and x_I > 0) or (p_S == 0.0 and x_S > 0) or (p_D == 0.0 and x_D > 0):
-                print("here approx")
+                print("here approx", N_t)
+                print("lambda:", lambda_D, lambda_S, lambda_I)
+                print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
+                print("lengths:", len(t), len(C[c_acc]))
                 p_value = 0.0
             elif (p_I + p_D + p_S)*m >= 10 :
                 # approximate with normal
