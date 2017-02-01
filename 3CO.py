@@ -204,16 +204,20 @@ def filter_C_X_and_partition(X, C, G_star, partition):
 
     print("total consensus:", len(C), "total consensus with at least one alignment:", len(partition) )
 
-    for c in C.keys():
-        if c not in partition:
-            print("candidate missing hit:", c)
-            del C[c]
-        elif len(partition[c]) == 0:
-            print("candidate had edges in minimizer graph but they were all shared and it did not get chosen:", c)
-            del C[c]            
-            del partition[c]
+    for c_acc in C.keys():
+        if len(C[c_acc]) == 1899 or len(C[c_acc]) == 1891:
+            print(c_acc, len(C[c_acc]) )
+            print(partition[c_acc])
+            print()
+        if c_acc not in partition:
+            print("candidate missing hit:", c_acc)
+            del C[c_acc]
+        elif len(partition[c_acc]) == 0:
+            print("candidate had edges in minimizer graph but they were all shared and it did not get chosen:", c_acc)
+            del C[c_acc]            
+            del partition[c_acc]
         else:
-            print(c, " read hits:", len(partition[c]))
+            print(c_acc, " read hits:", len(partition[c_acc]))
     return X, C
 
 
@@ -229,6 +233,7 @@ def three_CO(read_file, candidate_file = ""):
     # C = {c: support for c, support in C.items() if support > 3}
     # TODO: eventually filter candidates with lower support than 2-3? Here?
     G_star, partition_of_X =  partition_strings_2set_paths(X, C, X_file, C_file)
+
     X, C = filter_C_X_and_partition(X, C, G_star, partition_of_X)
     C_seq_to_acc = {seq : acc for acc, seq in C.items()}
 
@@ -321,13 +326,18 @@ def three_CO(read_file, candidate_file = ""):
         step += 1
         # sys.exit()
  
-    out_file = open("/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_-pass2.fa", "w")
+    out_file = open("/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_-pass3.fa", "w")
+    final_candidate_count = 0
     for c_acc, seq in C.items():
         support, p_value, N_t = C_pvals[c_acc] 
         #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
         # add extra constraint that the candidate has to have majority on _each_ position in c here otherwise most likely error
         if support >= 4:
             out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
+            final_candidate_count += 1
+        else:
+            print("deleting:", "support:", support, "pval:", p_value, "tot reads in partition:", N_t  )
+    print("Final candidate count: ", final_candidate_count)
     return C
 
 
@@ -372,7 +382,8 @@ class TestFunctions(unittest.TestCase):
         try:
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
             # consensus_file_name = ""
-            consensus_file_name = "/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_-.fa"
+            # consensus_file_name = "/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_-.fa"
+            consensus_file_name = "/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_-pass2.fa"
 
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_final_RBMY_44_-_constant_-.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"

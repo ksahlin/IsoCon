@@ -178,8 +178,14 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
                 # p_val = 1 - \sum_{(i,j,l) s.t., i < k_I, j < k_S , l < k_D } P(i < k_I, j < k_S , l < k_D)
                 # print("lambda:", lambda_D, lambda_S, lambda_I)
                 # print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
-                p_value = 1
+                if p_S == 0.0:
+                    p_S = 2.2250738585072014e-308
+                if p_D == 0.0:
+                    p_D = 2.2250738585072014e-308
+                if p_I == 0.0:
+                    p_I = 2.2250738585072014e-308
 
+                p_value = 1
                 # print("lols:", multinomial_( [x_S, x_D, x_I , m - x_S - x_D - x_I], [3*p_S, p_D, 4*p_I, 1 - 3*p_S - p_D - 4*p_I ]) )
                 for i in range(x_S + 1):
                     for j in range(x_D + 1):
@@ -188,6 +194,12 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
                 p_value += multinomial_( [x_S, x_D, x_I, m - x_S - x_D - x_I], [p_S, p_D, p_I, 1 - 3*p_S - p_D - 4*p_I ])
 
                 # p_between_bp = 1
+
+                print("EXACT:")
+                print("lambda:", lambda_D, lambda_S, lambda_I)
+                print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I, m)
+                print("p-val: ", p_value)
+                print("lengths:", len(t), len(C[c_acc]))
 
                 # print("lols:", multinomial_( [x_S, x_D, x_I , m - x_S - x_D - x_I], [3*p_S, p_D, 4*p_I, 1 - 3*p_S - p_D - 4*p_I ]) )
                 # for l in range(x_I + 1):
