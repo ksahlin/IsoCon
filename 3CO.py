@@ -368,8 +368,8 @@ class TestFunctions(unittest.TestCase):
 
         from input_output import fasta_parser
         try:
-            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
-            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
+            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
+            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_200/simulated_pacbio_reads.fa"
 
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
@@ -381,10 +381,10 @@ class TestFunctions(unittest.TestCase):
             print("test file not found:",read_file_name) 
 
         try:
-            # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
+            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_200_converged.fa"
             # consensus_file_name = ""
             # consensus_file_name = "/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_-.fa"
-            consensus_file_name = "/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_-pass2.fa"
+            # consensus_file_name = "/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_-pass2.fa"
 
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_final_RBMY_44_-_constant_-.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"

@@ -50,7 +50,6 @@ def statistical_test_helper(arguments):
     return statistical_test(*args, **kwargs)
 
 def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
-    p_values = {}
     t_acc = C_seq_to_acc[t]
     print("t length:", len(t))
     reads_to_t = [x_acc for x_acc in  partition_of_X[t_acc] ]
@@ -65,7 +64,7 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
         reads_to_map.update(reads_to_c) 
         reads_to_map.update([c_acc]) # ad the candidate consensus too!
     
-    p_values[t_acc] = (t_acc, len(reads_to_t), -1, len(reads_to_map)) 
+    # p_values[t_acc] = (t_acc, len(reads_to_t), -1, len(reads_to_map)) 
     print(len(reads_to_map))
 
     # create alignment matrix A of reads to t
@@ -86,8 +85,90 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
     # estimate this from all positions andvariants except for the variant and position combination of the candidates
 
 
+    # here we do two separate tests: against cluster center and against closest candidate (they may be the same).
+    p_values_on_center = test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_accessions, partition_of_X, partition_of_C, C)
+
+    p_values_on_closest = {}
+    all_c_in_partition = candidate_accessions.union({t_acc})
+    for c in all_c_in_partition:
+        # find reference here: this should be the closest candidate in partition
+        print(c)
+        print(all_c_in_partition.difference({c}))
+        delta_c = get_difference_coordinates_for_candidates(c, all_c_in_partition.difference({c}), alignment_matrix_to_t)
+        t_acc_single = min(delta_c, key=lambda x: len(delta_c[x]))
+        delta_t_single = get_difference_coordinates_for_candidates(t_acc_single, {c}, alignment_matrix_to_t)
+        print("minimizer:", len(delta_c[t_acc_single]))
+        candidate_accessions_single = set({c})
+        # delta_t_single = {c : delta_c[c]}
+
+        relevant_accessions = partition_of_X[t_acc_single].union(partition_of_X[c])
+        relevant_accessions.update([c,t_acc_single ])
+        alignment_matrix_to_t_single = {acc : alignment_matrix_to_t[acc] for acc in alignment_matrix_to_t if acc in relevant_accessions}
+
+        p_value_on_closest = test_against_closest(delta_t_single, alignment_matrix_to_t_single, t_acc_single, t, candidate_accessions_single, partition_of_X, partition_of_C, C)
+        p_values_on_closest[c] = p_value_on_closest[c]
+
+    final_p_values = {}
+    for c_acc in candidate_accessions.union({t_acc}):
+        if c_acc != t_acc:
+            (t_acc_center, k_center, p_value_center, N_t_center) =  p_values_on_center[c_acc]
+        else:
+            (t_acc_center, k_center, p_value_center, N_t_center) = ("t", 2**30, 2**30, 2**30)
+
+        (t_acc_closest, k_closest, p_value_closest, N_t_closest) =  p_values_on_closest[c_acc]
+        if p_value_center < p_value_closest:
+            final_p_values[c_acc] = (t_acc_center, k_center, p_value_center, N_t_center)
+        else:
+            final_p_values[c_acc] = (t_acc_closest, k_closest, p_value_closest, N_t_closest)
+
+    return final_p_values
+
+
+def choose(n, k):
+    """
+    A fast way to calculate binomial coefficients by Andrew Dalke (contrib).
+    """
+    if 0 <= k <= n:
+        ntok = 1
+        ktok = 1
+        for t in xrange(1, min(k, n - k) + 1):
+            ntok *= n
+            ktok *= t
+            n -= 1
+        return ntok // ktok
+    else:
+        return 0
+
+def get_partition_alignments_2set(graph_partition, C, X):
+    partition_dict = {}
+    for t, x_hits in graph_partition.items():
+        partition_dict[t] = {}
+        for x in x_hits:
+            if x in X: # read assigned to alignment matrix
+                partition_dict[t][x] = (C[t], X[x]) 
+            else: # a candidate we incluse to test, it needs to be aligned w.r.t. the alignment matrix
+                partition_dict[t][x] = (C[t], C[x]) 
+
+    exact_alignments = sw_align_sequences_keeping_accession(partition_dict, single_core = True)
+    partition_alignments = {} 
+
+    for c in exact_alignments:
+        partition_alignments[c] = {}
+        for x in exact_alignments[c]:
+            aln_c, aln_x, (matches, mismatches, indels) = exact_alignments[c][x]
+            edit_dist = mismatches + indels
+            partition_alignments[c][x] = (edit_dist, aln_c, aln_x, 1)
+
+    # for c in partition_alignments:
+    #     if len(partition_alignments[c]) < 1: 
+    #         del partition_alignments[c]
+    print("NR candidates with at least one hit:", len(partition_alignments))
+    return partition_alignments
+
+
+def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_accessions, partition_of_X, partition_of_C, C):
+    p_values = {}
     epsilon, lambda_S, lambda_D, lambda_I = get_error_rates_and_lambda(t_acc, len(t), candidate_accessions, alignment_matrix_to_t) 
-    
   
     # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
     candidate_support = get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
@@ -98,7 +179,7 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
     invariant_factors = get_invariant_adjustment(delta_t, alignment_matrix_to_t, t_acc)
 
     print()
-    print("INVARIANT FACTROS:", invariant_factors)
+    print("INVARIANT FACTORS:", invariant_factors)
     print()
     # get p_value
     m = len(t)
@@ -111,14 +192,7 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
 
         ############################################################################################
         ############################################################################################
-        # if c_acc == "read_81_support_3":
-        #     print("HEEEERE!!!")
-        #     # print("P-VALUE:", p_value )
-        #     print("reads N_t:", N_t)
-        #     print("lambda:", lambda_D, lambda_S, lambda_I)
-        #     print("k:",k)
-        #     print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
-        #     sys.exit()
+
 
         if k <= 1:
             print("NO support!")
@@ -195,49 +269,11 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
                 print("p-val: ", p_value)
                 print("lengths:", len(t), len(C[c_acc]))
 
-                # print("lols:", multinomial_( [x_S, x_D, x_I , m - x_S - x_D - x_I], [3*p_S, p_D, 4*p_I, 1 - 3*p_S - p_D - 4*p_I ]) )
-                # for l in range(x_I + 1):
-                #     p_between_bp -= multinomial_( [l, 0, 0, 0, m+1 - l], [p_I, p_I,p_I,p_I, 1 - 4*p_I ]) 
-                # p_between_bp += multinomial_( [x_I, 0, 0, 0, m+1 - x_I], [p_I, p_I,p_I,p_I, 1 - 4*p_I ])
-                # p_value = p_between_bp*p_on_bp
-                # print("P-VALUE:", p_value )
-
-                # p_value_bin = binom.sf(k_D - 1, m , p_D)
-                # print("P-VALUE bin:", p_value_bin )
-
         ############################################################################################
         ############################################################################################
 
         p_values[c_acc] = (t_acc, k, p_value, N_t)
-        # lambda_poisson = 0
-        # for x_acc in epsilon:
-        #     x_probabilities = epsilon[x_acc]
-        #     p_i = 1
-        #     for pos, (state, char) in delta_t[c_acc].items():
-        #         p_i *= x_probabilities[state]
 
-        #     lambda_poisson += p_i
-        # if len(delta_t[c_acc]) < 11:
-        #     m_choose_delta = choose(m, len(delta_t[c_acc])) # number of position combinations where delta could happen
-        #     # Nt_choose_k = choose(N_t, k) # possible combinations of k reads where the matches between N_t reads could occur
-        #     # print("Stats parameters:", lambda_poisson, lambda_poisson * m_choose_delta, k, N_t)
-        #     # Use Bin(n,p) with Bin(len(t), lambda_poisson)??
-        #     prob_delta = poisson.sf(k-1, lambda_poisson)
-            
-
-
-        #     multi_corrected_lambda = prob_delta* m_choose_delta   #*Nt_choose_k
-        #     # print(prob_delta, m_choose_delta, multi_corrected_lambda)
-        #     # if multi_corrected_lambda == 0:
-        #     p_value = multi_corrected_lambda
-        #     # elif multi_corrected_lambda <= 10:
-        #     #     p_value = poisson.sf(0, multi_corrected_lambda)
-        #     # else:
-        #     #     print("here")
-        #     #     p_value = 1 # binom.sf(0, m_choose_delta, prob_delta)
-        #     print('length of A:', m, "k:", k, "delta size:", len(delta_t[c_acc]),  "nr support pos:", m_choose_delta, "lambda:", lambda_poisson, "prob_delta:", prob_delta, "p val:", p_value)
-        # else:
-        #     p_value = 0
         if math.isnan(p_value):
             print("LOOOOL math is nan!:")
             print("lambda:", lambda_D, lambda_S, lambda_I)
@@ -249,44 +285,8 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
     return p_values
 
 
-def choose(n, k):
-    """
-    A fast way to calculate binomial coefficients by Andrew Dalke (contrib).
-    """
-    if 0 <= k <= n:
-        ntok = 1
-        ktok = 1
-        for t in xrange(1, min(k, n - k) + 1):
-            ntok *= n
-            ktok *= t
-            n -= 1
-        return ntok // ktok
-    else:
-        return 0
+def test_against_closest(delta_t_single, alignment_matrix_to_t_single, t_acc_single, t, candidate_accessions_single, partition_of_X, partition_of_C, C):
+    p_value_closest = test_against_center(delta_t_single, alignment_matrix_to_t_single, t_acc_single, t, candidate_accessions_single, partition_of_X, partition_of_C, C)
+    return p_value_closest
 
-def get_partition_alignments_2set(graph_partition, C, X):
-    partition_dict = {}
-    for t, x_hits in graph_partition.items():
-        partition_dict[t] = {}
-        for x in x_hits:
-            if x in X: # read assigned to alignment matrix
-                partition_dict[t][x] = (C[t], X[x]) 
-            else: # a candidate we incluse to test, it needs to be aligned w.r.t. the alignment matrix
-                partition_dict[t][x] = (C[t], C[x]) 
 
-    exact_alignments = sw_align_sequences_keeping_accession(partition_dict, single_core = True)
-    partition_alignments = {} 
-
-    for c in exact_alignments:
-        partition_alignments[c] = {}
-        for x in exact_alignments[c]:
-            aln_c, aln_x, (matches, mismatches, indels) = exact_alignments[c][x]
-            edit_dist = mismatches + indels
-            partition_alignments[c][x] = (edit_dist, aln_c, aln_x, 1)
-
-    # for c in partition_alignments:
-    #     if len(partition_alignments[c]) < 1: 
-    #         del partition_alignments[c]
-    print("NR candidates with at least one hit:", len(partition_alignments))
-
-    return partition_alignments
