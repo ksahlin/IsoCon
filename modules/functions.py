@@ -23,10 +23,11 @@ def get_invariant_adjustment(delta_t, alignment_matrix, t_acc):
         candidate_alignment = alignment_matrix[c_acc]
         for pos in delta_t[c_acc]:
             state, char = delta_t[c_acc][pos]
+            print(state, char)
             u_pos = 1
             if state == "D":
                 v = target_alignment[pos]
-                print("HERE")
+                print("HERE", v)
             elif state == "I":
                 v = char
                 print("HERE@@@")
@@ -36,26 +37,33 @@ def get_invariant_adjustment(delta_t, alignment_matrix, t_acc):
             offset = 1
             upper_stop = False
             lower_stop = False
+            print(target_alignment[pos - 3 : pos + 3], candidate_alignment[pos - 3 : pos + 3])
             while True:
-                print("ok going in!!")
+                print("ok going in!!", pos, offset, stop, target_alignment[pos - offset], candidate_alignment[pos - offset], v )
+
                 if pos + offset > stop:
                     upper_stop = True
                 elif target_alignment[pos + offset] == candidate_alignment[pos + offset] == v:
                     u_pos += 1
+                elif target_alignment[pos + offset] == candidate_alignment[pos + offset] == "-":
+                    pass
                 else:
                     upper_stop = True
+
 
                 if pos - offset < 0:
                     lower_stop = True                    
                 elif target_alignment[pos - offset] == candidate_alignment[pos - offset] == v:
                     u_pos += 1
+                elif target_alignment[pos - offset] == candidate_alignment[pos - offset] == "-":
+                    pass
                 else:
                     lower_stop = True
+
                 if lower_stop == upper_stop == True:
                     break
-                
-                print(target_alignment[pos + offset], candidate_alignment[pos + offset], v)
-                print(target_alignment[pos + offset], candidate_alignment[pos + offset], v)
+
+
                 offset += 1
 
             if u_pos < min_u_candidate:
