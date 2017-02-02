@@ -23,24 +23,18 @@ def get_invariant_adjustment(delta_t, alignment_matrix, t_acc):
         candidate_alignment = alignment_matrix[c_acc]
         for pos in delta_t[c_acc]:
             state, char = delta_t[c_acc][pos]
-            print(state, char)
             u_pos = 1
             if state == "D":
                 v = target_alignment[pos]
-                print("HERE", v)
             elif state == "I":
                 v = char
-                print("HERE@@@")
             else:
                 min_u_candidate = 1 # substitution by defintion has uniqueness 1 we can go to the next candidate
                 break 
             offset = 1
             upper_stop = False
             lower_stop = False
-            print(target_alignment[pos - 3 : pos + 3], candidate_alignment[pos - 3 : pos + 3])
             while True:
-                print("ok going in!!", pos, offset, stop, target_alignment[pos - offset], candidate_alignment[pos - offset], v )
-
                 if pos + offset > stop:
                     upper_stop = True
                 elif target_alignment[pos + offset] == candidate_alignment[pos + offset] == v:

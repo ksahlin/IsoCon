@@ -110,15 +110,25 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
 
     final_p_values = {}
     for c_acc in candidate_accessions.union({t_acc}):
+        if c_acc == 'read34_support_7':
+            # print("OKKKKKK", t_acc)
+            # print(p_values_on_center[c_acc])
+            # print( p_values_on_closest[c_acc])
+            print()
         if c_acc != t_acc:
             (t_acc_center, k_center, p_value_center, N_t_center) =  p_values_on_center[c_acc]
         else:
-            (t_acc_center, k_center, p_value_center, N_t_center) = ("t", 2**30, 2**30, 2**30)
+            (t_acc_center, k_center, p_value_center, N_t_center) = ("t", 2**30, -100, 2**30)
 
         (t_acc_closest, k_closest, p_value_closest, N_t_closest) =  p_values_on_closest[c_acc]
-        if p_value_center < p_value_closest:
+        if p_value_center > p_value_closest:
             final_p_values[c_acc] = (t_acc_center, k_center, p_value_center, N_t_center)
         else:
+            print()
+            print("P value higher for closest:")
+            print(t_acc_center, k_center, p_value_center, N_t_center)
+            print(t_acc_closest, k_closest, p_value_closest, N_t_closest)
+            print()
             final_p_values[c_acc] = (t_acc_closest, k_closest, p_value_closest, N_t_closest)
 
     return final_p_values

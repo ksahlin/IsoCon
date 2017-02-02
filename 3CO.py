@@ -243,6 +243,7 @@ def three_CO(read_file, candidate_file = ""):
     modified = True
     # changed_nodes = set(C.keys())
     step = 1
+    nr_of_tests = 0
     while modified:
         modified = False
         print("NEW STEP")
@@ -259,6 +260,8 @@ def three_CO(read_file, candidate_file = ""):
         null_hypothesis_references_to_candidates = [c for c in partition_of_C if partition_of_C[c] ]
         print("References in testing:", len(null_hypothesis_references_to_candidates))
         nr_of_tests_this_round = len([1 for c1 in partition_of_C for c2 in  partition_of_C[c1]])
+        if nr_of_tests < nr_of_tests_this_round:
+            nr_of_tests = nr_of_tests_this_round
 
         ######### just for vizualization ###############
         # D=nx.DiGraph(G_star_C)
@@ -300,23 +303,54 @@ def three_CO(read_file, candidate_file = ""):
         # p_values_to_t = wrapper_statistical_test()
 
         C_pvals = { C_seq_to_acc[c] : (len(partition_of_X[C_seq_to_acc[c]]), "not_tested", len(partition_of_X[C_seq_to_acc[c]]) ) for c in partition_of_C if not partition_of_C[c]} # initialize with transcripts not tested
-        candidate_p_values = statistical_test.do_statistical_tests(null_hypothesis_references_to_candidates, C_seq_to_acc, partition_of_X, partition_of_C, X, C, single_core = True)
+        candidate_p_values = statistical_test.do_statistical_tests(null_hypothesis_references_to_candidates, C_seq_to_acc, partition_of_X, partition_of_C, X, C, single_core = False)
 
         p_vals = []
         # wait for all candidate p_values to be calculated
+        closest_significant_refs = {}
+        print()
+        print()
+        print("NEW CLUSTER")
+        print()
+        print()
         for c_acc, (t_acc, k, p_value, N_t) in candidate_p_values.items():
-            if p_value > 0.05/nr_of_tests_this_round or k == 0:
-                print("deleting:",p_value, "k:", k)
-                # print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
-                # print("lengths:", len(t), len(C[c_acc]), "p-val:", p_value )
-                modified = True
-                del C[c_acc]
-                partition_of_X[t_acc].update(partition_of_X[c_acc])
-                del partition_of_X[c_acc]
+            if p_value > 0.05/nr_of_tests or k == 0:
+                print("Potential delete:", c_acc, k, p_value, N_t)
+                if t_acc in closest_significant_refs: # t_acc is also subject to removal
+                    if closest_significant_refs[t_acc][0] == c_acc:
+                        print("preventing cycle!")
+                        if closest_significant_refs[t_acc][1] > k:
+                            del closest_significant_refs[t_acc]
+                            closest_significant_refs[c_acc] = (t_acc, k)
+                    else:
+                        next_t_acc, next_k  = closest_significant_refs[t_acc]
+                        closest_significant_refs[c_acc] = (next_t_acc, next_k)
+                else:
+                    closest_significant_refs[c_acc] = (t_acc, k)  
+                # deleted.add(c_acc)
+                # print(c_acc, t_acc,t_acc_transfer_reads_to )
             else:
                 C_pvals[c_acc] = (k, p_value, N_t)
 
             p_vals.append(p_value)
+
+        for c_acc in closest_significant_refs:
+            t_acc, k = closest_significant_refs[c_acc]
+            modified = True
+            del C[c_acc]
+            partition_of_X[t_acc].update(partition_of_X[c_acc])
+            del partition_of_X[c_acc]
+            print("merging:", c_acc, "into", t_acc, "k:", k)
+
+            # while True:
+            #     if t_acc in C:
+            #         partition_of_X[t_acc].update(partition_of_X[c_acc])
+            #         del partition_of_X[c_acc]
+            #         print("deleting:", c_acc, "pval:", p_value, "to", t_acc, "k:", k)
+
+            #         break
+            #     else:
+            #         t_acc = closest_significant_refs[t_acc]
 
         print("nr candidates left:", len(C))
         print(p_vals)
@@ -368,8 +402,8 @@ class TestFunctions(unittest.TestCase):
 
         from input_output import fasta_parser
         try:
-            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
-            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_200/simulated_pacbio_reads.fa"
+            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
+            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
 
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
             # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
@@ -381,10 +415,10 @@ class TestFunctions(unittest.TestCase):
             print("test file not found:",read_file_name) 
 
         try:
-            consensus_file_name = "/Users/kxs624/tmp/minimizer_test_200_converged.fa"
+            # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
             # consensus_file_name = ""
             # consensus_file_name = "/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_-.fa"
-            # consensus_file_name = "/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_-pass2.fa"
+            consensus_file_name = "/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_-pass2.fa"
 
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_final_RBMY_44_-_constant_-.fa"
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
