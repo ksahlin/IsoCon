@@ -67,7 +67,7 @@ def find_candidate_transcripts(read_file, params):
     C = {}
     unique_seq_to_acc = get_unique_seq_accessions(S)
     
-    G_star, graph_partition, M, converged = partition_strings_paths(S)
+    G_star, graph_partition, M, converged = partition_strings_paths(S, params)
     partition_alignments = get_partition_alignments(graph_partition, M, G_star)       
 
     if converged:
@@ -166,7 +166,7 @@ def find_candidate_transcripts(read_file, params):
 
  
 
-        G_star, graph_partition, M, converged = partition_strings_paths(S)
+        G_star, graph_partition, M, converged = partition_strings_paths(S, params)
         partition_alignments = get_partition_alignments(graph_partition, M, G_star)  
         out_file_name = os.path.join(params.outfolder, "candidates_step_" +  str(step) + ".fa")
         out_file = open(out_file_name, "w")
@@ -251,9 +251,8 @@ def stat_filter_candidates(read_file, candidate_file, params):
     while modified:
         modified = False
         print("NEW STEP")
-        # G_star_C, alignment_graph, converged = graphs.construct_minimizer_graph(C)
         weights = { C[c_acc] : len(x_hits) for c_acc, x_hits in partition_of_X.items()} 
-        G_star_C, partition_of_C, M, converged = partition_strings_paths(C, node_weights = weights, edge_creating_min_treshold = params.statistical_test_editdist,  edge_creating_max_treshold = 15)
+        G_star_C, partition_of_C, M, converged = partition_strings_paths(C, params, node_weights = weights, edge_creating_min_treshold = params.statistical_test_editdist,  edge_creating_max_treshold = 15)
         # self edges not allowed
         print(len(C), len(partition_of_C), len(M) )
 

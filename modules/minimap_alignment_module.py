@@ -153,7 +153,7 @@ def map_with_minimap(targets, queries):
 
     return minimap_output
 
-def minimap_partition(targets, queries):
+def minimap_partition(targets, queries, params):
     # partition unique strings (speed optimization for minimap)
     # this works for transcript version of 3CO
 
@@ -217,7 +217,7 @@ def minimap_partition(targets, queries):
 
 
 
-    work_dir = "/tmp/" 
+    work_dir = params.tempfolder 
     fasta_query_files = []
     fasta_target_files = []
     # acc_to_strings = {}

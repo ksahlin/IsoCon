@@ -151,7 +151,11 @@ if __name__ == '__main__':
         params.plotfolder = os.path.join(params.outfolder, 'plots')
         if not os.path.exists(params.plotfolder):
             os.makedirs(params.plotfolder)
+    params.tempfolder = os.path.join(params.outfolder, 'alignments')
+    if not os.path.exists(params.tempfolder):
+        os.makedirs(params.tempfolder)
 
+            
     if args.which == 'pipeline':
         run_pipeline(params)
     elif args.which == 'remove_barcodes':

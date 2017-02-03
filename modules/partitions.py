@@ -2,8 +2,8 @@
 from modules import graphs
 from modules import functions
 
-def partition_strings_paths(S, node_weights = {}, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
-    G_star, alignment_graph, converged = graphs.construct_minimizer_graph(S, edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold)
+def partition_strings_paths(S, params, node_weights = {}, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
+    G_star, alignment_graph, converged = graphs.construct_minimizer_graph(S, params, edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold)
     unique_start_strings = set(G_star.keys())
     partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
 
