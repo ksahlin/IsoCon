@@ -50,18 +50,13 @@ def run_remove_barcodes():
 def run_get_candidates():
     pass
 
-def run_stat_filter():
-    pass
+def run_stat_filter(params):
+    initialize_logger(params)
+    threeco.stat_filter_candidates(params.fl_reads, params.candidates, params)
+    total_elapsed = time() - total_start
+    write_output.logger('TOTAL TIME ELAPSED FOR STAT_FILTER:{0}'.format(str(total_elapsed)), params.logfile)
 
-
-def run_pipeline(params):
-    """
-        runs:
-            1. remove_barcodes() if --barcodes is specified
-            2. get_candidates() to find candidate transcripts out of CCS full length reads
-            3. stat_filter() to filter candidates and only output significant ones
-    """
-
+def initialize_logger(params):
     ##### initialize logging info and output #######
     total_start = time()
     logfile = open(os.path.join(params.outfolder, "logfile.txt"), 'w')
@@ -72,6 +67,17 @@ def run_pipeline(params):
     print(params.__dict__)
     write_output.logger("Starting.", params.logfile)
     ###################################################
+
+
+def run_pipeline(params):
+    """
+        runs:
+            1. remove_barcodes() if --barcodes is specified
+            2. get_candidates() to find candidate transcripts out of CCS full length reads
+            3. stat_filter() to filter candidates and only output significant ones
+    """
+
+    initialize_logger(params)
     params.read_file = params.fl_reads
     if params.barcodes:
         # need to redirect path to reads to the new path with modified reads as well
@@ -130,7 +136,11 @@ if __name__ == '__main__':
     stat_filter_required.add_argument('-fl_reads', type=str, required=True, help='Full length RoIs. ')
     stat_filter_required.add_argument('-candidates', type=str, help='Already generated candidates. ')
     stat_filter_required.add_argument('-outfolder', type=str, required=True, help='Outfolder. ')
+    stat_filter.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
+    stat_filter.add_argument('--min_candidate_support', type=int, default=3, help='Required minimum number of reads converged to the same sequence to be included in statistical test. Can only be applies if fasta accessions comes from previous step in pipline')
+    stat_filter.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
     stat_filter.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
+    stat_filter.set_defaults(which='stat_filter')
 
     # stat_filter.add_argument('--consensus', type=str, help='Additional canditates supplied by user (This still runs the minimizer step, but additional candidates can help with guidance). ')
 
@@ -155,7 +165,7 @@ if __name__ == '__main__':
     if not os.path.exists(params.tempfolder):
         os.makedirs(params.tempfolder)
 
-            
+
     if args.which == 'pipeline':
         run_pipeline(params)
     elif args.which == 'remove_barcodes':
