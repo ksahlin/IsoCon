@@ -97,8 +97,8 @@ def construct_2set_minimizer_bipartite_graph(X, C, X_file, C_file):
     for x_acc in best_exact_matches:
         G_star[x_acc] = {}
         alignment_graph[x_acc] = {}
-        if len(best_exact_matches[x_acc]) >1:
-            print(len(best_exact_matches[x_acc]), "best matches for read to consensus")
+        # if len(best_exact_matches[x_acc]) >1:
+        #     print(len(best_exact_matches[x_acc]), "best matches for read to consensus", best_exact_matches[x_acc].keys())
         for c_acc in best_exact_matches[x_acc]:
             assert c_acc not in G_star[x_acc]
             G_star[x_acc][c_acc] = 1

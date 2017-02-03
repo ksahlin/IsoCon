@@ -55,14 +55,14 @@ def get_partition_alignments(graph_partition, M, G_star):
 
 
 
-def find_candidate_transcripts(X):
+def find_candidate_transcripts(read_file, params):
     """
         input: a string pointing to a fasta file
         output: a string containing a path to a fasta formatted file with consensus_id_support as accession 
                     and the sequence as the read
     """ 
-    S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(X, 'r'))}
-    # S = X
+    S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
+
     C = {}
     unique_seq_to_acc = get_unique_seq_accessions(S)
     
@@ -221,10 +221,10 @@ def filter_C_X_and_partition(X, C, G_star, partition):
     return X, C
 
 
-def three_CO(read_file, candidate_file = ""):
+def three_CO(read_file, candidate_file = "", params):
     ################################### PROCESS INDATA #####################################
     if not candidate_file:
-        candidate_file = find_candidate_transcripts(read_file)
+        candidate_file = find_candidate_transcripts(read_file, params)
     X_file = read_file
     C_file = candidate_file
     X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
@@ -307,7 +307,7 @@ def three_CO(read_file, candidate_file = ""):
 
         p_vals = []
         # wait for all candidate p_values to be calculated
-        closest_significant_refs = {}
+        removed_nodes_reference_graph = {}
         print()
         print()
         print("NEW CLUSTER")
@@ -316,17 +316,18 @@ def three_CO(read_file, candidate_file = ""):
         for c_acc, (t_acc, k, p_value, N_t) in candidate_p_values.items():
             if p_value > 0.05/nr_of_tests or k == 0:
                 print("Potential delete:", c_acc, k, p_value, N_t)
-                if t_acc in closest_significant_refs: # t_acc is also subject to removal
-                    if closest_significant_refs[t_acc][0] == c_acc:
+                if t_acc in removed_nodes_reference_graph: # t_acc is also subject to removal
+                    if removed_nodes_reference_graph[t_acc][0] == c_acc:
                         print("preventing cycle!")
-                        if closest_significant_refs[t_acc][1] > k:
-                            del closest_significant_refs[t_acc]
-                            closest_significant_refs[c_acc] = (t_acc, k)
+                        if removed_nodes_reference_graph[t_acc][1] > k:
+                            del removed_nodes_reference_graph[t_acc]
+                            removed_nodes_reference_graph[c_acc] = (t_acc, k)
                     else:
-                        next_t_acc, next_k  = closest_significant_refs[t_acc]
-                        closest_significant_refs[c_acc] = (next_t_acc, next_k)
+                        # next_t_acc, next_k  = removed_nodes_reference_graph[t_acc]
+                        # removed_nodes_reference_graph[c_acc] =  (next_t_acc, next_k)
+                        removed_nodes_reference_graph[c_acc] =  (t_acc, k)
                 else:
-                    closest_significant_refs[c_acc] = (t_acc, k)  
+                    removed_nodes_reference_graph[c_acc] = (t_acc, k)  
                 # deleted.add(c_acc)
                 # print(c_acc, t_acc,t_acc_transfer_reads_to )
             else:
@@ -334,9 +335,13 @@ def three_CO(read_file, candidate_file = ""):
 
             p_vals.append(p_value)
 
-        for c_acc in closest_significant_refs:
-            t_acc, k = closest_significant_refs[c_acc]
+
+        for c_acc in removed_nodes_reference_graph:
             modified = True
+            t_acc, k = removed_nodes_reference_graph[c_acc]
+            while t_acc in removed_nodes_reference_graph:
+                t_acc, k = removed_nodes_reference_graph[t_acc]
+
             del C[c_acc]
             partition_of_X[t_acc].update(partition_of_X[c_acc])
             del partition_of_X[c_acc]
@@ -457,7 +462,7 @@ class TestFunctions(unittest.TestCase):
         except:
             print("test file not found:",consensus_file_name) 
 
-        three_CO(read_file_name, consensus_file_name)
+        three_CO(read_file_name, consensus_file_name, params)
 
 if __name__ == '__main__':
     unittest.main()

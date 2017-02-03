@@ -193,10 +193,11 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
     print()
     # get p_value
     m = len(t)
+
     for c_acc in candidate_accessions:
         u_c = invariant_factors[c_acc]
         k = len(candidate_support[c_acc])/ float(u_c)
-        N_t = len(alignment_matrix_to_t) -  len(partition_of_C[t]) - 1 # all reads minus all candidates and the reference transcript
+        N_t = len(alignment_matrix_to_t) - len(candidate_accessions) - 1 # all reads minus all candidates and the reference transcript
         # print("reads N_t:", N_t)
         # print("varinats:",delta_t[c_acc].items())
 
