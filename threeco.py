@@ -3,6 +3,7 @@
     alignment_matrix is a representation of all alignments in a partition. this is a dictionary where sequences s_i belonging to the 
     partition as keys and the alignment of s_i with respectt to the alignment matix.
 """
+import os
 import copy
 import unittest
 import math
@@ -11,7 +12,7 @@ import math
 from modules.partitions import partition_strings_paths, partition_strings_2set_paths, partition_strings
 from modules.functions import create_position_probability_matrix, transpose, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates
 from modules import graphs
-from SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
+from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from modules.input_output import fasta_parser
 from modules import statistical_test
 
@@ -167,8 +168,8 @@ def find_candidate_transcripts(read_file, params):
 
         G_star, graph_partition, M, converged = partition_strings_paths(S)
         partition_alignments = get_partition_alignments(graph_partition, M, G_star)  
-
-        out_file = open("/Users/kxs624/tmp/minimizer_test_1000_step_" +  str(step) + ".fa", "w")
+        out_file_name = os.path.join(params.outfolder, "candidates_step_" +  str(step) + ".fa")
+        out_file = open(out_file_name, "w")
         for i, m in enumerate(partition_alignments):
             N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
             out_file.write(">{0}\n{1}\n".format("read" + str(i)+ "_support_" + str(N_t) , m))
@@ -180,10 +181,13 @@ def find_candidate_transcripts(read_file, params):
 
     for m in M:
         N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
-        C[m] = N_t    
-    out_file = open("/Users/kxs624/tmp/TSPY13P_2_constant_constant_0.0001_converged.fa", "w")
+        C[m] = N_t   
+
+    out_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
+    out_file = open(out_file_name, "w")
     for i, m in enumerate(partition_alignments):
-        out_file.write(">{0}\n{1}\n".format("read_" + str(i)+ "_support_" + str(C[m]) , m))   
+        if C[m] >= params.min_candidate_support:
+            out_file.write(">{0}\n{1}\n".format("read_" + str(i)+ "_support_" + str(C[m]) , m))   
     out_file.close()    
     return out_file.name
 
@@ -221,10 +225,10 @@ def filter_C_X_and_partition(X, C, G_star, partition):
     return X, C
 
 
-def three_CO(read_file, candidate_file = "", params):
+def stat_filter_candidates(read_file, candidate_file, params):
     ################################### PROCESS INDATA #####################################
-    if not candidate_file:
-        candidate_file = find_candidate_transcripts(read_file, params)
+    # if not candidate_file:
+    #     candidate_file = find_candidate_transcripts(read_file, params)
     X_file = read_file
     C_file = candidate_file
     X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
@@ -249,7 +253,7 @@ def three_CO(read_file, candidate_file = "", params):
         print("NEW STEP")
         # G_star_C, alignment_graph, converged = graphs.construct_minimizer_graph(C)
         weights = { C[c_acc] : len(x_hits) for c_acc, x_hits in partition_of_X.items()} 
-        G_star_C, partition_of_C, M, converged = partition_strings_paths(C, node_weights = weights, edge_creating_min_treshold = 5,  edge_creating_max_treshold = 15)
+        G_star_C, partition_of_C, M, converged = partition_strings_paths(C, node_weights = weights, edge_creating_min_treshold = params.statistical_test_editdist,  edge_creating_max_treshold = 15)
         # self edges not allowed
         print(len(C), len(partition_of_C), len(M) )
 
@@ -265,29 +269,31 @@ def three_CO(read_file, candidate_file = "", params):
 
         ######### just for vizualization ###############
         # D=nx.DiGraph(G_star_C)
-        D=nx.DiGraph()
-        lables = {}
-        for c1 in partition_of_C:
-            c1_acc = C_seq_to_acc[c1]
-            reads_to_c1 = [X[x_acc] for x_acc in  partition_of_X[c1_acc] ]
-            w_c1 = len(reads_to_c1)
-            for c2 in  partition_of_C[c1]:
-                c2_acc = C_seq_to_acc[c2]
-                reads_to_c2 = [X[x_acc] for x_acc in  partition_of_X[c2_acc] ]
-                w_c2 = len(reads_to_c2)
-                D.add_edge(c2,c1, weight = str(w_c2) + "->" + str(w_c1)  )
-        labels = nx.get_edge_attributes(D, 'weight')
-        # pos = nx.circular_layout(D)
-        pos = dict()
-        XX = [c2 for c1 in partition_of_C for c2 in partition_of_C[c1] ] # have in-edges
-        YY = [c1 for c1 in partition_of_C ] # not
-        pos.update( (n, (1, 4*i)) for i, n in enumerate(XX) ) # put nodes from X at x=1
-        pos.update( (n, (2, 2*i)) for i, n in enumerate(YY) ) # put nodes from Y at x=2
-        nx.draw_networkx_nodes(D, pos, node_size=50 )
-        nx.draw_networkx_edge_labels(D, pos, arrows=True, edge_labels=labels)
-        nx.draw_networkx_edges(D, pos, arrows=True, edge_labels=labels)
-        plt.savefig("/Users/kxs624/tmp/Graph_bip_1000_step_" + str(step) + ".png", format="PNG")
-        plt.clf()
+        if params.develop_mode:
+            D=nx.DiGraph()
+            lables = {}
+            for c1 in partition_of_C:
+                c1_acc = C_seq_to_acc[c1]
+                reads_to_c1 = [X[x_acc] for x_acc in  partition_of_X[c1_acc] ]
+                w_c1 = len(reads_to_c1)
+                for c2 in  partition_of_C[c1]:
+                    c2_acc = C_seq_to_acc[c2]
+                    reads_to_c2 = [X[x_acc] for x_acc in  partition_of_X[c2_acc] ]
+                    w_c2 = len(reads_to_c2)
+                    D.add_edge(c2,c1, weight = str(w_c2) + "->" + str(w_c1)  )
+            labels = nx.get_edge_attributes(D, 'weight')
+            # pos = nx.circular_layout(D)
+            pos = dict()
+            XX = [c2 for c1 in partition_of_C for c2 in partition_of_C[c1] ] # have in-edges
+            YY = [c1 for c1 in partition_of_C ] # not
+            pos.update( (n, (1, 4*i)) for i, n in enumerate(XX) ) # put nodes from X at x=1
+            pos.update( (n, (2, 2*i)) for i, n in enumerate(YY) ) # put nodes from Y at x=2
+            nx.draw_networkx_nodes(D, pos, node_size=50 )
+            nx.draw_networkx_edge_labels(D, pos, arrows=True, edge_labels=labels)
+            nx.draw_networkx_edges(D, pos, arrows=True, edge_labels=labels)
+            fig_file = os.path.join(params.plotfolder, "Graph_bip_1000_step_" + str(step) + ".png")
+            plt.savefig(fig_file, format="PNG")
+            plt.clf()
 
         ####################################################
 
@@ -359,13 +365,15 @@ def three_CO(read_file, candidate_file = "", params):
 
         print("nr candidates left:", len(C))
         print(p_vals)
-        plt.hist(p_vals)
-        plt.savefig("/Users/kxs624/tmp/p_vals_step_" + str(step) +".png", format="PNG")
-        plt.clf()
-        step += 1
-        # sys.exit()
- 
-    out_file = open("/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_.fa", "w")
+        if params.develop_mode:
+            plt.hist(p_vals)
+            fig_file = os.path.join(params.plotfolder, "p_vals_step_" + str(step) +".png")
+            plt.savefig(fig_file, format="PNG")
+            plt.clf()
+            step += 1
+
+    out_file_name =  os.path.join(params.outfolder, "final_candidates.fa")
+    out_file = open(out_file_name, "w")
     final_candidate_count = 0
     alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)
     for c_acc, seq in C.items():
@@ -428,7 +436,7 @@ class TestFunctions(unittest.TestCase):
     #     partition_alignments = find_candidate_transcripts(S)
     #     print(len(partition_alignments))
 
-    def test_three_CO(self):
+    def test_stat_filter_candidates(self):
         self.maxDiff = None
 
         from input_output import fasta_parser
@@ -462,7 +470,7 @@ class TestFunctions(unittest.TestCase):
         except:
             print("test file not found:",consensus_file_name) 
 
-        three_CO(read_file_name, consensus_file_name, params)
+        stat_filter_candidates(read_file_name, consensus_file_name, params)
 
 if __name__ == '__main__':
     unittest.main()

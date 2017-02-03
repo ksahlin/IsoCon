@@ -38,21 +38,29 @@ import signal
 from time import time
 
 from modules import threeco_parameters
+from modules.input_output import write_output
+from modules import identify_barcodes
 import threeco
 from multiprocessing import Pool
 import multiprocessing as mp
 
-def remove_barcodes():
+def run_remove_barcodes():
     pass
 
-def get_candidates():
+def run_get_candidates():
     pass
 
-def stat_filter():
+def run_stat_filter():
     pass
 
 
-def pipeline(params):
+def run_pipeline(params):
+    """
+        runs:
+            1. remove_barcodes() if --barcodes is specified
+            2. get_candidates() to find candidate transcripts out of CCS full length reads
+            3. stat_filter() to filter candidates and only output significant ones
+    """
 
     ##### initialize logging info and output #######
     total_start = time()
@@ -64,13 +72,15 @@ def pipeline(params):
     print(params.__dict__)
     write_output.logger("Starting.", params.logfile)
     ###################################################
+    params.read_file = params.fl_reads
+    if params.barcodes:
+        # need to redirect path to reads to the new path with modified reads as well
+        filtered_file = identify_barcodes.remove_barcodes_fcn(read_file, params)
+        params.read_file = filtered_file
 
-    barcodes.identify(read_file, params)
-    threeco.three_CO(read_file, candidate_file = "", params)
-    find_candidate_transcripts(read_file, params)
+    candidate_file = threeco.find_candidate_transcripts(params.read_file, params)
+    threeco.stat_filter_candidates(params.read_file, candidate_file, params)
 
-    write_output.post_process(y, y_to_x, epsilon_y, errors_y, params, final_output = True)
-    write_output.output_significant_clusters(y, x, alignment_results_dict, y_to_x, epsilon, params)
     total_elapsed = time() - total_start
     write_output.logger('TOTAL TIME ELAPSED FOR 3CO:{0}'.format(str(total_elapsed)), params.logfile)
 
@@ -78,17 +88,18 @@ def pipeline(params):
 if __name__ == '__main__':
 
     # create the top-level parser
-    parser = argparse.ArgumentParser("Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads. Illumina reads can can also be added to the program to further imporve SNP calling and phasing.")
+    parser = argparse.ArgumentParser("Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads.")
     #parser.add_argument('--foo', action='store_true', help='help for foo arg.')
     parser.add_argument('--version', action='version', version='%(prog)s 0.01')
 
     subparsers = parser.add_subparsers(help='help for subcommand')
 
     # # create the parser for the "pipeline" command
-    pipeline = subparsers.add_parser('pipeline', help='Run the entire pipeline, i.e., \n\n {0}'.format(main_pipline.__doc__))
+    pipeline = subparsers.add_parser('pipeline', help='Run the entire pipeline, i.e., \n\n {0}'.format(run_pipeline.__doc__))
     pipeline_required = pipeline.add_argument_group('required arguments')
     pipeline_required.add_argument('-fl_reads', required=True, type=str, help='Fast<a/q> file pacbio Reads of Insert. ')
     pipeline_required.add_argument('-outfolder', required=True, type=str, help='Outfolder. ')
+    pipeline.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
     pipeline.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     pipeline.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
     pipeline.add_argument('--min_candidate_support', type=int, default=3, help='Required minimum number of reads converged to the same sequence to be included in statistical test.')
@@ -107,8 +118,8 @@ if __name__ == '__main__':
     get_candidates_required = get_candidates.add_argument_group('required arguments')
     get_candidates_required.add_argument('-fl_reads', type=str, required=True, help='Full length RoIs. ')
     get_candidates_required.add_argument('-outfolder', type=str, required=True, help='Outfolder. ')
-    get_candidates_required.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
-    pipeline.add_argument('--min_candidate_support', type=int, default=3, help='Required minimum number of reads converged to the same sequence to be included in statistical test.')
+    get_candidates.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
+    get_candidates.add_argument('--min_candidate_support', type=int, default=3, help='Required minimum number of reads converged to the same sequence to be included in statistical test.')
     get_candidates.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     get_candidates.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
     get_candidates.set_defaults(which='get_candidates')
@@ -117,8 +128,10 @@ if __name__ == '__main__':
     stat_filter = subparsers.add_parser('stat_filter', help='Get candidate transcripts with minimizer approach.')
     stat_filter_required = stat_filter.add_argument_group('required arguments')
     stat_filter_required.add_argument('-fl_reads', type=str, required=True, help='Full length RoIs. ')
-    stat_filter.add_argument('-candidates', type=str, help='Already generated candidates. ')
+    stat_filter_required.add_argument('-candidates', type=str, help='Already generated candidates. ')
     stat_filter_required.add_argument('-outfolder', type=str, required=True, help='Outfolder. ')
+    stat_filter.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
+
     # stat_filter.add_argument('--consensus', type=str, help='Additional canditates supplied by user (This still runs the minimizer step, but additional candidates can help with guidance). ')
 
 
@@ -126,25 +139,26 @@ if __name__ == '__main__':
 
 
     try:
-        open(args.pacbio_paf,"r")
+        open(args.fl_reads,"r")
     except IOError as e:
         sys.exit("couldn't find read file paf file: " + args.fl_reads + " check that the path is correct and that the file exists")
 
-    params = hitem_parameters.Parameters(**args.__dict__)
-    params.pacbio_alignments = params.outfolder + "mapped"
+    params = threeco_parameters.Parameters(**args.__dict__)
+    params.minimap_alignments = os.path.join(params.outfolder, "minimapped")
     if not os.path.exists(params.outfolder):
         os.makedirs(params.outfolder)
     if params.develop_mode:
         params.plotfolder = os.path.join(params.outfolder, 'plots')
-
         if not os.path.exists(params.plotfolder):
             os.makedirs(params.plotfolder)
 
     if args.which == 'pipeline':
-        main_pipline(params)
+        run_pipeline(params)
     elif args.which == 'remove_barcodes':
-        classify_wrapper(params)
-    elif args.which == 'cluster':
-        threeCO(params)
+        run_remove_barcodes(params)
+    elif args.which == 'get_candidates':
+        run_get_candidates(params)
+    elif args.which == 'stat_filter':
+        run_stat_filter(params)
     else:
         print('invalid call')
