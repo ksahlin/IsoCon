@@ -205,10 +205,10 @@ def filter_C_X_and_partition(X, C, G_star, partition):
     print("total consensus:", len(C), "total consensus with at least one alignment:", len(partition) )
 
     for c_acc in C.keys():
-        if len(C[c_acc]) == 1899 or len(C[c_acc]) == 1891:
-            print(c_acc, len(C[c_acc]) )
-            print(partition[c_acc])
-            print()
+        # if len(C[c_acc]) == 1899 or len(C[c_acc]) == 1891:
+        #     print(c_acc, len(C[c_acc]) )
+        #     print(partition[c_acc])
+        #     print()
         if c_acc not in partition:
             print("candidate missing hit:", c_acc)
             del C[c_acc]
@@ -362,24 +362,24 @@ def three_CO(read_file, candidate_file = ""):
  
     out_file = open("/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_.fa", "w")
     final_candidate_count = 0
-    alignments_of_x_to_c_transposed = functions.transpose(alignments_of_x_to_c)
+    alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)
     for c_acc, seq in C.items():
         support, p_value, N_t = C_pvals[c_acc] 
         #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
         # add extra constraint that the candidate has to have majority on _each_ position in c here otherwise most likely error
         if support >= 4:
             if p_value == "not_tested":
-                print("not tested with support", k, "needs to be consensus over each base pair")
+                print("not tested with support", support, "needs to be consensus over each base pair")
                 
                 partition_alignments_c = {c_acc : (0, C[c_acc], C[c_acc], 1)}  # format: (edit_dist, aln_c, aln_x, 1)
                 for x_acc in alignments_of_x_to_c_transposed[c_acc]:
-                    (ed, aln_x, aln_c, 1) = alignments_of_x_to_c_transposed[c_acc][x_acc]
+                    (ed, aln_x, aln_c) = alignments_of_x_to_c_transposed[c_acc][x_acc]
                     partition_alignments_c[x_acc] = (ed, aln_c, aln_x, 1) 
 
                 alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(C[c_acc], partition_alignments_c)
                 c_alignment = alignment_matrix_to_c[c_acc]
                 is_consensus = True
-                for j in range(PFM_to_c):
+                for j in range(len(PFM_to_c)):
                     c_v =  c_alignment[j]
                     candidate_count = PFM_to_c[j][c_v]
                     for v in PFM_to_c[j]:
@@ -389,6 +389,7 @@ def three_CO(read_file, candidate_file = ""):
 
                 if is_consensus:
                     out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
+                    final_candidate_count += 1
                 else:
                     print("were not consensus")
             else:
@@ -441,8 +442,8 @@ class TestFunctions(unittest.TestCase):
 
         try:
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
-            consensus_file_name = ""
-            # consensus_file_name = "/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_-.fa"
+            # consensus_file_name = ""
+            consensus_file_name = "/Users/kxs624/tmp/initial_candidates_RBMY_44_-_constant_-.fa"
             # consensus_file_name = "/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_-pass2.fa"
 
             # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_final_RBMY_44_-_constant_-.fa"
