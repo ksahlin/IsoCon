@@ -296,7 +296,7 @@ def partition_strings_2set_paths(X, C, X_file, C_file):
     assert marked == set(G_star.keys())
 
 
-    return G_star, partition
+    return G_star, partition, alignment_graph
 
 
 
