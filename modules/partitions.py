@@ -113,7 +113,7 @@ def partition_strings_paths(S, params, node_weights = {}, edge_creating_min_tres
     # and the number of unique strings in Partition is the same as in S, then partition is a proper partition S
     # That is, there are no bugs.
     # print(unique_start_strings == partition_sequences)
-    print(total_strings_in_partition)
+    # print(total_strings_in_partition)
     # print(len(partition_sequences))
     # print(len(unique_start_strings))
     assert unique_start_strings == partition_sequences
@@ -123,8 +123,8 @@ def partition_strings_paths(S, params, node_weights = {}, edge_creating_min_tres
 
 
 
-def partition_strings(S, node_weights = {}):
-    G_star, alignment_graph, converged = graphs.construct_minimizer_graph(S)
+def partition_strings(S, params, node_weights = {}, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
+    G_star, alignment_graph, converged = graphs.construct_minimizer_graph(S, params, edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold)
     partition_alignments = {}
     unique_start_strings = set(G_star.keys())
     partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
@@ -171,9 +171,13 @@ def partition_strings(S, node_weights = {}):
         max_indegree = -1
         for s in V_not_in_M:
             if node_weights:
-                indegree = node_weights[s]  # choose the node with the max support of reads, this is found in the node weight if specified
+                if s not in marked:
+                    indegree = node_weights[s]  # choose the unmarked node with the max support of reads, this is found in the node weight if specified
+                else:
+                    continue
             else:
                 indegree = sum([indegree for in_nbr, indegree in G_star_transposed[s].items() if in_nbr not in marked ])
+            
             if indegree > max_indegree:
                 m, max_indegree = s, indegree
         # print(max_indegree, len(V_not_in_M), len(marked))
@@ -186,6 +190,7 @@ def partition_strings(S, node_weights = {}):
         partition_counter += 1
         marked.add(m)
         for in_nbr_to_m in G_star_transposed[m]:
+            print("KKKDDJDDJ")
             marked.add(in_nbr_to_m)
 
     print("Chosen minimizers:", len(M))

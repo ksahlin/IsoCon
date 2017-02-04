@@ -56,7 +56,7 @@ def run_stat_filter(params):
     all_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
     print("nr initial candidates:", len(all_candidates))
     preprocessed_candidates_file = open(os.path.join(params.outfolder, "preprocessed_candidates.fa"), "w")
-    counter = 1
+    counter = 0
     for acc, seq in all_candidates.items():
         match = re.search('support_(\d+)', acc)
         if match:
@@ -161,7 +161,7 @@ if __name__ == '__main__':
     stat_filter.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     stat_filter.add_argument('--min_candidate_support', type=int, default=3, help='Required minimum number of reads converged to the same sequence to be included in statistical test. Can only be applies if fasta accessions comes from previous step in pipline')
     stat_filter.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
-    stat_filter.add_argument('--statistical_test_editdist', type=int, default=5, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
+    stat_filter.add_argument('--statistical_test_editdist', type=int, default=0, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
     stat_filter.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
     stat_filter.set_defaults(which='stat_filter')
 

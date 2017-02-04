@@ -65,7 +65,7 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
         reads_to_map.update([c_acc]) # ad the candidate consensus too!
     
     # p_values[t_acc] = (t_acc, len(reads_to_t), -1, len(reads_to_map)) 
-    print(len(reads_to_map))
+    # print(len(reads_to_map))
 
     # create alignment matrix A of reads to t
     graph_partition_t = {t_acc : reads_to_map }
@@ -86,47 +86,78 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
 
 
     # here we do two separate tests: against cluster center and against closest candidate (they may be the same).
-    p_values_on_center = test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_accessions, partition_of_X, partition_of_C, C)
+    p_values_on_closest = test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_accessions, partition_of_X, partition_of_C, C)
 
-    p_values_on_closest = {}
+    # p_values_on_closest = {}
     all_c_in_partition = candidate_accessions.union({t_acc})
-    for c in all_c_in_partition:
-        # find reference here: this should be the closest candidate in partition
-        print(c)
-        print(all_c_in_partition.difference({c}))
-        delta_c = get_difference_coordinates_for_candidates(c, all_c_in_partition.difference({c}), alignment_matrix_to_t)
-        t_acc_single = min(delta_c, key=lambda x: len(delta_c[x]))
-        delta_t_single = get_difference_coordinates_for_candidates(t_acc_single, {c}, alignment_matrix_to_t)
-        print("minimizer:", len(delta_c[t_acc_single]))
-        candidate_accessions_single = set({c})
+    
+    min_to_t_acc = min(delta_t, key=lambda x: len(delta_t[x]))
+
+
+    # for c in all_c_in_partition:
+    #     # find reference here: this should be the closest candidate in partition
+    #     # print(c)
+    #     # print(all_c_in_partition.difference({c}))
+    #     delta_c = get_difference_coordinates_for_candidates(c, all_c_in_partition.difference({c}), alignment_matrix_to_t)
+
+    #     min_distance = 2**30
+    #     highest_support = 0
+    #     for c2_acc, delta_to_c in delta_c.items():
+    #         c2_distance = len(delta_to_c)
+    #         if c2_distance < min_distance:
+    #             min_distance = c2_distance
+    #             highest_support = len(partition_of_X[c2_acc])
+    #             min_to_t_acc = c2_acc
+
+    #         elif c2_distance == min_distance:
+    #             support = len(partition_of_X[c2_acc])
+    #             if support > highest_support:
+    #                 min_distance = c2_distance
+    #                 highest_support = support
+    #                 min_to_t_acc = c2_acc
+
+
+
+        # p_value_min = 2.0
+
+        # test against highest supported minimizer
+        # for c2_acc, delta_to_c in delta_c.items():
+        #     if len(delta_to_c) == min_distance:   
+        # print("test", c, "against", min_to_t_acc)                    
+        # min_to_t_acc = min(delta_c, key=lambda x: len(delta_c[x]))
+    delta_t_single = get_difference_coordinates_for_candidates(min_to_t_acc, {t_acc}, alignment_matrix_to_t)
+        # print("minimizer:", len(delta_c[min_to_t_acc]))
+    candidate_accessions_single = set({t_acc})
         # delta_t_single = {c : delta_c[c]}
 
-        relevant_accessions = partition_of_X[t_acc_single].union(partition_of_X[c])
-        relevant_accessions.update([c,t_acc_single ])
-        alignment_matrix_to_t_single = {acc : alignment_matrix_to_t[acc] for acc in alignment_matrix_to_t if acc in relevant_accessions}
-
-        p_value_on_closest = test_against_closest(delta_t_single, alignment_matrix_to_t_single, t_acc_single, t, candidate_accessions_single, partition_of_X, partition_of_C, C)
-        p_values_on_closest[c] = p_value_on_closest[c]
+    relevant_accessions = partition_of_X[min_to_t_acc].union(partition_of_X[t_acc])
+    relevant_accessions.update([t_acc, min_to_t_acc ])
+    alignment_matrix_to_t_single = {acc : alignment_matrix_to_t[acc] for acc in alignment_matrix_to_t if acc in relevant_accessions}
+    p_value_on_closest = test_against_closest(delta_t_single, alignment_matrix_to_t_single, min_to_t_acc, C[min_to_t_acc], candidate_accessions_single, partition_of_X, partition_of_C, C)
+    # if p_vaxlue_on_closest[c][2] < p_value_min:
+    # info_tuple =  p_value_on_closest[c] #(t_acc, k, p_value, N_t)
+    p_values_on_closest[t_acc] = p_value_on_closest[t_acc]
+    # p_values_on_center[t] = p_value_on_closest[t]
 
     final_p_values = {}
     for c_acc in candidate_accessions.union({t_acc}):
-        if c_acc == 'read34_support_7':
+        # if c_acc == 'read34_support_7':
             # print("OKKKKKK", t_acc)
             # print(p_values_on_center[c_acc])
             # print( p_values_on_closest[c_acc])
-            print()
-        if c_acc != t_acc:
-            (t_acc_center, k_center, p_value_center, N_t_center) =  p_values_on_center[c_acc]
-        else:
-            (t_acc_center, k_center, p_value_center, N_t_center) = ("t", 2**30, -100, 2**30)
+            # print()
+        # if c_acc != t_acc:
+        #     (t_acc_center, k_center, p_value_center, N_t_center) =  p_values_on_center[c_acc]
+        # else:
+        #     (t_acc_center, k_center, p_value_center, N_t_center) = ("t", 2**30, -100, 2**30)
 
         (t_acc_closest, k_closest, p_value_closest, N_t_closest) =  p_values_on_closest[c_acc]
-        if p_value_center > p_value_closest:
+        if False: #p_value_center > p_value_closest:
             final_p_values[c_acc] = (t_acc_center, k_center, p_value_center, N_t_center)
         else:
             print()
-            print("P value higher for closest:")
-            print(t_acc_center, k_center, p_value_center, N_t_center)
+            print("P value for closest used:")
+            # print(t_acc_center, k_center, p_value_center, N_t_center)
             print(t_acc_closest, k_closest, p_value_closest, N_t_closest)
             print()
             final_p_values[c_acc] = (t_acc_closest, k_closest, p_value_closest, N_t_closest)
@@ -169,6 +200,10 @@ def get_partition_alignments_2set(graph_partition, C, X):
             edit_dist = mismatches + indels
             partition_alignments[c][x] = (edit_dist, aln_c, aln_x, 1)
 
+        # BUG keyerror later if an exact alignment is not found here. e.g., best alignment of read had a valid exact alignment to a candidate
+        # but not when aligned to t... fix here.. actually, implement barcode detection first, this might clean up things for for targeted data
+        # at least...
+
     # for c in partition_alignments:
     #     if len(partition_alignments[c]) < 1: 
     #         del partition_alignments[c]
@@ -188,9 +223,9 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
     # format:  { c_acc1 : u_delta, c_acc2 : u_delta, ... , }
     invariant_factors = get_invariant_adjustment(delta_t, alignment_matrix_to_t, t_acc)
 
-    print()
-    print("INVARIANT FACTORS:", invariant_factors)
-    print()
+    # print()
+    # print("INVARIANT FACTORS:", invariant_factors)
+    # print()
     # get p_value
     m = len(t)
 
@@ -206,8 +241,8 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
 
 
         if k <= 1:
-            print("NO support!")
-            print("lengths:", len(t), len(C[c_acc]))                    
+            # print("NO support!")
+            # print("lengths:", len(t), len(C[c_acc]))                    
             p_value = 1
         else:
             k_I, k_S, k_D = k, k, k
@@ -226,10 +261,10 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
 
             # special cases that are obvious or can be accurately approximated
             if (p_I == 0.0 and x_I > 0) or (p_S == 0.0 and x_S > 0) or (p_D == 0.0 and x_D > 0):
-                print("here approx", N_t)
-                print("lambda:", lambda_D, lambda_S, lambda_I)
-                print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
-                print("lengths:", len(t), len(C[c_acc]))
+                # print("here approx", N_t)
+                # print("lambda:", lambda_D, lambda_S, lambda_I)
+                # print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
+                # print("lengths:", len(t), len(C[c_acc]))
                 p_value = 0.0
             elif (p_I + p_D + p_S)*m >= 10 :
                 # approximate with normal
@@ -237,20 +272,20 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
                 mu = p_bin*m
                 sigma = math.sqrt( (1 - p_bin)* p_bin*m )
                 p_value = norm.sf(x_S + x_D + x_I , loc=mu , scale=sigma)
-                print("LOOOOL NORMAL approx:")
-                print("lambda:", lambda_D, lambda_S, lambda_I)
-                print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
-                print("Approx p-val: ", p_value)
-                print("lengths:", len(t), len(C[c_acc]))
+                # print("LOOOOL NORMAL approx:")
+                # print("lambda:", lambda_D, lambda_S, lambda_I)
+                # print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
+                # print("Approx p-val: ", p_value)
+                # print("lengths:", len(t), len(C[c_acc]))
             elif x_S + x_D + x_I > 10 and (p_I + p_D + p_S)*m < 10 :
                 # approximate with poisson
                 lambda_prob = p_I + p_D + p_S
-                print("LOOOOL poisson approx:")
-                print("lambda:", lambda_D, lambda_S, lambda_I)
-                print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
+                # print("LOOOOL poisson approx:")
+                # print("lambda:", lambda_D, lambda_S, lambda_I)
+                # print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I)
                 p_value = poisson.sf(x_S + x_D + x_I - 1, lambda_prob)
-                print("Approx p-val: ", p_value)
-                print("lengths:", len(t), len(C[c_acc]))
+                # print("Approx p-val: ", p_value)
+                # print("lengths:", len(t), len(C[c_acc]))
 
             else:
                 #exact!
@@ -274,11 +309,11 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
 
                 # p_between_bp = 1
 
-                print("EXACT:")
-                print("lambda:", lambda_D, lambda_S, lambda_I)
-                print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I, m)
-                print("p-val: ", p_value)
-                print("lengths:", len(t), len(C[c_acc]))
+                # print("EXACT:")
+                # print("lambda:", lambda_D, lambda_S, lambda_I)
+                # print("k:",k, x_S, x_D, x_I,p_S, p_D, p_I, m)
+                # print("p-val: ", p_value)
+                # print("lengths:", len(t), len(C[c_acc]))
 
         ############################################################################################
         ############################################################################################

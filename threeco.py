@@ -199,7 +199,16 @@ def filter_C_X_and_partition(X, C, G_star, partition):
 
     print("total reads:", len(X), "total reads with an alignment:", len(G_star) )
 
+    bug_read = "m151210_031012_42146_c100926392550000001823199905121697_s1_p0/73682/0_1489_CCS"
+    print("IN alignment:", bug_read in G_star)
+    bug_cand = ""
+    if bug_read in G_star:
+        bug_cand = G_star[bug_read]
+        print("to c_acc:", G_star[bug_read])
+
+
     for x in X.keys():
+
         if x not in G_star:
             print("read missing alignment",x)
             del X[x]
@@ -209,10 +218,15 @@ def filter_C_X_and_partition(X, C, G_star, partition):
     print("total consensus:", len(C), "total consensus with at least one alignment:", len(partition) )
 
     for c_acc in C.keys():
-        # if len(C[c_acc]) == 1899 or len(C[c_acc]) == 1891:
-        #     print(c_acc, len(C[c_acc]) )
-        #     print(partition[c_acc])
-        #     print()
+
+        if c_acc == bug_cand:
+            print("BUGGY TRANSCRIPT HERE:", len(partition[bug_cand]))
+            if bug_read in partition[bug_cand]:
+                print("in partition" )
+            else:
+                print("Read is not in partition" )
+
+
         if c_acc not in partition:
             print("candidate missing hit:", c_acc)
             del C[c_acc]
@@ -252,7 +266,7 @@ def stat_filter_candidates(read_file, candidate_file, params):
         modified = False
         print("NEW STEP")
         weights = { C[c_acc] : len(x_hits) for c_acc, x_hits in partition_of_X.items()} 
-        G_star_C, partition_of_C, M, converged = partition_strings_paths(C, params, node_weights = weights, edge_creating_min_treshold = params.statistical_test_editdist,  edge_creating_max_treshold = 15)
+        G_star_C, partition_of_C, M, converged = partition_strings(C, params, node_weights = weights, edge_creating_min_treshold = params.statistical_test_editdist,  edge_creating_max_treshold = 15)
         # self edges not allowed
         print(len(C), len(partition_of_C), len(M) )
 
@@ -352,15 +366,6 @@ def stat_filter_candidates(read_file, candidate_file, params):
             del partition_of_X[c_acc]
             print("merging:", c_acc, "into", t_acc, "k:", k)
 
-            # while True:
-            #     if t_acc in C:
-            #         partition_of_X[t_acc].update(partition_of_X[c_acc])
-            #         del partition_of_X[c_acc]
-            #         print("deleting:", c_acc, "pval:", p_value, "to", t_acc, "k:", k)
-
-            #         break
-            #     else:
-            #         t_acc = closest_significant_refs[t_acc]
 
         print("nr candidates left:", len(C))
         print(p_vals)
