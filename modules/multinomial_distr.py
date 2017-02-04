@@ -1,5 +1,3 @@
-
-from itertools import izip
 from numpy import array, log, exp
 from scipy.special import gammaln
 
