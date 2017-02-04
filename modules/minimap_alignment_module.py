@@ -34,9 +34,9 @@ def paf_to_best_matches_2set(paf_file_path):
     with file_object as paf_file:
         for line in paf_file:
             row_info = line.strip().split()
-            q_acc = str(row_info[0].decode('ascii'))
+            q_acc = str(row_info[0] #.decode('ascii'))
             q_len = int(row_info[1])
-            t_acc = str(row_info[5].decode('ascii'))
+            t_acc = str(row_info[5] #.decode('ascii'))
             t_len = int(row_info[6])
 
             if q_acc == t_acc:
@@ -87,9 +87,9 @@ def paf_to_best_matches(paf_files, acc_to_strings):
         with file_object as paf_file:
             for line in paf_file:
                 row_info = line.strip().split()
-                q_acc = row_info[0].decode('ascii')
+                q_acc = row_info[0] #.decode('ascii')
                 q_len = int(row_info[1])
-                t_acc = row_info[5].decode('ascii')
+                t_acc = row_info[5] #.decode('ascii')
                 t_len = int(row_info[6])
 
                 if q_acc == t_acc:
