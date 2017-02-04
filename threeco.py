@@ -16,8 +16,7 @@ from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_k
 from modules.input_output import fasta_parser
 from modules import statistical_test
 
-import networkx as nx
-import matplotlib.pyplot as plt
+
 
 def get_unique_seq_accessions(S):
     seq_to_acc = {}
@@ -281,8 +280,9 @@ def stat_filter_candidates(read_file, candidate_file, params):
             nr_of_tests = nr_of_tests_this_round
 
         ######### just for vizualization ###############
-        # D=nx.DiGraph(G_star_C)
         if params.develop_mode:
+            import networkx as nx
+            import matplotlib.pyplot as plt
             D=nx.DiGraph()
             lables = {}
             for c1 in partition_of_C:
