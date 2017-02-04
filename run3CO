@@ -36,9 +36,9 @@ import copy
 import argparse
 import signal
 from time import time
-
+import re
 from modules import threeco_parameters
-from modules.input_output import write_output
+from modules.input_output import write_output, fasta_parser
 from modules import identify_barcodes
 import threeco
 from multiprocessing import Pool
@@ -51,14 +51,36 @@ def run_get_candidates():
     pass
 
 def run_stat_filter(params):
+    total_start = time()
     initialize_logger(params)
+    all_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
+    print("nr initial candidates:", len(all_candidates))
+    preprocessed_candidates_file = open(os.path.join(params.outfolder, "preprocessed_candidates.fa"), "w")
+    counter = 1
+    for acc, seq in all_candidates.items():
+        match = re.search('support_(\d+)', acc)
+        if match:
+            support = int(match.group(1))
+            if support < params.min_candidate_support:
+                print("filter candidate with support:", support)
+                continue
+        else:
+            print("no support in accession")
+
+        preprocessed_candidates_file.write(">{0}\n{1}\n".format(acc, seq))
+        counter += 1
+
+
+    print("After preprocessed:", counter)
+
+    preprocessed_candidates_file.close()
+    params.candidates = preprocessed_candidates_file.name
     threeco.stat_filter_candidates(params.fl_reads, params.candidates, params)
     total_elapsed = time() - total_start
     write_output.logger('TOTAL TIME ELAPSED FOR STAT_FILTER:{0}'.format(str(total_elapsed)), params.logfile)
 
 def initialize_logger(params):
     ##### initialize logging info and output #######
-    total_start = time()
     logfile = open(os.path.join(params.outfolder, "logfile.txt"), 'w')
     params.filtered_reads = open(os.path.join(params.outfolder, "filtered_reads.fa"), 'w')
     params.logfile = logfile
@@ -76,7 +98,7 @@ def run_pipeline(params):
             2. get_candidates() to find candidate transcripts out of CCS full length reads
             3. stat_filter() to filter candidates and only output significant ones
     """
-
+    total_start = time()
     initialize_logger(params)
     params.read_file = params.fl_reads
     if params.barcodes:
@@ -139,6 +161,7 @@ if __name__ == '__main__':
     stat_filter.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     stat_filter.add_argument('--min_candidate_support', type=int, default=3, help='Required minimum number of reads converged to the same sequence to be included in statistical test. Can only be applies if fasta accessions comes from previous step in pipline')
     stat_filter.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
+    stat_filter.add_argument('--statistical_test_editdist', type=int, default=5, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
     stat_filter.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
     stat_filter.set_defaults(which='stat_filter')
 
