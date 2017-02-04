@@ -358,7 +358,7 @@ def create_multialignment_format(query_to_target_positioned_dict, start, stop):
         coordinates where vector is of size 2*len(target) + 1
     """
     assert len(query_to_target_positioned_dict) > 0
-    target_vector_length = len(query_to_target_positioned_dict.values()[0][0])
+    target_vector_length = len( list(query_to_target_positioned_dict.values())[0][0])
     assert stop < target_vector_length # vector coordinates are 0-indexed
 
     # get allreads alignments covering interesting segment

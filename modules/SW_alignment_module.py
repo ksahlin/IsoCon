@@ -278,10 +278,10 @@ def find_best_matches(approximate_matches, edge_creating_min_treshold = -1, edge
 
 
     ## filter best exact matches here
-    for s1 in best_exact_matches.keys():
+    for s1 in list(best_exact_matches.keys()):
         s1_minimizer = min(best_exact_matches[s1], key = lambda x: best_exact_matches[s1][x][0])
         min_edit_distance = best_exact_matches[s1][s1_minimizer][0]
-        for s2 in best_exact_matches[s1].keys():
+        for s2 in list(best_exact_matches[s1].keys()):
             ed =  best_exact_matches[s1][s2][0]
             if ed > min_edit_distance:
                 if ed > edge_creating_min_treshold:
@@ -322,7 +322,7 @@ def find_best_matches_2set(highest_paf_scores, X, C):
             #     print("HERE!!!", edit_distance)
 
             if x_acc in best_exact_matches:
-                x_minimizer = best_exact_matches[x_acc].keys()[0]
+                x_minimizer = list(best_exact_matches[x_acc].keys())[0]
                 # if c_acc == "read_844_support_3":
                 #     print("current min:", x_minimizer, best_exact_matches[x_acc][x_minimizer][0])
 

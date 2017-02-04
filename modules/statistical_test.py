@@ -7,8 +7,8 @@ import math
 from scipy.stats import poisson, binom, norm
 
 from modules.multinomial_distr import multinomial_
-from SW_alignment_module import sw_align_sequences_keeping_accession
-from functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, get_invariant_adjustment
+from modules.SW_alignment_module import sw_align_sequences_keeping_accession
+from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, get_invariant_adjustment
 
 
 def do_statistical_tests(null_hypothesis_references_t, C_seq_to_acc, partition_of_X, partition_of_C, X, C, single_core = False):
