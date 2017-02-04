@@ -190,7 +190,6 @@ def partition_strings(S, params, node_weights = {}, edge_creating_min_treshold =
         partition_counter += 1
         marked.add(m)
         for in_nbr_to_m in G_star_transposed[m]:
-            print("KKKDDJDDJ")
             marked.add(in_nbr_to_m)
 
     print("Chosen minimizers:", len(M))
