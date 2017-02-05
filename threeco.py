@@ -13,7 +13,7 @@ from modules.partitions import partition_strings_paths, partition_strings_2set_p
 from modules.functions import create_position_probability_matrix, transpose, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates
 from modules import graphs
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
-from modules.input_output import fasta_parser
+from modules.input_output import fasta_parser, write_output
 from modules import statistical_test
 
 
@@ -105,8 +105,8 @@ def find_candidate_transcripts(read_file, params):
             break
         #######################################################
 
-   
 
+        # TODO: Parallelize this part over partitions
         for m, partition in partition_alignments.items():
             N_t = sum([container_tuple[3] for s, container_tuple in partition.items()]) # total number of sequences in partition
             # print("cluster size:", N_t)
@@ -236,23 +236,37 @@ def filter_C_X_and_partition(X, C, G_star, partition):
             print(c_acc, " read hits:", len(partition[c_acc]))
     return X, C
 
+def vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C):
+    import networkx as nx
+    import matplotlib.pyplot as plt
+    D=nx.DiGraph()
+    lables = {}
+    for c1 in partition_of_C:
+        c1_acc = C_seq_to_acc[c1]
+        reads_to_c1 = [X[x_acc] for x_acc in  partition_of_X[c1_acc] ]
+        w_c1 = len(reads_to_c1)
+        for c2 in  partition_of_C[c1]:
+            c2_acc = C_seq_to_acc[c2]
+            reads_to_c2 = [X[x_acc] for x_acc in  partition_of_X[c2_acc] ]
+            w_c2 = len(reads_to_c2)
+            D.add_edge(c2,c1, weight = str(w_c2) + "->" + str(w_c1)  )
+    labels = nx.get_edge_attributes(D, 'weight')
+    # pos = nx.circular_layout(D)
+    pos = dict()
+    XX = [c2 for c1 in partition_of_C for c2 in partition_of_C[c1] ] # have in-edges
+    YY = [c1 for c1 in partition_of_C ] # not
+    pos.update( (n, (1, 4*i)) for i, n in enumerate(XX) ) # put nodes from X at x=1
+    pos.update( (n, (2, 2*i)) for i, n in enumerate(YY) ) # put nodes from Y at x=2
+    nx.draw_networkx_nodes(D, pos, node_size=50 )
+    nx.draw_networkx_edge_labels(D, pos, arrows=True, edge_labels=labels)
+    nx.draw_networkx_edges(D, pos, arrows=True, edge_labels=labels)
+    fig_file = os.path.join(params.plotfolder, "Graph_bip_1000_step_" + str(step) + ".png")
+    plt.savefig(fig_file, format="PNG")
+    plt.clf()
 
 def stat_filter_candidates(read_file, candidate_file, params):
     ################################### PROCESS INDATA #####################################
-    # if not candidate_file:
-    #     candidate_file = find_candidate_transcripts(read_file, params)
-    X_file = read_file
-    C_file = candidate_file
     X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
-    C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))} 
-
-    # C = {c: support for c, support in C.items() if support > 3}
-    # TODO: eventually filter candidates with lower support than 2-3? Here?
-    G_star, partition_of_X, alignments_of_x_to_c =  partition_strings_2set_paths(X, C, X_file, C_file)
-
-    X, C = filter_C_X_and_partition(X, C, G_star, partition_of_X)
-    C_seq_to_acc = {seq : acc for acc, seq in C.items()}
-
     #########################################################################################
 
 
@@ -263,14 +277,22 @@ def stat_filter_candidates(read_file, candidate_file, params):
     while modified:
         modified = False
         print("NEW STEP")
+        ############ GET READ SUPORT AND ALIGNMENTS #################
+        C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))} 
+        G_star, partition_of_X, alignments_of_x_to_c =  partition_strings_2set_paths(X, C, read_file, candidate_file)
+        X, C = filter_C_X_and_partition(X, C, G_star, partition_of_X)
+        C_seq_to_acc = {seq : acc for acc, seq in C.items()}
+        ################################################################
+
+        ############# GET THE CLOSES HIGHEST SUPPORTED REFERENCE TO TEST AGAINST FOR EACH CANDIDATE ############
         weights = { C[c_acc] : len(x_hits) for c_acc, x_hits in partition_of_X.items()} 
         G_star_C, partition_of_C, M, converged = partition_to_statistical_test(C, params, node_weights = weights, edge_creating_min_treshold = params.statistical_test_editdist,  edge_creating_max_treshold = 15)
         # self edges not allowed
         print(len(C), len(partition_of_C), len(M) )
-
+        #####################################################################################################
 
         # get all candidats that serve as null-hypothesis references and have neighbors subject to testing
-        # these are all candidates that are minimizers to some other, isolated nodes is not tested
+        # these are all candidates that are minimizers to some other, isolated nodes are not tested
         # candidatate in G_star_C
         null_hypothesis_references_to_candidates = [c for c in partition_of_C if partition_of_C[c] ]
         print("References in testing:", len(null_hypothesis_references_to_candidates))
@@ -280,45 +302,11 @@ def stat_filter_candidates(read_file, candidate_file, params):
 
         ######### just for vizualization ###############
         if params.develop_mode:
-            import networkx as nx
-            import matplotlib.pyplot as plt
-            D=nx.DiGraph()
-            lables = {}
-            for c1 in partition_of_C:
-                c1_acc = C_seq_to_acc[c1]
-                reads_to_c1 = [X[x_acc] for x_acc in  partition_of_X[c1_acc] ]
-                w_c1 = len(reads_to_c1)
-                for c2 in  partition_of_C[c1]:
-                    c2_acc = C_seq_to_acc[c2]
-                    reads_to_c2 = [X[x_acc] for x_acc in  partition_of_X[c2_acc] ]
-                    w_c2 = len(reads_to_c2)
-                    D.add_edge(c2,c1, weight = str(w_c2) + "->" + str(w_c1)  )
-            labels = nx.get_edge_attributes(D, 'weight')
-            # pos = nx.circular_layout(D)
-            pos = dict()
-            XX = [c2 for c1 in partition_of_C for c2 in partition_of_C[c1] ] # have in-edges
-            YY = [c1 for c1 in partition_of_C ] # not
-            pos.update( (n, (1, 4*i)) for i, n in enumerate(XX) ) # put nodes from X at x=1
-            pos.update( (n, (2, 2*i)) for i, n in enumerate(YY) ) # put nodes from Y at x=2
-            nx.draw_networkx_nodes(D, pos, node_size=50 )
-            nx.draw_networkx_edge_labels(D, pos, arrows=True, edge_labels=labels)
-            nx.draw_networkx_edges(D, pos, arrows=True, edge_labels=labels)
-            fig_file = os.path.join(params.plotfolder, "Graph_bip_1000_step_" + str(step) + ".png")
-            plt.savefig(fig_file, format="PNG")
-            plt.clf()
-
+            vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C)
         ####################################################
 
-        # based on how G_star is shaped, we decide which reads to align to the candidate under the null-hypothesis
-        # i.e., all reads in partition_of_X[c1] + partition_of_X[c2] should be aligned to c2. After that we estimate error rates etc.
-        #or should we align al reads in S* to a cluster center c2?? that is all reads belonging to canditades that has the same minimizer?
-        # we would probably get better statistical power in each test.. maybe its also simpler to implement. 
-
-
-
-        # do one reference candidate at a time, these are all modular and this loop 
-        # can easily be parallellized if we break this up to a function
-        # p_values_to_t = wrapper_statistical_test()
+        #all reads tested against a reference are aligned to that reference 
+        # do one reference candidate at a time, this is therefore easily  parallellized 
 
         C_pvals = { C_seq_to_acc[c] : (len(partition_of_X[C_seq_to_acc[c]]), "not_tested", len(partition_of_X[C_seq_to_acc[c]]) ) for c in partition_of_C if not partition_of_C[c]} # initialize with transcripts not tested
         candidate_p_values = statistical_test.do_statistical_tests(null_hypothesis_references_to_candidates, C_seq_to_acc, partition_of_X, partition_of_C, X, C, single_core = params.single_core)
@@ -364,6 +352,9 @@ def stat_filter_candidates(read_file, candidate_file, params):
 
         print("nr candidates left:", len(C))
         print(p_vals)
+        candidate_file = os.path.join(params.outfolder, "candidates_after_step_{0}.fa".format(step))
+        write_output.print_candidates(candidate_file, alignments_of_x_to_c, C, C_pvals)
+
         if params.develop_mode:
             plt.hist(p_vals)
             fig_file = os.path.join(params.plotfolder, "p_vals_step_" + str(step) +".png")
@@ -371,45 +362,8 @@ def stat_filter_candidates(read_file, candidate_file, params):
             plt.clf()
             step += 1
 
-    out_file_name =  os.path.join(params.outfolder, "final_candidates.fa")
-    out_file = open(out_file_name, "w")
-    final_candidate_count = 0
-    alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)
-    for c_acc, seq in C.items():
-        support, p_value, N_t = C_pvals[c_acc] 
-        #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
-        # add extra constraint that the candidate has to have majority on _each_ position in c here otherwise most likely error
-        if support >= 4:
-            if p_value == "not_tested":
-                print("not tested with support", support, "needs to be consensus over each base pair")
-                
-                partition_alignments_c = {c_acc : (0, C[c_acc], C[c_acc], 1)}  # format: (edit_dist, aln_c, aln_x, 1)
-                for x_acc in alignments_of_x_to_c_transposed[c_acc]:
-                    (ed, aln_x, aln_c) = alignments_of_x_to_c_transposed[c_acc][x_acc]
-                    partition_alignments_c[x_acc] = (ed, aln_c, aln_x, 1) 
-
-                alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(C[c_acc], partition_alignments_c)
-                c_alignment = alignment_matrix_to_c[c_acc]
-                is_consensus = True
-                for j in range(len(PFM_to_c)):
-                    c_v =  c_alignment[j]
-                    candidate_count = PFM_to_c[j][c_v]
-                    for v in PFM_to_c[j]:
-                        if v != c_v and candidate_count <= PFM_to_c[j][v]: # needs to have at least one more in support than the second best as we have added c itself to the multialignment
-                            # print("not consensus at:", j)
-                            is_consensus = False
-
-                if is_consensus:
-                    out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
-                    final_candidate_count += 1
-                else:
-                    print("were not consensus")
-            else:
-                out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
-                final_candidate_count += 1
-        else:
-            print("deleting:", "support:", support, "pval:", p_value, "tot reads in partition:", N_t  )
-    print("Final candidate count: ", final_candidate_count)
+    final_out_file_name =  os.path.join(params.outfolder, "final_candidates.fa")
+    write_output.print_candidates(final_out_file_name, alignments_of_x_to_c, C, C_pvals)
     return C
 
 
