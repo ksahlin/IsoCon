@@ -9,7 +9,7 @@ import unittest
 import math
 
 
-from modules.partitions import partition_strings_paths, partition_strings_2set_paths, partition_strings
+from modules.partitions import partition_strings_paths, partition_strings_2set_paths, partition_to_statistical_test
 from modules.functions import create_position_probability_matrix, transpose, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates
 from modules import graphs
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
@@ -264,7 +264,7 @@ def stat_filter_candidates(read_file, candidate_file, params):
         modified = False
         print("NEW STEP")
         weights = { C[c_acc] : len(x_hits) for c_acc, x_hits in partition_of_X.items()} 
-        G_star_C, partition_of_C, M, converged = partition_strings(C, params, node_weights = weights, edge_creating_min_treshold = params.statistical_test_editdist,  edge_creating_max_treshold = 15)
+        G_star_C, partition_of_C, M, converged = partition_to_statistical_test(C, params, node_weights = weights, edge_creating_min_treshold = params.statistical_test_editdist,  edge_creating_max_treshold = 15)
         # self edges not allowed
         print(len(C), len(partition_of_C), len(M) )
 
@@ -326,11 +326,7 @@ def stat_filter_candidates(read_file, candidate_file, params):
         p_vals = []
         # wait for all candidate p_values to be calculated
         removed_nodes_reference_graph = {}
-        print()
-        print()
-        print("NEW CLUSTER")
-        print()
-        print()
+
         for c_acc, (t_acc, k, p_value, N_t) in candidate_p_values.items():
             if p_value > 0.05/nr_of_tests or k == 0:
                 print("Potential delete:", c_acc, k, p_value, N_t)
@@ -400,7 +396,7 @@ def stat_filter_candidates(read_file, candidate_file, params):
                     candidate_count = PFM_to_c[j][c_v]
                     for v in PFM_to_c[j]:
                         if v != c_v and candidate_count <= PFM_to_c[j][v]: # needs to have at least one more in support than the second best as we have added c itself to the multialignment
-                            print("not consensus at:", j)
+                            # print("not consensus at:", j)
                             is_consensus = False
 
                 if is_consensus:
