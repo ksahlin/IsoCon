@@ -206,8 +206,7 @@ def filter_C_X_and_partition(X, C, G_star, partition):
         print("to c_acc:", G_star[bug_read])
 
 
-    for x in X.keys():
-
+    for x in list(X.keys()):
         if x not in G_star:
             print("read missing alignment",x)
             del X[x]
@@ -216,7 +215,7 @@ def filter_C_X_and_partition(X, C, G_star, partition):
 
     print("total consensus:", len(C), "total consensus with at least one alignment:", len(partition) )
 
-    for c_acc in C.keys():
+    for c_acc in list(C.keys()):
 
         if c_acc == bug_cand:
             print("BUGGY TRANSCRIPT HERE:", len(partition[bug_cand]))
