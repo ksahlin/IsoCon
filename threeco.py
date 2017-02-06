@@ -265,11 +265,6 @@ def vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C):
     plt.clf()
 
 def stat_filter_candidates(read_file, candidate_file, params):
-    ################################### PROCESS INDATA #####################################
-    X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
-    #########################################################################################
-
-
     modified = True
     # changed_nodes = set(C.keys())
     step = 1
@@ -278,7 +273,8 @@ def stat_filter_candidates(read_file, candidate_file, params):
         modified = False
         print("NEW STEP")
         ############ GET READ SUPORT AND ALIGNMENTS #################
-        C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))} 
+        X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
+        C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
         G_star, partition_of_X, alignments_of_x_to_c =  partition_strings_2set_paths(X, C, read_file, candidate_file)
         X, C = filter_C_X_and_partition(X, C, G_star, partition_of_X)
         C_seq_to_acc = {seq : acc for acc, seq in C.items()}

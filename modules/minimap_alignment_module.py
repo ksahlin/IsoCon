@@ -142,6 +142,7 @@ def map_with_minimap(targets, queries):
     sys.stdout.flush()
     # print(type(targets))
     processes = mp.cpu_count()
+    print("minimap with {0} processes.".format(processes))
     with open(minimap_output, "w") as minimap_file:
         sys.stdout.flush()
         subprocess.check_call([ "minimap", "-f", "0.0000000001", "-Sw5", "-L40", "-m0", 

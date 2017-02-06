@@ -303,13 +303,20 @@ def find_best_matches_2set(highest_paf_scores, X, C):
                 Each string in the inner dict has the same (lowest) edit distance to the key 
     """
 
+    best_approx_paf_score = {}
+
     approximate_matches = {}
     for read_acc, best_hits in  highest_paf_scores.items():
         approximate_matches[read_acc] = {}
+        best_approx_paf_score[read_acc] = ""
+        best_score = 0
         # print("NEW")
         for score, t_acc in best_hits:
+            # print(t_acc, score)
             approximate_matches[read_acc][t_acc] = (X[read_acc], C[t_acc])
-        # print(len(approximate_matches[read_acc]))
+            if score > best_score:
+                best_approx_paf_score[read_acc] = t_acc
+
     exact_matches = sw_align_sequences_keeping_accession(approximate_matches, single_core = False )
 
     # process the exact matches here
@@ -337,8 +344,8 @@ def find_best_matches_2set(highest_paf_scores, X, C):
             else:
                 best_exact_matches[x_acc] = {}
                 best_exact_matches[x_acc][c_acc] = (edit_distance, x_alignment, c_alignment)
-                if c_acc == "read_844_support_3":
-                    print("Adding to c", edit_distance)
+                # if c_acc == "read_844_support_3":
+                #     print("Adding to c", edit_distance)
 
             # if c_acc in best_exact_matches:
             #     c_minimizer = best_exact_matches[c_acc].keys()[0]
@@ -350,5 +357,12 @@ def find_best_matches_2set(highest_paf_scores, X, C):
             # else:
             #     best_exact_matches[c_acc] = {}
             #     best_exact_matches[c_acc][x_acc] = (edit_distance, s2_alignment, x_alignment)
-    
+
+    # for read_acc, t_acc in  best_approx_paf_score.items():
+    #     if t_acc in best_exact_matches[read_acc].keys():
+    #         # print("OK!")
+    #         pass
+    #     else:
+    #         print(t_acc, best_exact_matches[read_acc].keys())
+    #         pass
     return best_exact_matches
