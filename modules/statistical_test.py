@@ -238,7 +238,7 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
 
     for c_acc in candidate_accessions:
         u_c = invariant_factors[c_acc]
-        k = len(candidate_support[c_acc])/ float(u_c)
+        k = len(candidate_support[c_acc]) #/ float(u_c)
         N_t = len(alignment_matrix_to_t) - len(candidate_accessions) - 1 # all reads minus all candidates and the reference transcript
         # print("reads N_t:", N_t)
         # print("varinats:",delta_t[c_acc].items())
@@ -253,9 +253,9 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
             p_value = 1
         else:
             k_I, k_S, k_D = k, k, k
-            p_I = poisson.sf(k_I - 1, lambda_I)  # SF defined as 1-P(S_I > k), we want 1-P(S_I >= k)
+            p_I = poisson.sf(k_I - 1, u_c*lambda_I)  # SF defined as 1-P(S_I > k), we want 1-P(S_I >= k)
             p_S = poisson.sf(k_S - 1, lambda_S)
-            p_D = poisson.sf(k_D - 1, lambda_D)
+            p_D = poisson.sf(k_D - 1, u_c*lambda_D)
 
             x_S, x_D, x_I = 0, 0, 0
             for pos, (state, char) in delta_t[c_acc].items():

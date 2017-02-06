@@ -332,8 +332,8 @@ def stat_filter_candidates(read_file, candidate_file, params):
                     removed_nodes_reference_graph[c_acc] = (t_acc, k)  
                 # deleted.add(c_acc)
                 # print(c_acc, t_acc,t_acc_transfer_reads_to )
-            else:
-                C_pvals[c_acc] = (k, p_value, N_t)
+
+            C_pvals[c_acc] = (k, p_value, N_t)
 
             p_vals.append(p_value)
 
