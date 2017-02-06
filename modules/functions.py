@@ -19,8 +19,11 @@ def get_invariant_adjustment(delta_t, alignment_matrix, t_acc):
     target_alignment = alignment_matrix[t_acc]
     stop = len(target_alignment) - 1
     for c_acc in delta_t:
-        min_u_candidate = 10000
+        min_u_candidate_S = 1
+        min_u_candidate_D = 10000
+        min_u_candidate_I = 10000
         candidate_alignment = alignment_matrix[c_acc]
+
         for pos in delta_t[c_acc]:
             state, char = delta_t[c_acc][pos]
             u_pos = 1
@@ -29,8 +32,8 @@ def get_invariant_adjustment(delta_t, alignment_matrix, t_acc):
             elif state == "I":
                 v = char
             else:
-                min_u_candidate = 1 # substitution by defintion has uniqueness 1 we can go to the next candidate
-                break 
+                # min_u_candidate = 1 # substitution by defintion has uniqueness 1 we can go to the next candidate
+                continue 
             offset = 1
             upper_stop = False
             lower_stop = False
@@ -60,10 +63,22 @@ def get_invariant_adjustment(delta_t, alignment_matrix, t_acc):
 
                 offset += 1
 
-            if u_pos < min_u_candidate:
-                min_u_candidate = u_pos
+            if state == "D":
+                if u_pos < min_u_candidate_D:
+                    min_u_candidate_D = u_pos
+            elif state == "I":
+                if u_pos < min_u_candidate_I:
+                    min_u_candidate_I = u_pos
 
-        invariant_factors[c_acc] = min_u_candidate
+            # if u_pos < min_u_candidate:
+            #     min_u_candidate = u_pos
+
+        if min_u_candidate_D == 10000:
+            min_u_candidate_D = 1
+        if min_u_candidate_I == 10000:
+            min_u_candidate_I = 1
+
+        invariant_factors[c_acc] = (min_u_candidate_S, min_u_candidate_D, min_u_candidate_I)
 
     return invariant_factors
 
