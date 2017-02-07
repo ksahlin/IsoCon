@@ -65,15 +65,15 @@ def find_candidate_transcripts(read_file, params):
 
     C = {}
     unique_seq_to_acc = get_unique_seq_accessions(S)
-    
+
     G_star, graph_partition, M, converged = partition_strings_paths(S, params)
     partition_alignments = get_partition_alignments(graph_partition, M, G_star)       
 
-    if converged:
-        for m in M:
-            N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
-            C[m] = N_t           
-        return C
+    # if converged:
+    #     for m in M:
+    #         N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
+    #         C[m] = N_t           
+    #     return C
 
     step = 1
     prev_edit_distances_2steps_ago = [2**28,2**28,2**28] # prevents 2-cycles
@@ -178,16 +178,36 @@ def find_candidate_transcripts(read_file, params):
         prev_edit_distances = edit_distances
 
 
+
     for m in M:
         N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
         C[m] = N_t   
 
+    original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
+    reads_to_minimizers = {}
+    # [for m, partition in partition_alignments.items() for s in partition]
+
+    for read_acc, seq in original_reads.items():
+        m = S[read_acc]
+        # get the correspoindng minimizer for each read, if read does not belong to an m, its because it did not converge.
+        if m not in C:
+            print("Minimizer to read did not converge")
+            continue
+
+        elif C[m] >= params.min_candidate_support:
+            reads_to_minimizers[read_acc] = { m : (original_reads[read_acc], m)}
+        else:
+            print("Minimizer did not pass consensus support.")
+    alignments_of_x_to_m = sw_align_sequences_keeping_accession(reads_to_minimizers)
     out_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
-    out_file = open(out_file_name, "w")
-    for i, m in enumerate(partition_alignments):
-        if C[m] >= params.min_candidate_support:
-            out_file.write(">{0}\n{1}\n".format("read_" + str(i)+ "_support_" + str(C[m]) , m))   
-    out_file.close()    
+    write_output.print_candidates_from_minimizers(out_file_name, alignments_of_x_to_m, C, params)
+
+    # out_file = open(out_file_name, "w")
+    # for i, m in enumerate(partition_alignments):
+    #     if C[m] >= params.min_candidate_support:
+    #         out_file.write(">{0}\n{1}\n".format("read_" + str(i)+ "_support_" + str(C[m]) , m))   
+    # out_file.close()   
+
     return out_file.name
 
 

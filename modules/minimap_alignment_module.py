@@ -38,7 +38,8 @@ def paf_to_best_matches_2set(paf_file_path):
             q_len = int(row_info[1])
             t_acc = str(row_info[5]) #.decode('ascii'))
             t_len = int(row_info[6])
-
+            nr_match = int(row_info[9])            
+            nr_match_w_gap = int(row_info[10])            
             if q_acc == t_acc:
                 # print("SELF MAPPING DETECTED")
                 # print(q_acc, q_len, row_info)
@@ -49,6 +50,7 @@ def paf_to_best_matches_2set(paf_file_path):
             #   \frac{\min \{ |q|, |t| \} } {\max \{ |q|,|t| \} }  n^{\text{minimizers}}
             # paf_similarity_score = math.sqrt(n_min) * min(q_len, t_len)/float(max(q_len, t_len))
             paf_similarity_score = n_min - ( max(q_len, t_len) - min(q_len, t_len))
+            # paf_similarity_score = nr_match - ( nr_match_w_gap - nr_match )
 
             if len(highest_paf_scores[q_acc]) >= 5:
                 # current alignment is better than at least one of previous scores, remove the worst one so far
