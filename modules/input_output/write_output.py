@@ -90,7 +90,7 @@ def print_candidates_from_minimizers(out_file_name, alignments_of_x_to_c, M, par
                 out_file.write(">{0}\n{1}\n".format("read_" + str(i) + "_" + str(support), m))
                 final_candidate_count += 1
             else:
-                print("were not consensus")
+                print("Read with support {0} were not consensus".format(str(support)))
         else:
             print("deleting:")
 

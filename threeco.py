@@ -4,18 +4,14 @@
     partition as keys and the alignment of s_i with respectt to the alignment matix.
 """
 import os
-import copy
 import unittest
-import math
-
 
 from modules.partitions import partition_strings_paths, partition_strings_2set_paths, partition_to_statistical_test
-from modules.functions import create_position_probability_matrix, transpose, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates
 from modules import graphs
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from modules.input_output import fasta_parser, write_output
 from modules import statistical_test
-
+from modules import correct_sequence_to_minimizer
 
 
 def get_unique_seq_accessions(S):
@@ -106,58 +102,11 @@ def find_candidate_transcripts(read_file, params):
         #######################################################
 
 
-        # TODO: Parallelize this part over partitions
-        for m, partition in partition_alignments.items():
-            N_t = sum([container_tuple[3] for s, container_tuple in partition.items()]) # total number of sequences in partition
-            # print("cluster size:", N_t)
-            # if N_t < 3:
-            #     # print("skipping")
-            #     print("lolling")
-            #     for s in partition:
-            #         print(partition_alignments[m][s][0])
-            #     continue
-            # print(partition)
-            if len(partition) > 1:
-                # all strings has not converged
-                alignment_matrix, PFM = create_position_probability_matrix(m, partition) 
+        # TODO: Parallelize this part over partitions: sent in the partition and return a dict s_acc : modified string
+        S_prime = correct_sequence_to_minimizer.correct_strings(partition_alignments, unique_seq_to_acc, single_core = False)
 
-                for s in partition:
-                    nr_pos_to_correct = int(math.ceil(partition_alignments[m][s][0] / 2.0)) #decide how many errors we should correct here
-                    # print("positions to correct for sequence s:", nr_pos_to_correct, s ==m)
-                    if nr_pos_to_correct  == 0:
-                        continue
-
-                    s_alignment_in_matrix = alignment_matrix[s]
-                    # find the position probabilities of the alignment of s in PFM
-                    pos_freqs_for_s = []
-                    for j in range(len(PFM)):
-                        # try:
-                        pos_freqs_for_s.append( (j, PFM[j][s_alignment_in_matrix[j]]) )
-                        # except KeyError:
-                        #     print(j, PFM[j], s_alignment_in_matrix[j], N_t, len(partition), len(PFM), len(m) )
-                        #     sys.exit()
-
-                    pos_freqs_for_s.sort(key=lambda x: x[1]) # sort with respect to smallest frequencies                    
-                    J = [j for j, prob in pos_freqs_for_s[:nr_pos_to_correct]] # J is the set of the nr_pos_to_correct smallest position probabilities
-                    s_new = alignment_matrix[s]
-                    for j in J:
-                        old_nucl = s_new[j]
-                        highest_prob_character_at_j = max(PFM[j], key=lambda k: PFM[j][k])
-
-                        if highest_prob_character_at_j == old_nucl: # choose the other highest on if tie (should happen only when partition consist of two sequences)
-                            pmf_j_minus_variant = copy.deepcopy(PFM[j])
-                            del pmf_j_minus_variant[old_nucl] 
-                            highest_prob_character_at_j = max(pmf_j_minus_variant, key=lambda k: pmf_j_minus_variant[k])
-
-
-                        # print("correcting", s_new[j], "to", highest_prob_character_at_j )
-                        s_new[j] = highest_prob_character_at_j
-                    s_modified = "".join([nucl for nucl in s_new if nucl != "-" ])
-
-                    # only unique strings can change in this step
-
-                    accession_of_s = unique_seq_to_acc[s] # this is still unique
-                    S[accession_of_s] = s_modified
+        for acc, s_prime in S_prime.items():
+            S[acc] = s_prime
 
         print("Tot seqs:", len(S))
         unique_seq_to_acc = get_unique_seq_accessions(S)
@@ -208,7 +157,7 @@ def find_candidate_transcripts(read_file, params):
     #         out_file.write(">{0}\n{1}\n".format("read_" + str(i)+ "_support_" + str(C[m]) , m))   
     # out_file.close()   
 
-    return out_file.name
+    return out_file_name
 
 
 

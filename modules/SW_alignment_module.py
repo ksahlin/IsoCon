@@ -358,6 +358,12 @@ def find_best_matches_2set(highest_paf_scores, X, C):
             #     best_exact_matches[c_acc] = {}
             #     best_exact_matches[c_acc][x_acc] = (edit_distance, s2_alignment, x_alignment)
 
+    tot_edit = 0
+    for read_acc, t_dict in best_exact_matches.items():
+        for t_acc in best_exact_matches[read_acc]:
+            tot_edit += best_exact_matches[read_acc][t_acc][0]
+    print("TOT EDIT:", tot_edit)
+
     # for read_acc, t_acc in  best_approx_paf_score.items():
     #     if t_acc in best_exact_matches[read_acc].keys():
     #         # print("OK!")

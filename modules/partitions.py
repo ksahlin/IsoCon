@@ -185,7 +185,7 @@ def partition_to_statistical_test(S, params, node_weights, edge_creating_min_tre
 
     print("Chosen minimizers:", len(M))
 
-    assert unique_start_strings == partition.keys()
+    assert unique_start_strings == set(partition.keys())
 
     return partition_alignments, partition, M, converged
 
