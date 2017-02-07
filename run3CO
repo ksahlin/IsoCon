@@ -50,7 +50,7 @@ def run_remove_barcodes():
 def run_get_candidates(params):
     total_start = time()
     initialize_logger(params)
-    candidate_file = threeco.find_candidate_transcripts(params.read_file, params)
+    candidate_file = threeco.find_candidate_transcripts(params.fl_reads, params)
     total_elapsed = time() - total_start
     write_output.logger('TOTAL TIME ELAPSED FOR 3CO:{0}'.format(str(total_elapsed)), params.logfile)
 
