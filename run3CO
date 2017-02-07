@@ -47,7 +47,14 @@ import multiprocessing as mp
 def run_remove_barcodes():
     pass
 
-def run_get_candidates():
+def run_get_candidates(params):
+    total_start = time()
+    initialize_logger(params)
+    candidate_file = threeco.find_candidate_transcripts(params.read_file, params)
+    total_elapsed = time() - total_start
+    write_output.logger('TOTAL TIME ELAPSED FOR 3CO:{0}'.format(str(total_elapsed)), params.logfile)
+
+
     pass
 
 def run_stat_filter(params):
@@ -131,7 +138,7 @@ if __name__ == '__main__':
     pipeline.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     pipeline.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
     pipeline.add_argument('--min_candidate_support', type=int, default=3, help='Required minimum number of reads converged to the same sequence to be included in statistical test.')
-    pipeline.add_argument('--statistical_test_editdist', type=int, default=5, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
+    pipeline.add_argument('--statistical_test_editdist', type=int, default=0, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
     pipeline.set_defaults(which='pipeline')
 
 
