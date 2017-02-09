@@ -162,7 +162,7 @@ def filter_candidates(alignments_of_x_to_c, C, params):
 
     m_to_acc = {}
 
-    for i, (m, support) in enumerate(C.items()):
+    for i, (m, support) in enumerate(list(C.items())):
         m_acc = "read_" + str(i) + "_support_" + str(support)
         m_to_acc[m] = m_acc
         #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
@@ -199,8 +199,8 @@ def filter_candidates(alignments_of_x_to_c, C, params):
 
     # we now have an accession of minimizer, change to this accession insetad of storing sequence
     alignments_of_x_to_m_filtered = transpose(alignments_of_x_to_c_transposed)
-    for x_acc in alignments_of_x_to_m_filtered.keys():
-        for m in alignments_of_x_to_m_filtered[x_acc].keys():
+    for x_acc in list(alignments_of_x_to_m_filtered.keys()):
+        for m in list(alignments_of_x_to_m_filtered[x_acc].keys()):
             m_acc = m_to_acc[m]
             aln_x, aln_m, (matches, mismatches, indels) = alignments_of_x_to_m_filtered[x_acc][m]
             del alignments_of_x_to_m_filtered[x_acc][m]
@@ -284,7 +284,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
         alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)
         # remove the alignments of candidates that didn't pass the consensus over each base pair here
-        for c_acc in alignments_of_x_to_c_transposed.keys():
+        for c_acc in list(alignments_of_x_to_c_transposed.keys()):
             if c_acc not in C:
                 del alignments_of_x_to_c_transposed[c_acc]
         alignments_of_x_to_c = transpose(alignments_of_x_to_c_transposed)
