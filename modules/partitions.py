@@ -315,7 +315,7 @@ def partition_strings(S, params, node_weights = {}, edge_creating_min_treshold =
 
 
 
-def partition_strings_2set_paths(X, C, X_file, C_file):
+def partition_strings_2set(X, C, X_file, C_file):
     """
 
     """

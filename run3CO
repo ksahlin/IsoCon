@@ -54,13 +54,14 @@ def run_get_candidates(params):
     total_elapsed = time() - total_start
     write_output.logger('TOTAL TIME ELAPSED FOR 3CO:{0}'.format(str(total_elapsed)), params.logfile)
 
-
     pass
 
 def run_stat_filter(params):
     total_start = time()
     initialize_logger(params)
     all_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
+    candidate_alignments =  alignment_file_parser.get_alignments(open(params.candidate_alignments, 'r'))
+
     print("nr initial candidates:", len(all_candidates))
     preprocessed_candidates_file = open(os.path.join(params.outfolder, "preprocessed_candidates.fa"), "w")
     counter = 0
@@ -113,8 +114,16 @@ def run_pipeline(params):
         filtered_file = identify_barcodes.remove_barcodes_fcn(read_file, params)
         params.read_file = filtered_file
 
-    candidate_file = threeco.find_candidate_transcripts(params.read_file, params)
-    threeco.stat_filter_candidates(params.read_file, candidate_file, params)
+    minimizer_start = time() 
+    candidate_file, alignments_of_reads_to_candidates = threeco.find_candidate_transcripts(params.read_file, params)
+    minimizer_elapsed = time() - minimizer_start
+    write_output.logger('TIME ELAPSED FOR FINDING CANDIDATES WITH MINIMIZERS:{0}'.format(str(minimizer_elapsed)), params.logfile)
+
+    stats_start = time()
+    threeco.stat_filter_candidates(params.read_file, candidate_file, alignments_of_reads_to_candidates, params)
+    stats_elapsed = time() - stats_start
+    write_output.logger('TIME ELAPSED FOR STATISTICAL TEST OF CANDIDATES:{0}'.format(str(stats_elapsed)), params.logfile)
+
 
     total_elapsed = time() - total_start
     write_output.logger('TOTAL TIME ELAPSED FOR 3CO:{0}'.format(str(total_elapsed)), params.logfile)
@@ -164,6 +173,7 @@ if __name__ == '__main__':
     stat_filter_required = stat_filter.add_argument_group('required arguments')
     stat_filter_required.add_argument('-fl_reads', type=str, required=True, help='Full length RoIs. ')
     stat_filter_required.add_argument('-candidates', type=str, help='Already generated candidates. ')
+    stat_filter_required.add_argument('-candidate_alignments', type=str, help='Already generated read to candidate alignments. ')
     stat_filter_required.add_argument('-outfolder', type=str, required=True, help='Outfolder. ')
     stat_filter.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     stat_filter.add_argument('--min_candidate_support', type=int, default=3, help='Required minimum number of reads converged to the same sequence to be included in statistical test. Can only be applies if fasta accessions comes from previous step in pipline')

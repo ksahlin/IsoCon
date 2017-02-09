@@ -6,7 +6,8 @@
 import os
 import unittest
 
-from modules.partitions import partition_strings_paths, partition_strings_2set_paths, partition_to_statistical_test
+from modules.functions import transpose,create_position_probability_matrix
+from modules.partitions import partition_strings_paths, partition_strings_2set, partition_to_statistical_test
 from modules import graphs
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from modules.input_output import fasta_parser, write_output
@@ -142,58 +143,90 @@ def find_candidate_transcripts(read_file, params):
         if m not in C:
             print("Minimizer to read did not converge")
             continue
-
         elif C[m] >= params.min_candidate_support:
             reads_to_minimizers[read_acc] = { m : (original_reads[read_acc], m)}
         else:
-            print("Minimizer did not pass consensus support.")
+            print("Minimizer did not pass threshold support of {0} reads.".format(C[m]))
+            del C[m]
+
     alignments_of_x_to_m = sw_align_sequences_keeping_accession(reads_to_minimizers)
-    out_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
-    write_output.print_candidates_from_minimizers(out_file_name, alignments_of_x_to_m, C, params)
+    alignments_of_x_to_m_filtered, m_to_acc = filter_candidates(alignments_of_x_to_m, C, params)
+    candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
+    alignments_file_name = os.path.join(params.outfolder, "candidate_alignments.tsv")
+    write_output.print_candidates_from_minimizers(candidates_file_name, alignments_file_name, alignments_of_x_to_m_filtered, C, m_to_acc, params)
 
-    # out_file = open(out_file_name, "w")
-    # for i, m in enumerate(partition_alignments):
-    #     if C[m] >= params.min_candidate_support:
-    #         out_file.write(">{0}\n{1}\n".format("read_" + str(i)+ "_support_" + str(C[m]) , m))   
-    # out_file.close()   
+    return candidates_file_name, alignments_of_x_to_m_filtered
 
-    return out_file_name
+def filter_candidates(alignments_of_x_to_c, C, params):
+    alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)   
+
+    m_to_acc = {}
+
+    for i, (m, support) in enumerate(C.items()):
+        m_acc = "read_" + str(i) + "_support_" + str(support)
+        m_to_acc[m] = m_acc
+        #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
+        # add extra constraint that the candidate has to have majority on _each_ position in c here otherwise most likely error
+        if support >= params.min_candidate_support:
+            # print("needs to be consensus over each base pair")
+            partition_alignments_c = {m : (0, m, m, 1)}  # format: (edit_dist, aln_c, aln_x, 1)
+            for x_acc in alignments_of_x_to_c_transposed[m]:
+                aln_x, aln_m, (matches, mismatches, indels) = alignments_of_x_to_c_transposed[m][x_acc]
+                ed = mismatches + indels
+                partition_alignments_c[x_acc] = (ed, aln_m, aln_x, 1) 
+                # print(ed, aln_x, aln_m)
+
+            alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(m, partition_alignments_c)
+            c_alignment = alignment_matrix_to_c[m]
+            is_consensus = True
+            for j in range(len(PFM_to_c)):
+                c_v =  c_alignment[j]
+                candidate_count = PFM_to_c[j][c_v]
+                for v in PFM_to_c[j]:
+                    if v != c_v and candidate_count <= PFM_to_c[j][v]: # needs to have at least one more in support than the second best as we have added c itself to the multialignment
+                        # print("not consensus at:", j)
+                        is_consensus = False
+
+            if not is_consensus:
+                print("Read with support {0} were not consensus".format(str(support)))
+                del alignments_of_x_to_c_transposed[m]
+                del C[m]
+        else:
+            print("deleting:")
+            del alignments_of_x_to_c_transposed[m]
+            del C[m]
 
 
+    # we now have an accession of minimizer, change to this accession insetad of storing sequence
+    alignments_of_x_to_m_filtered = transpose(alignments_of_x_to_c_transposed)
+    for x_acc in alignments_of_x_to_m_filtered.keys():
+        for m in alignments_of_x_to_m_filtered[x_acc].keys():
+            m_acc = m_to_acc[m]
+            aln_x, aln_m, (matches, mismatches, indels) = alignments_of_x_to_m_filtered[x_acc][m]
+            del alignments_of_x_to_m_filtered[x_acc][m]
+            ed =  mismatches + indels
+            alignments_of_x_to_m_filtered[x_acc][m_acc] = (ed, aln_x, aln_m)
 
-def filter_C_X_and_partition(X, C, G_star, partition):
+    return alignments_of_x_to_m_filtered, m_to_acc
+
+
+def filter_C_X_and_partition(X, C, alignments_of_reads_to_candidates, partition):
     # if there are x in X that is not in best_exact_matches, these x had no (decent) alignment to any of
     # the candidates, simply skip them.
 
-    print("total reads:", len(X), "total reads with an alignment:", len(G_star) )
-
-    bug_read = "m151210_031012_42146_c100926392550000001823199905121697_s1_p0/73682/0_1489_CCS"
-    print("IN alignment:", bug_read in G_star)
-    bug_cand = ""
-    if bug_read in G_star:
-        bug_cand = G_star[bug_read]
-        print("to c_acc:", G_star[bug_read])
-
-
+    print("total reads:", len(X), "total reads with an alignment:", len(alignments_of_reads_to_candidates) )
+    remaining_to_align = {}
     for x in list(X.keys()):
-        if x not in G_star:
+        if x not in alignments_of_reads_to_candidates:
             print("read missing alignment",x)
-            del X[x]
+            remaining_to_align[x] = X[x]
+            # del X[x]
 
     # also, filter out the candidates that did not get any alignments here.
 
     print("total consensus:", len(C), "total consensus with at least one alignment:", len(partition) )
 
     for c_acc in list(C.keys()):
-
-        if c_acc == bug_cand:
-            print("BUGGY TRANSCRIPT HERE:", len(partition[bug_cand]))
-            if bug_read in partition[bug_cand]:
-                print("in partition" )
-            else:
-                print("Read is not in partition" )
-
-
         if c_acc not in partition:
             print("candidate missing hit:", c_acc)
             del C[c_acc]
@@ -203,7 +236,7 @@ def filter_C_X_and_partition(X, C, G_star, partition):
             del partition[c_acc]
         else:
             print(c_acc, " read hits:", len(partition[c_acc]))
-    return X, C
+    return remaining_to_align, C
 
 def vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C):
     import networkx as nx
@@ -233,19 +266,54 @@ def vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C):
     plt.savefig(fig_file, format="PNG")
     plt.clf()
 
-def stat_filter_candidates(read_file, candidate_file, params):
+def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, params):
     modified = True
-    # changed_nodes = set(C.keys())
+
+    ############ GET READ SUPORT AND ALIGNMENTS #################
+    X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
+    ################################################################
+
     step = 1
     nr_of_tests = 0
     while modified:
         modified = False
         print("NEW STEP")
+
         ############ GET READ SUPORT AND ALIGNMENTS #################
-        X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
+
         C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
-        G_star, partition_of_X, alignments_of_x_to_c =  partition_strings_2set_paths(X, C, read_file, candidate_file)
-        X, C = filter_C_X_and_partition(X, C, G_star, partition_of_X)
+        alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)
+        # remove the alignments of candidates that didn't pass the consensus over each base pair here
+        for c_acc in alignments_of_x_to_c_transposed.keys():
+            if c_acc not in C:
+                del alignments_of_x_to_c_transposed[c_acc]
+        alignments_of_x_to_c = transpose(alignments_of_x_to_c_transposed)
+
+
+        partition_of_X = {}
+        for c_acc in alignments_of_x_to_c_transposed.keys():
+            partition_of_X[c_acc] = set()
+            for x_acc in alignments_of_x_to_c_transposed[c_acc].keys():
+                partition_of_X[c_acc].add(x_acc)
+        remaining_to_align, C = filter_C_X_and_partition(X, C, alignments_of_x_to_c, partition_of_X)
+        remaining_to_align_read_file = os.path.join(params.outfolder, "remaining_to_align.fa")
+        write_output.print_reads(remaining_to_align_read_file, remaining_to_align, X)
+
+        # align reads that is not yet assigned to candidate here
+        # use this row to do remaining alignments
+        # G_star, partition_of_X, alignments_of_x_to_c =  partition_strings_2set_paths(X, C, read_file, candidate_file)
+        # G_star_rem, partition_of_remaining_X, remaining_alignments_of_x_to_c =  partition_strings_2set_paths(remaining_to_align, C, remaining_to_align_read_file, candidate_file)
+        G_star_rem, partition_of_remaining_X, remaining_alignments_of_x_to_c =  partition_strings_2set(remaining_to_align, C, remaining_to_align_read_file, candidate_file)
+
+        # add reads to best candidate given new alignments
+        for c_acc in partition_of_remaining_X:
+            partition_of_X[c_acc].update(partition_of_remaining_X[c_acc])
+            # print("adding", partition_of_remaining_X[c_acc], "to", c_acc)
+        # add the alignments to alignment structure
+        for x_acc in remaining_alignments_of_x_to_c.keys():
+            for c_acc in remaining_alignments_of_x_to_c[x_acc].keys():
+                alignments_of_x_to_c[x_acc][c_acc] = remaining_alignments_of_x_to_c[x_acc][c_acc]
+
         C_seq_to_acc = {seq : acc for acc, seq in C.items()}
         ################################################################
 
@@ -310,8 +378,15 @@ def stat_filter_candidates(read_file, candidate_file, params):
                 t_acc, k = removed_nodes_reference_graph[t_acc]
 
             del C[c_acc]
-            partition_of_X[t_acc].update(partition_of_X[c_acc])
+            # partition_of_X[t_acc].update(partition_of_X[c_acc])
+            for x_acc in partition_of_X[c_acc]:
+                if x_acc not in alignments_of_x_to_c:
+                    print(x_acc, "not in alignments_of_x_to_c but in partition_X[c_acc]. len partition_X[c_acc]: {0}".format(len(partition_of_X[c_acc])))
+                else:
+                    del alignments_of_x_to_c[x_acc]
+
             del partition_of_X[c_acc]
+
             print("merging:", c_acc, "into", t_acc, "k:", k)
 
 
@@ -328,7 +403,7 @@ def stat_filter_candidates(read_file, candidate_file, params):
             step += 1
 
     final_out_file_name =  os.path.join(params.outfolder, "final_candidates.fa")
-    write_output.print_candidates(final_out_file_name, alignments_of_x_to_c, C, C_pvals)
+    write_output.print_candidates(final_out_file_name, alignments_of_x_to_c, C, C_pvals, final = True)
     return C
 
 
