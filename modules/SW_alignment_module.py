@@ -325,6 +325,7 @@ def find_best_matches_2set(highest_paf_scores, X, C):
         for c_acc in exact_matches[x_acc]:
             x_alignment, c_alignment, (matches, mismatches, indels) = exact_matches[x_acc][c_acc]
             edit_distance = mismatches + indels
+            # print("ed", edit_distance, c_acc)
             # if c_acc == "read_844_support_3":
             #     print("HERE!!!", edit_distance)
 
@@ -363,6 +364,8 @@ def find_best_matches_2set(highest_paf_scores, X, C):
         for t_acc in best_exact_matches[read_acc]:
             tot_edit += best_exact_matches[read_acc][t_acc][0]
     print("TOT EDIT:", tot_edit)
+
+    # sys.exit()
 
     # for read_acc, t_acc in  best_approx_paf_score.items():
     #     if t_acc in best_exact_matches[read_acc].keys():

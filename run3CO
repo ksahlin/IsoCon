@@ -37,12 +37,15 @@ import argparse
 import signal
 from time import time
 import re
-from modules import threeco_parameters
-from modules.input_output import write_output, fasta_parser
-from modules import identify_barcodes
-import threeco
+
 from multiprocessing import Pool
 import multiprocessing as mp
+
+import threeco
+from modules import threeco_parameters
+from modules.input_output import write_output, fasta_parser
+from modules import partitions
+from modules import identify_barcodes
 
 def run_remove_barcodes():
     pass
@@ -60,7 +63,7 @@ def run_stat_filter(params):
     total_start = time()
     initialize_logger(params)
     all_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
-    candidate_alignments =  alignment_file_parser.get_alignments(open(params.candidate_alignments, 'r'))
+    # candidate_alignments =  alignment_file_parser.get_alignments(open(params.candidate_alignments, 'r'))
 
     print("nr initial candidates:", len(all_candidates))
     preprocessed_candidates_file = open(os.path.join(params.outfolder, "preprocessed_candidates.fa"), "w")
@@ -78,12 +81,16 @@ def run_stat_filter(params):
         preprocessed_candidates_file.write(">{0}\n{1}\n".format(acc, seq))
         counter += 1
 
-
-    print("After preprocessed:", counter)
-
     preprocessed_candidates_file.close()
     params.candidates = preprocessed_candidates_file.name
-    threeco.stat_filter_candidates(params.fl_reads, params.candidates, params)
+    print("After preprocessed:", counter)
+
+
+    original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.fl_reads, 'r'))}
+    filtered_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
+    G_star, partition_of_X, alignments_of_x_to_c =  partitions.partition_strings_2set(original_reads, filtered_candidates, params.fl_reads, params.candidates)
+
+    threeco.stat_filter_candidates(params.fl_reads, params.candidates, alignments_of_x_to_c, params)
     total_elapsed = time() - total_start
     write_output.logger('TOTAL TIME ELAPSED FOR STAT_FILTER:{0}'.format(str(total_elapsed)), params.logfile)
 

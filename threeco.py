@@ -393,7 +393,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         print("nr candidates left:", len(C))
         print(p_vals)
         candidate_file = os.path.join(params.outfolder, "candidates_after_step_{0}.fa".format(step))
-        write_output.print_candidates(candidate_file, alignments_of_x_to_c, C, C_pvals)
+        # write_output.print_candidates(candidate_file, alignments_of_x_to_c, C, C_pvals)
 
         if params.develop_mode:
             plt.hist(p_vals)
