@@ -131,7 +131,7 @@ def find_best_matches_2set(highest_paf_scores, X, C):
     for s1_acc in list(best_exact_edit_distances.keys()):
         s1_minimizer = min(best_exact_edit_distances[s1_acc], key = lambda x: best_exact_edit_distances[s1_acc][x][2])
         min_edit_distance = best_exact_edit_distances[s1_acc][s1_minimizer][2]
-        print("ed:", min_edit_distance,  s1_acc)
+        # print("ed:", min_edit_distance,  s1_acc)
         for s2_acc in list(best_exact_edit_distances[s1_acc].keys()):
             ed =  best_exact_edit_distances[s1_acc][s2_acc][2]
             if ed > min_edit_distance:
