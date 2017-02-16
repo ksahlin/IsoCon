@@ -187,7 +187,7 @@ def ssw_alignment(x, y, i,j, ends_discrepancy_threshold = 25 , x_acc = "", y_acc
     if i % 10000 == 0 and j % 100 == 0:
         print("processing alignments on y_j with j={0}, mismatch_penalty: {1}".format(j+1, mismatch_penalty))
 
-    score_matrix = ssw.DNA_ScoreMatrix(match=1, mismatch=-5)
+    score_matrix = ssw.DNA_ScoreMatrix(match=1, mismatch=mismatch_penalty)
     aligner = ssw.Aligner(gap_open=2, gap_extend=1, matrix=score_matrix)
 
     # for the ends that SSW leaves behind
