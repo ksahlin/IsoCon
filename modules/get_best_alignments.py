@@ -114,37 +114,28 @@ def find_best_matches_2set(highest_paf_scores, X, C):
             approximate_matches[read_acc][t_acc] = (X[read_acc], C[t_acc])
 
 
-    exact_edit_distances = edlib_alignment_module.edlib_align_sequences(approximate_matches, single_core = False)
+    exact_edit_distances = edlib_alignment_module.edlib_align_sequences_keeping_accession(approximate_matches, single_core = False)
     best_exact_edit_distances = {}
-    for s1 in exact_edit_distances:
-        for s2 in exact_edit_distances[s1]:
-            edit_distance = exact_edit_distances[s1][s2]
-            if edit_distance < edge_creating_max_treshold:
-                if s1 in best_exact_edit_distances:
-                    best_exact_edit_distances[s1][s2] = edit_distance
-                else:
-                    best_exact_edit_distances[s1] = {}
-                    best_exact_edit_distances[s1][s2] = edit_distance
-
-                if s2 in best_exact_edit_distances:
-                    best_exact_edit_distances[s2][s1] = edit_distance    
-                else:
-                    best_exact_edit_distances[s2] = {}
-                    best_exact_edit_distances[s2][s1] = edit_distance
-
+    for s1_acc in exact_edit_distances:
+        for s2_acc in exact_edit_distances[s1_acc]:
+            (s1,s2,edit_distance) = exact_edit_distances[s1_acc][s2_acc]
+            # if edit_distance < edge_creating_max_treshold:
+            if s1_acc in best_exact_edit_distances:
+                best_exact_edit_distances[s1_acc][s2_acc] = (s1,s2,edit_distance)
+            else:
+                best_exact_edit_distances[s1_acc] = {}
+                best_exact_edit_distances[s1_acc][s2_acc] = (s1,s2,edit_distance)
 
 
     ## filter best exact edit distances here
-    for s1 in list(best_exact_edit_distances.keys()):
-        s1_minimizer = min(best_exact_edit_distances[s1], key = lambda x: best_exact_edit_distances[s1][x])
-        min_edit_distance = best_exact_edit_distances[s1][s1_minimizer]
-        for s2 in list(best_exact_edit_distances[s1].keys()):
-            ed =  best_exact_edit_distances[s1][s2]
+    for s1_acc in list(best_exact_edit_distances.keys()):
+        s1_minimizer = min(best_exact_edit_distances[s1_acc], key = lambda x: best_exact_edit_distances[s1_acc][x][2])
+        min_edit_distance = best_exact_edit_distances[s1_acc][s1_minimizer][2]
+        print("ed:", min_edit_distance,  s1_acc)
+        for s2_acc in list(best_exact_edit_distances[s1_acc].keys()):
+            ed =  best_exact_edit_distances[s1_acc][s2_acc][2]
             if ed > min_edit_distance:
-                if ed > edge_creating_min_treshold:
-                    del best_exact_edit_distances[s1][s2]
-
-
+                del best_exact_edit_distances[s1_acc][s2_acc]
 
 
     exact_alignments = SW_alignment_module.sw_align_sequences_keeping_accession(best_exact_edit_distances, single_core = False )
