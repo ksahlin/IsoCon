@@ -3,6 +3,7 @@ from multiprocessing import Pool
 import multiprocessing as mp
 import sys
 
+
 import ssw
 from Bio import pairwise2
 from Bio.SubsMat import MatrixInfo as matlist
@@ -13,7 +14,10 @@ from Bio.SubsMat import MatrixInfo as matlist
 #         result_vector.append(ssw_alignment( (x_acc, y_acc, x, y) ))
 #     return result_vector
 
-def sw_align_sequences(matches, single_core = False):
+def sw_align_sequences(matches, single_core = False, mismatch_penalty = -1):
+    """
+        Matches should be a 2D matrix implemented as a dict of dict, the value should be the edit distance.
+    """
     exact_matches = {}
     if single_core:
         for j, s1 in enumerate(matches):
@@ -21,8 +25,18 @@ def sw_align_sequences(matches, single_core = False):
                 if s1 in exact_matches:
                     if s2 in exact_matches[s1]:
                         continue
+
+                ed = matches[s1][s2]
+                error_rate = float(ed)/ min(len(s1), len(s2))
+                if error_rate <= 0.01:
+                    mismatch_penalty = -1
+                elif 0.01 < error_rate <= 0.09:
+                    mismatch_penalty = -2
+                else:
+                    mismatch_penalty = -4
+
                 # print(s1,s2)
-                s1, s2, stats = ssw_alignment_helper( ((s1, s2, i, j), {}) )
+                s1, s2, stats = ssw_alignment_helper( ((s1, s2, i, j), {"mismatch_penalty" : mismatch_penalty }) )
                 if stats:
                     if s1 in exact_matches:
                         exact_matches[s1][s2] = stats
@@ -37,8 +51,24 @@ def sw_align_sequences(matches, single_core = False):
         original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
+
+        matches_with_mismatch = {}
+        for j, s1 in enumerate(matches):
+            matches_with_mismatch[s1] = {}
+            for i, s2 in enumerate(matches[s1]):
+                ed = matches[s1][s2]
+                error_rate = float(ed)/ min(len(s1), len(s2))
+                if error_rate <= 0.01:
+                    mismatch_penalty = -1
+                elif 0.01 < error_rate <= 0.09:
+                    mismatch_penalty = -2
+                else:
+                    mismatch_penalty = -4
+
+                matches_with_mismatch[s1][s2] = mismatch_penalty
+
         try:
-            res = pool.map_async(ssw_alignment_helper, [ ((s1, s2, i,j), {}) for j, s1 in enumerate(matches) for i, s2 in enumerate(matches[s1]) ] )
+            res = pool.map_async(ssw_alignment_helper, [ ((s1, s2, i,j), {"mismatch_penalty" : mismatch_penalty}) for j, s1 in enumerate(matches_with_mismatch) for i, (s2, mismatch_penalty) in enumerate(matches_with_mismatch[s1].items()) ] )
             alignment_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -62,16 +92,29 @@ def sw_align_sequences(matches, single_core = False):
 
 
 def sw_align_sequences_keeping_accession(matches, single_core = False):
+    """
+        Matches should be a 2D matrix implemented as a dict of dict, the value should be a tuple (s1,s2, edit_distance) .
+    """
     exact_matches = {}
 
     if single_core:
         for j, s1_acc in enumerate(matches):
             for i, s2_acc in enumerate(matches[s1_acc]):
-                s1, s2 = matches[s1_acc][s2_acc]
+                s1, s2, ed = matches[s1_acc][s2_acc]
                 if s1_acc in exact_matches:
                     if s2_acc in exact_matches[s1_acc]:
                         continue
-                s1_acc, s2_acc, stats = ssw_alignment_helper( ((s1, s2, i, j), {"x_acc" : s1_acc, "y_acc" :s2_acc }) )
+
+                error_rate = float(ed)/ min(len(s1), len(s2))
+                if error_rate <= 0.01:
+                    mismatch_penalty = -1
+                elif 0.01 < error_rate <= 0.09:
+                    mismatch_penalty = -2
+                else:
+                    mismatch_penalty = -4
+
+                s1_acc, s2_acc, stats = ssw_alignment_helper( ((s1, s2, i, j), {"x_acc" : s1_acc, "y_acc" :s2_acc, "mismatch_penalty" : mismatch_penalty}) )
+
                 if stats:
                     if s1_acc in exact_matches:
                         exact_matches[s1_acc][s2_acc] = stats
@@ -87,11 +130,26 @@ def sw_align_sequences_keeping_accession(matches, single_core = False):
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
 
+        matches_with_mismatch = {}
+        for j, s1_acc in enumerate(matches):
+            matches_with_mismatch[s1_acc] = {}
+            for i, s2_acc in enumerate(matches[s1_acc]):
+                s1, s2, ed = matches[s1_acc][s2_acc]
+                error_rate = float(ed)/ min(len(s1_acc), len(s2_acc))
+                if error_rate <= 0.01:
+                    mismatch_penalty = -1
+                elif 0.01 < error_rate <= 0.09:
+                    mismatch_penalty = -2
+                else:
+                    mismatch_penalty = -4
+
+                matches_with_mismatch[s1_acc][s2_acc] = mismatch_penalty
+
         # for j, s1_acc in enumerate(matches):
         #     for i, s2_acc in enumerate(matches[s1_acc]):
         #         print("lool", matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j, {"x_acc": s1_acc, "y_acc" : s2_acc} ) 
         try:
-            res = pool.map_async(ssw_alignment_helper, [ ((matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j), {"x_acc": s1_acc, "y_acc" : s2_acc}) for j, s1_acc in enumerate(matches) for i, s2_acc in enumerate(matches[s1_acc]) ] )
+            res = pool.map_async(ssw_alignment_helper, [ ((matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j), {"x_acc": s1_acc, "y_acc" : s2_acc, "mismatch_penalty" : mismatch_penalty}) for j, s1_acc in enumerate(matches_with_mismatch) for i, (s2_acc, mismatch_penalty) in enumerate(matches_with_mismatch[s1_acc].items()) ] )
             alignment_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -119,7 +177,7 @@ def ssw_alignment_helper(arguments):
     args, kwargs = arguments
     return ssw_alignment(*args, **kwargs)
 
-def ssw_alignment(x, y, i,j, ends_discrepancy_threshold = 25 , x_acc = "", y_acc = "" ):
+def ssw_alignment(x, y, i,j, ends_discrepancy_threshold = 25 , x_acc = "", y_acc = "", mismatch_penalty = -3 ):
     """
         Aligns two sequences with SSW
         x: query
@@ -127,9 +185,9 @@ def ssw_alignment(x, y, i,j, ends_discrepancy_threshold = 25 , x_acc = "", y_acc
 
     """
     if i % 10000 == 0 and j % 100 == 0:
-        print("processing alignments on y_j with j={0}".format(j+1))
+        print("processing alignments on y_j with j={0}, mismatch_penalty: {1}".format(j+1, mismatch_penalty))
 
-    score_matrix = ssw.DNA_ScoreMatrix(match=1, mismatch=-1)
+    score_matrix = ssw.DNA_ScoreMatrix(match=1, mismatch=-5)
     aligner = ssw.Aligner(gap_open=2, gap_extend=1, matrix=score_matrix)
 
     # for the ends that SSW leaves behind
@@ -226,6 +284,7 @@ def ssw_alignment(x, y, i,j, ends_discrepancy_threshold = 25 , x_acc = "", y_acc
         y_alignment = y_alignment + ref_end_alignment_snippet
         x_alignment = x_alignment + query_end_alignment_snippet
 
+
     if x_acc == y_acc == "":
         if start_discrepancy > ends_discrepancy_threshold or end_discrepancy > ends_discrepancy_threshold:
             # print("REMOVING", start_discrepancy, end_discrepancy)
@@ -239,139 +298,6 @@ def ssw_alignment(x, y, i,j, ends_discrepancy_threshold = 25 , x_acc = "", y_acc
             return (x_acc, y_acc, None)
 
         else:
+
             return (x_acc, y_acc, (x_alignment, y_alignment, (matches, mismatches, indels)) )       
 
-
-
-def find_best_matches(approximate_matches, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
-    """
-        input: approximate_matches is a dictionary with a string as key and a list of strings as value
-        output: dictionary with a string as key and a dictionary as value. 
-                The inner dict contains a tuple (edit_distance, s1_alignment, s2_alignment) as value.
-                Each string in the inner dict has the same (lowest) edit distance to the key 
-    """
-    exact_matches = sw_align_sequences(approximate_matches, single_core = False )
-
-    # process the exact matches here
-    best_exact_matches = {}
-
-
-
-    for s1 in exact_matches:
-        for s2 in exact_matches[s1]:
-            s1_alignment, s2_alignment, (matches, mismatches, indels) = exact_matches[s1][s2]
-            edit_distance = mismatches + indels
-            if edit_distance < edge_creating_max_treshold:
-                if s1 in best_exact_matches:
-                    best_exact_matches[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
-                else:
-                    best_exact_matches[s1] = {}
-                    best_exact_matches[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
-                    # print( "lol", edit_distance, edge_creating_max_treshold)
-
-                if s2 in best_exact_matches:
-                    best_exact_matches[s2][s1] = (edit_distance, s2_alignment, s1_alignment)    
-                else:
-                    best_exact_matches[s2] = {}
-                    best_exact_matches[s2][s1] = (edit_distance, s2_alignment, s1_alignment)
-
-
-
-    ## filter best exact matches here
-    for s1 in list(best_exact_matches.keys()):
-        s1_minimizer = min(best_exact_matches[s1], key = lambda x: best_exact_matches[s1][x][0])
-        min_edit_distance = best_exact_matches[s1][s1_minimizer][0]
-        for s2 in list(best_exact_matches[s1].keys()):
-            ed =  best_exact_matches[s1][s2][0]
-            if ed > min_edit_distance:
-                if ed > edge_creating_min_treshold:
-                    del best_exact_matches[s1][s2]
-
-
-
-    # for s1 in best_exact_matches:
-    #     for s2 in best_exact_matches[s1]:
-    #         print(best_exact_matches[s1][s2][0])
-    return best_exact_matches
-
-def find_best_matches_2set(highest_paf_scores, X, C):
-    """
-        input: approximate_matches is a dictionary with a string as key and a list of strings as value
-        output: dictionary with a string as key and a dictionary as value. 
-                the outer dict contains the reads .
-                This inner dict dict contains a tuple (edit_distance, s1_alignment, s2_alignment) as value.
-                Each string in the inner dict has the same (lowest) edit distance to the key 
-    """
-
-    best_approx_paf_score = {}
-
-    approximate_matches = {}
-    for read_acc, best_hits in  highest_paf_scores.items():
-        approximate_matches[read_acc] = {}
-        best_approx_paf_score[read_acc] = ""
-        best_score = 0
-        # print("NEW")
-        for score, t_acc in best_hits:
-            # print(t_acc, score)
-            approximate_matches[read_acc][t_acc] = (X[read_acc], C[t_acc])
-            if score > best_score:
-                best_approx_paf_score[read_acc] = t_acc
-
-    exact_matches = sw_align_sequences_keeping_accession(approximate_matches, single_core = False )
-
-    # process the exact matches here
-    best_exact_matches = {}
-    for x_acc in exact_matches:
-        for c_acc in exact_matches[x_acc]:
-            x_alignment, c_alignment, (matches, mismatches, indels) = exact_matches[x_acc][c_acc]
-            edit_distance = mismatches + indels
-            # print("ed", edit_distance, c_acc)
-            # if c_acc == "read_844_support_3":
-            #     print("HERE!!!", edit_distance)
-
-            if x_acc in best_exact_matches:
-                x_minimizer = list(best_exact_matches[x_acc].keys())[0]
-                # if c_acc == "read_844_support_3":
-                #     print("current min:", x_minimizer, best_exact_matches[x_acc][x_minimizer][0])
-
-                if edit_distance < best_exact_matches[x_acc][x_minimizer][0]:
-                    best_exact_matches[x_acc] = {}
-                    best_exact_matches[x_acc][c_acc] = (edit_distance, x_alignment, c_alignment)
-                elif edit_distance == best_exact_matches[x_acc][x_minimizer][0]:
-                    best_exact_matches[x_acc][c_acc] = (edit_distance, x_alignment, c_alignment)
-                else:
-                    pass
-                    # print("opt:", best_exact_matches[x_acc][x_minimizer][0], "sub:", edit_distance)
-            else:
-                best_exact_matches[x_acc] = {}
-                best_exact_matches[x_acc][c_acc] = (edit_distance, x_alignment, c_alignment)
-                # if c_acc == "read_844_support_3":
-                #     print("Adding to c", edit_distance)
-
-            # if c_acc in best_exact_matches:
-            #     c_minimizer = best_exact_matches[c_acc].keys()[0]
-            #     if edit_distance < best_exact_matches[c_acc][c_minimizer][0]:
-            #         best_exact_matches[c_acc] = {}
-            #         best_exact_matches[c_acc][x_acc] = (edit_distance, c_alignment, x_alignment)
-            #     elif edit_distance == best_exact_matches[c_acc][c_minimizer][0]:
-            #         best_exact_matches[c_acc][x_acc] = (edit_distance, c_alignment, x_alignment)
-            # else:
-            #     best_exact_matches[c_acc] = {}
-            #     best_exact_matches[c_acc][x_acc] = (edit_distance, s2_alignment, x_alignment)
-
-    tot_edit = 0
-    for read_acc, t_dict in best_exact_matches.items():
-        for t_acc in best_exact_matches[read_acc]:
-            tot_edit += best_exact_matches[read_acc][t_acc][0]
-    print("TOT EDIT:", tot_edit)
-
-    # sys.exit()
-
-    # for read_acc, t_acc in  best_approx_paf_score.items():
-    #     if t_acc in best_exact_matches[read_acc].keys():
-    #         # print("OK!")
-    #         pass
-    #     else:
-    #         print(t_acc, best_exact_matches[read_acc].keys())
-    #         pass
-    return best_exact_matches

@@ -10,6 +10,7 @@ from modules.functions import transpose,create_position_probability_matrix
 from modules.partitions import partition_strings_paths, partition_strings_2set, partition_to_statistical_test
 from modules import graphs
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
+from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession
 from modules.input_output import fasta_parser, write_output
 from modules import statistical_test
 from modules import correct_sequence_to_minimizer
@@ -30,7 +31,8 @@ def get_unique_seq_accessions(S):
     return unique_seq_to_acc
 
 def get_partition_alignments(graph_partition, M, G_star):
-    exact_alignments = sw_align_sequences(graph_partition, single_core = False)
+    exact_edit_distances = edlib_align_sequences(graph_partition, single_core = False)    
+    exact_alignments = sw_align_sequences(exact_edit_distances, single_core = False)
 
     partition_alignments = {} 
     for m in M:
@@ -149,7 +151,8 @@ def find_candidate_transcripts(read_file, params):
             print("Minimizer did not pass threshold support of {0} reads.".format(C[m]))
             del C[m]
 
-    alignments_of_x_to_m = sw_align_sequences_keeping_accession(reads_to_minimizers)
+    edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers)
+    alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m)
     alignments_of_x_to_m_filtered, m_to_acc = filter_candidates(alignments_of_x_to_m, C, params)
     candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
     alignments_file_name = os.path.join(params.outfolder, "candidate_alignments.tsv")

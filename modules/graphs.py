@@ -7,7 +7,7 @@
 import unittest
 
 
-from modules import SW_alignment_module
+from modules import get_best_alignments
 from modules import minimap_alignment_module
 from modules import functions
 
@@ -49,7 +49,7 @@ def construct_minimizer_graph(S, params, edge_creating_min_treshold = -1, edge_c
     paf_files, acc_to_strings = minimap_alignment_module.minimap_partition(unique_strings, not_in_clusters, params)
 
     approximate_matches = minimap_alignment_module.paf_to_best_matches(paf_files, acc_to_strings)
-    best_exact_matches = SW_alignment_module.find_best_matches(approximate_matches,  edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold )
+    best_exact_matches = get_best_alignments.find_best_matches(approximate_matches,  edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold )
 
     #add remaining edges to  G_star and alignment_graph
     for s1 in best_exact_matches:
@@ -89,7 +89,7 @@ def construct_2set_minimizer_bipartite_graph(X, C, X_file, C_file):
     # TODO: eventually filter candidates with lower support than 2-3? Here?
     paf_file_name = minimap_alignment_module.map_with_minimap(C_file, X_file)
     highest_paf_scores = minimap_alignment_module.paf_to_best_matches_2set(paf_file_name)
-    best_exact_matches = SW_alignment_module.find_best_matches_2set(highest_paf_scores, X, C)
+    best_exact_matches = get_best_alignments.find_best_matches_2set(highest_paf_scores, X, C)
 
     G_star = {}
     alignment_graph = {}
