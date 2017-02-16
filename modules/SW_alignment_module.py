@@ -104,8 +104,8 @@ def sw_align_sequences_keeping_accession(matches, single_core = False):
                 if s1_acc in exact_matches:
                     if s2_acc in exact_matches[s1_acc]:
                         continue
-
                 error_rate = float(ed)/ min(len(s1), len(s2))
+                # print("ERROR_RATE", error_rate)
                 if error_rate <= 0.01:
                     mismatch_penalty = -1
                 elif 0.01 < error_rate <= 0.09:
@@ -135,7 +135,8 @@ def sw_align_sequences_keeping_accession(matches, single_core = False):
             matches_with_mismatch[s1_acc] = {}
             for i, s2_acc in enumerate(matches[s1_acc]):
                 s1, s2, ed = matches[s1_acc][s2_acc]
-                error_rate = float(ed)/ min(len(s1_acc), len(s2_acc))
+                error_rate = float(ed)/ min(len(s1), len(s2))
+                # print("ERROR_RATE",error_rate ) #, s1_acc, ed, len(s1), len(s2) )
                 if error_rate <= 0.01:
                     mismatch_penalty = -1
                 elif 0.01 < error_rate <= 0.09:

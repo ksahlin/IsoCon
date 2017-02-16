@@ -8,6 +8,7 @@ from scipy.stats import poisson, binom, norm
 
 from modules.multinomial_distr import multinomial_
 from modules.SW_alignment_module import sw_align_sequences_keeping_accession
+from modules.edlib_alignment_module import edlib_align_sequences_keeping_accession
 from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, get_invariant_adjustment
 
 
@@ -116,7 +117,8 @@ def get_partition_alignments_2set(graph_partition, C, X):
             else: # a candidate we incluse to test, it needs to be aligned w.r.t. the alignment matrix
                 partition_dict[t][x] = (C[t], C[x]) 
 
-    exact_alignments = sw_align_sequences_keeping_accession(partition_dict, single_core = True)
+    exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, single_core = True)    
+    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, single_core = True)
     partition_alignments = {} 
 
     for c in exact_alignments:

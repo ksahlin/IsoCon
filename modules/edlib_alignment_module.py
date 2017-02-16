@@ -48,7 +48,8 @@ def edlib_align_sequences(matches, single_core = False):
 
 def edlib_align_sequences_keeping_accession(matches, single_core = False):
     """
-        Matches is be a 2D matrix implemented as a dict of dict with the accessio of the two sequences as keys. The value is  a tuple (s1,s2) with the sequences.
+        @param: Matches is be a 2D matrix implemented as a dict of dict with the accession of the two sequences as keys. The value is  a tuple (s1,s2) with the sequences.
+        return: the same structure but a 3-tuple of seq1,seq2, ed
     """
     exact_matches = {}
 
@@ -60,7 +61,7 @@ def edlib_align_sequences_keeping_accession(matches, single_core = False):
                     if s2_acc in exact_matches[s1_acc]:
                         continue
 
-                s1_acc, s2_acc, ed = edlib_alignment_helper( ((s1, s2, i, j), {"x_acc" : s1_acc, "y_acc" :s2_acc}) )
+                s1_acc, s2_acc, (x,y,ed) = edlib_alignment_helper( ((s1, s2, i, j), {"x_acc" : s1_acc, "y_acc" :s2_acc}) )
 
                 if s1_acc in exact_matches:
                     exact_matches[s1_acc][s2_acc] = (s1,s2, ed)
