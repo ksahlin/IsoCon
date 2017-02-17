@@ -12,9 +12,37 @@ from modules.edlib_alignment_module import edlib_align_sequences_keeping_accessi
 from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, get_invariant_adjustment
 
 
-def do_statistical_tests(null_hypothesis_references_t, C_seq_to_acc, partition_of_X, partition_of_C, X, C, single_core = False):
-    # statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C)
+def do_statistical_tests(null_hypothesis_references_t, C_seq_to_acc, partition_of_X, partition_of_C, X, C, previous_round_tests, previous_candidate_p_values, single_core = False):
+
     p_values = {}
+
+    ###############################################
+    ###############################################
+    # if the reference support and all candidate supports are identical to previous round, skip test
+    # store the performed tests to avoid identical testing in next iteration.
+    current_round_tests = {}
+    for t in null_hypothesis_references_t:
+        t_acc = C_seq_to_acc[t]
+        N_t = len(partition_of_X[t_acc])
+        for c in partition_of_C[t]:
+            c_acc = C_seq_to_acc[c]
+            N_t += len(partition_of_X[c_acc])
+        current_round_tests[t] = (set([c for c in partition_of_C[t]]), N_t)
+        print("CURRENT TEST: candidates {0}, N_t: {1}".format(current_round_tests[t][0], current_round_tests[t][1]))
+
+    for t in current_round_tests:
+        if t in previous_round_tests:
+            if current_round_tests[t][0] == previous_round_tests[t][0] and current_round_tests[t][1] == previous_round_tests[t][1]:
+                print("SKIPPING TESTS BECAUSE IDENTICAL TO PREVIOUS:", len(previous_round_tests[t][0]), previous_round_tests[t][1]) 
+                
+                for c in partition_of_C[t]:
+                    c_acc = C_seq_to_acc[c]
+                    p_values[c_acc] =  previous_candidate_p_values[c_acc] 
+                
+                null_hypothesis_references_t.remove(t)
+    ###############################################
+    ###############################################
+
     if single_core:
         for t in null_hypothesis_references_t:
             p_vals = statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C)

@@ -21,8 +21,8 @@ def print_candidates(out_file_name, alignments_of_x_to_c, C, C_pvals, final = Fa
         #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
         # add extra constraint that the candidate has to have majority on _each_ position in c here otherwise most likely error
         if support >= 4:
-            if p_value == "not_tested":
-                print("not tested with support", support, "needs to be consensus over each base pair")
+            if p_value == "not_tested" or final == True:
+                print("Support:", support, "needs to be consensus over each base pair. P-value:", p_value)
                 
                 partition_alignments_c = {c_acc : (0, C[c_acc], C[c_acc], 1)}  # format: (edit_dist, aln_c, aln_x, 1)
                 for x_acc in alignments_of_x_to_c_transposed[c_acc]:

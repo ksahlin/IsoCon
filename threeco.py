@@ -6,6 +6,8 @@
 import os
 import unittest
 
+import copy
+
 from modules.functions import transpose,create_position_probability_matrix
 from modules.partitions import partition_strings_paths, partition_strings_2set, partition_to_statistical_test
 from modules import graphs
@@ -278,6 +280,9 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
 
     step = 1
     nr_of_tests = 0
+    previous_round_tests = {}
+    previous_candidate_p_values = {}
+
     while modified:
         modified = False
         print("NEW STEP")
@@ -330,7 +335,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         # get all candidats that serve as null-hypothesis references and have neighbors subject to testing
         # these are all candidates that are minimizers to some other, isolated nodes are not tested
         # candidatate in G_star_C
-        null_hypothesis_references_to_candidates = [c for c in partition_of_C if partition_of_C[c] ]
+        null_hypothesis_references_to_candidates = set([c for c in partition_of_C if partition_of_C[c] ])
         print("References in testing:", len(null_hypothesis_references_to_candidates))
         nr_of_tests_this_round = len([1 for c1 in partition_of_C for c2 in  partition_of_C[c1]])
         if nr_of_tests < nr_of_tests_this_round:
@@ -341,11 +346,30 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
             vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C)
         ####################################################
 
+
         #all reads tested against a reference are aligned to that reference 
         # do one reference candidate at a time, this is therefore easily  parallellized 
 
         C_pvals = { C_seq_to_acc[c] : (len(partition_of_X[C_seq_to_acc[c]]), "not_tested", len(partition_of_X[C_seq_to_acc[c]]) ) for c in partition_of_C if not partition_of_C[c]} # initialize with transcripts not tested
-        candidate_p_values = statistical_test.do_statistical_tests(null_hypothesis_references_to_candidates, C_seq_to_acc, partition_of_X, partition_of_C, X, C, single_core = params.single_core)
+        candidate_p_values = statistical_test.do_statistical_tests(null_hypothesis_references_to_candidates, C_seq_to_acc, partition_of_X, partition_of_C, X, C, previous_round_tests, previous_candidate_p_values, single_core = params.single_core)
+
+        ##########################################################
+        ##########################################################
+
+        # store the performed tests to avoid identical testing in next iteration.
+        previous_round_tests = {}
+        for t in null_hypothesis_references_to_candidates:
+            t_acc = C_seq_to_acc[t]
+            N_t = len(partition_of_X[t_acc])
+            for c in partition_of_C[t]:
+                c_acc = C_seq_to_acc[c]
+                N_t += len(partition_of_X[c_acc])
+            previous_round_tests[t] = (set([c for c in partition_of_C[t]]), N_t)
+            # print("PREVIOUS TEST: candidates {0}, N_t: {1}".format(previous_round_tests[t][0], previous_round_tests[t][1]))
+        previous_candidate_p_values = copy.deepcopy(candidate_p_values)
+
+        ##########################################################
+        ##########################################################
 
         p_vals = []
         # wait for all candidate p_values to be calculated
