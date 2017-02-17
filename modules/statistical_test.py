@@ -28,7 +28,7 @@ def do_statistical_tests(null_hypothesis_references_t, C_seq_to_acc, partition_o
             c_acc = C_seq_to_acc[c]
             N_t += len(partition_of_X[c_acc])
         current_round_tests[t] = (set([c for c in partition_of_C[t]]), N_t)
-        print("CURRENT TEST: candidates {0}, N_t: {1}".format(current_round_tests[t][0], current_round_tests[t][1]))
+        print("CURRENT TEST: candidates {0}, N_t: {1}".format(len(current_round_tests[t][0]), current_round_tests[t][1]))
 
     for t in current_round_tests:
         if t in previous_round_tests:

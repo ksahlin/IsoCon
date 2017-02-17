@@ -282,6 +282,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
     nr_of_tests = 0
     previous_round_tests = {}
     previous_candidate_p_values = {}
+    realignment_to_avoid_local_max = 0
 
     while modified:
         modified = False
@@ -290,28 +291,33 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         ############ GET READ SUPORT AND ALIGNMENTS #################
 
         C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
-        alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)
-        # remove the alignments of candidates that didn't pass the consensus over each base pair here
-        for c_acc in list(alignments_of_x_to_c_transposed.keys()):
-            if c_acc not in C:
-                del alignments_of_x_to_c_transposed[c_acc]
-        alignments_of_x_to_c = transpose(alignments_of_x_to_c_transposed)
-
-
         partition_of_X = {}
-        for c_acc in alignments_of_x_to_c_transposed.keys():
-            partition_of_X[c_acc] = set()
-            for x_acc in alignments_of_x_to_c_transposed[c_acc].keys():
-                partition_of_X[c_acc].add(x_acc)
-        remaining_to_align, C = filter_C_X_and_partition(X, C, alignments_of_x_to_c, partition_of_X)
-        remaining_to_align_read_file = os.path.join(params.outfolder, "remaining_to_align.fa")
-        write_output.print_reads(remaining_to_align_read_file, remaining_to_align, X)
+
+        if realignment_to_avoid_local_max != 1:
+            alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)
+            # remove the alignments of candidates that didn't pass the consensus over each base pair here
+            for c_acc in list(alignments_of_x_to_c_transposed.keys()):
+                if c_acc not in C:
+                    del alignments_of_x_to_c_transposed[c_acc]
+            alignments_of_x_to_c = transpose(alignments_of_x_to_c_transposed)
+
+            for c_acc in alignments_of_x_to_c_transposed.keys():
+                partition_of_X[c_acc] = set()
+                for x_acc in alignments_of_x_to_c_transposed[c_acc].keys():
+                    partition_of_X[c_acc].add(x_acc)
+            remaining_to_align, C = filter_C_X_and_partition(X, C, alignments_of_x_to_c, partition_of_X)
+            remaining_to_align_read_file = os.path.join(params.outfolder, "remaining_to_align.fa")
+            write_output.print_reads(remaining_to_align_read_file, remaining_to_align, X)
+
+        else:
+            print("REALIGNING EVERYTHING FINAL STEP")
+            remaining_to_align = X
+            remaining_to_align_read_file = read_file
+            for c_acc in C:
+                partition_of_X[c_acc] = set()
 
         # align reads that is not yet assigned to candidate here
-        # use this row to do remaining alignments
-        # G_star, partition_of_X, alignments_of_x_to_c =  partition_strings_2set_paths(X, C, read_file, candidate_file)
-        # G_star_rem, partition_of_remaining_X, remaining_alignments_of_x_to_c =  partition_strings_2set_paths(remaining_to_align, C, remaining_to_align_read_file, candidate_file)
-        G_star_rem, partition_of_remaining_X, remaining_alignments_of_x_to_c =  partition_strings_2set(remaining_to_align, C, remaining_to_align_read_file, candidate_file)
+        G_star_rem, partition_of_remaining_X, remaining_alignments_of_x_to_c = partition_strings_2set(remaining_to_align, C, remaining_to_align_read_file, candidate_file)
 
         # add reads to best candidate given new alignments
         for c_acc in partition_of_remaining_X:
@@ -428,6 +434,14 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
             plt.savefig(fig_file, format="PNG")
             plt.clf()
             step += 1
+
+        # do a last realingment to avoind local maxima of reads
+
+        if realignment_to_avoid_local_max == 1: # we have already done a last realignment, keep going until everythin is significant never realign
+            realignment_to_avoid_local_max == 2
+        elif not modified and realignment_to_avoid_local_max == 0: # we have not yet done a final alignment and everythin is significant, realign to escape local maxima alignment
+            realignment_to_avoid_local_max = 1
+            modified = True
 
     final_out_file_name =  os.path.join(params.outfolder, "final_candidates.fa")
     write_output.print_candidates(final_out_file_name, alignments_of_x_to_c, C, C_pvals, final = True)
