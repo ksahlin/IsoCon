@@ -113,8 +113,6 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
     # also get base pair errors distribution (approximated as poisson), 
     # estimate this from all positions andvariants except for the variant and position combination of the candidates
 
-
-    # here we do two separate tests: against cluster center and against closest candidate (they may be the same).
     p_values_on_closest_highest_support = test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_accessions, partition_of_X, partition_of_C, C)
 
     return p_values_on_closest_highest_support
@@ -196,6 +194,21 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
         ############################################################################################
         ############################################################################################
 
+        ############ NEW TEST ##############
+        n_S, n_D, n_I = 0, 0, 0
+        for pos, (state, char) in delta_t[c_acc].items():
+            if state == "S":
+                n_S += 1
+            elif state == "D":
+                n_D += 1
+            if state == "I":
+                n_I += 1
+        lambda_po_approx = sum([ ((epsilon[q_acc]["I"])**n_I) * ((epsilon[q_acc]["S"])**n_S) * ((epsilon[q_acc]["D"])**n_D)  for q_acc in epsilon])
+        mult_factor = (m**n_I)* choose(m, n_D) * choose(m-n_D, n_S)
+        p_val_appprox = (mult_factor/ (u_c_S * u_c_D * u_c_I) ) * poisson.sf(k - 1, lambda_po_approx)
+        print("lambda", lambda_po_approx, mult_factor, k, (u_c_S * u_c_D * u_c_I), n_I, n_D, n_S)
+        #################################### 
+
 
         if k <= 1:
             # print("NO support!")
@@ -274,8 +287,9 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
 
         ############################################################################################
         ############################################################################################
-
-        p_values[c_acc] = (t_acc, k, p_value, N_t)
+        print("DIFFERENCE:", p_value, p_val_appprox, k)
+        # p_values[c_acc] = (t_acc, k, p_value, N_t)
+        p_values[c_acc] = (t_acc, k, p_val_appprox, N_t)
 
         if math.isnan(p_value):
             print("LOOOOL math is nan!:")
@@ -285,6 +299,8 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
             print("lengths:", len(t), len(C[c_acc]))
             sys.exit()
 
+        # if m == 1881:
+        #     sys.exit()
     return p_values
 
 

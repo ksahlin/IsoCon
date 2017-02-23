@@ -143,6 +143,9 @@ def get_error_rates_and_lambda(target_accession, segment_length, candidate_acces
     for q_acc in alignment_matrix:
         if q_acc == target_accession:
             continue
+        if q_acc in candidate_accessions:
+            continue  
+
         epsilon[q_acc] = {}
         query_alignment = alignment_matrix[q_acc]
         ed_i, ed_s, ed_d = 0, 0, 0
@@ -157,9 +160,7 @@ def get_error_rates_and_lambda(target_accession, segment_length, candidate_acces
                     ed_d += 1
                 else:
                     ed_s += 1
-
-        if q_acc in candidate_accessions:
-            continue   
+ 
 
         # get poisson counts on all positions
         for j in range(len(query_alignment)):
