@@ -14,7 +14,7 @@
 import unittest
 from collections import defaultdict
 
-def get_multiplier_for_variant(state, char, pos, target_alignment, read_alignment):
+def get_multiplier_for_variant(state, char, pos, target_alignment, candidate_alignment):
     """
         Entering this function only if state = I or D, and the read has the same character as the target at the starting position "pos".
         That is the premise.
@@ -36,9 +36,9 @@ def get_multiplier_for_variant(state, char, pos, target_alignment, read_alignmen
             pass
         elif pos + offset > stop:
             upper_stop = True
-        elif target_alignment[pos + offset] == read_alignment[pos + offset] == v:
+        elif target_alignment[pos + offset] == candidate_alignment[pos + offset] == v:
             u_v += 1
-        elif target_alignment[pos + offset] == read_alignment[pos + offset] == "-":
+        elif target_alignment[pos + offset] == candidate_alignment[pos + offset] == "-":
             pass
         else:
             upper_stop = True
@@ -48,9 +48,9 @@ def get_multiplier_for_variant(state, char, pos, target_alignment, read_alignmen
             pass
         elif pos - offset < 0:
             lower_stop = True                    
-        elif target_alignment[pos - offset] == read_alignment[pos - offset] == v:
+        elif target_alignment[pos - offset] == candidate_alignment[pos - offset] == v:
             u_v += 1
-        elif target_alignment[pos - offset] == read_alignment[pos - offset] == "-":
+        elif target_alignment[pos - offset] == candidate_alignment[pos - offset] == "-":
             pass
         else:
             lower_stop = True
@@ -63,6 +63,34 @@ def get_multiplier_for_variant(state, char, pos, target_alignment, read_alignmen
 
     return u_v
 
+
+def adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix, t_acc):
+
+    target_alignment = alignment_matrix[t_acc]
+    # Get the individual invariant factors u_iv for each read and variant x_i and v in delta, v is a tuple (state, char).
+    # store this 3 dimensional in dictionary u_iv = {c_acc: {pos: { (state,char) : u_iv} }} 
+    u_iv = {}
+
+    for c_acc in delta_t:
+        u_iv[c_acc] = {}
+        candidate_alignment = alignment_matrix[c_acc]
+        for pos in delta_t[c_acc]:
+            if pos not in u_iv[c_acc]:
+                u_iv[c_acc][pos] = {}
+        
+            state, char = delta_t[c_acc][pos]
+            if state == "S": # substitutions has u_v =1 by definition
+                u_v = 1
+            else: # read matches candidate variant, now we need to check how many possible combinations an error can cause them to match due to invariant
+                u_v = get_multiplier_for_variant(state, char, pos, target_alignment, candidate_alignment)
+                # print("multiplier:", u_v)
+                # print(target_alignment[pos-10: pos+10],state, char)
+                # print(read_alignment[pos-10: pos+10],state, char)
+                # print(candidate_alignment[pos-10: pos+10],state, char)
+
+            u_iv[c_acc][pos][(state, char)] = u_v
+
+    return u_iv
 
 
 def adjust_probability_of_read_to_alignment_invariant(delta_t, alignment_matrix, t_acc):

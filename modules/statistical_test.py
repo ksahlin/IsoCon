@@ -9,7 +9,7 @@ from scipy.stats import poisson, binom, norm
 from modules.multinomial_distr import multinomial_
 from modules.SW_alignment_module import sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences_keeping_accession
-from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, get_invariant_adjustment, adjust_probability_of_read_to_alignment_invariant
+from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, get_invariant_adjustment, adjust_probability_of_read_to_alignment_invariant, adjust_probability_of_candidate_to_alignment_invariant
 
 
 def do_statistical_tests(null_hypothesis_references_t, C_seq_to_acc, partition_of_X, partition_of_C, X, C, previous_round_tests, previous_candidate_p_values, single_core = False):
@@ -177,8 +177,8 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
     # format:  { c_acc1 : u_delta, c_acc2 : u_delta, ... , }
     invariant_factors = get_invariant_adjustment(delta_t, alignment_matrix_to_t, t_acc)
 
-    read_indiv_invariant_factors = adjust_probability_of_read_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
-
+    # read_indiv_invariant_factors = adjust_probability_of_read_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
+    candidate_indiv_invariant_factors = adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
     # print()
     # print("INVARIANT FACTORS:", invariant_factors)
     # print()
@@ -213,13 +213,14 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
         for q_acc in epsilon:
             p_i = 1
             for pos, (state, char) in delta_t[c_acc].items():
-                u_v = read_indiv_invariant_factors[q_acc][pos][(state, char)]
+                u_v = candidate_indiv_invariant_factors[c_acc][pos][(state, char)]
                 p_iv = epsilon[q_acc][state]
-                if u_v != 1:
-                    p_i *= binom.pmf(1, u_v, p_iv)
-                    u_v_factor = u_v
-                else:
-                    p_i *= p_iv
+                p_i *= u_v*p_iv
+                # if u_v != 1:
+                #     p_i *= binom.pmf(1, u_v, p_iv)
+                #     u_v_factor = u_v
+                # else:
+                #     p_i *= p_iv
 
             epsilon_invariant_adjusted[q_acc] = p_i
             # if u_v_factor == 1 and len(delta_t[c_acc]) == 1:
@@ -229,7 +230,7 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
         lambda_po_approx_inv = sum([ epsilon_invariant_adjusted[q_acc] for q_acc in epsilon_invariant_adjusted])
         mult_factor_inv = (m**n_I)* choose(m, n_D) * choose(m-n_D, n_S)
         p_val_appprox_inv = mult_factor_inv * poisson.sf(k - 1, lambda_po_approx_inv)
-        print("lambda inv adjusted", lambda_po_approx_inv, mult_factor_inv, k, len(delta_t[c_acc]), u_v_factor)
+        print("lambda inv adjusted", lambda_po_approx_inv, mult_factor_inv, k, len(delta_t[c_acc]), candidate_indiv_invariant_factors[c_acc])
         #############################
         
         lambda_po_approx = sum([ ((epsilon[q_acc]["I"])**n_I) * ((epsilon[q_acc]["S"])**n_S) * ((epsilon[q_acc]["D"])**n_D)  for q_acc in epsilon])
@@ -237,6 +238,7 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
         mult_factor = (m**n_I)* choose(m, n_D) * choose(m-n_D, n_S)
         p_val_appprox = (mult_factor/ (u_c_S * u_c_D * u_c_I) ) * poisson.sf(k - 1, lambda_po_approx)
         print("lambda", lambda_po_approx, mult_factor, k, (u_c_S * u_c_D * u_c_I), n_I, n_D, n_S)
+        print("LAMBDA OLD:", lambda_I, lambda_S, lambda_D )
         # print("FFFFFFFF", len(epsilon),len(epsilon_invariant_adjusted))
         #################################### 
 
