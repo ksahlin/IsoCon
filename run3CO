@@ -72,7 +72,9 @@ def run_get_candidates(params):
     candidate_file = threeco.find_candidate_transcripts(params.fl_reads, params)
     total_elapsed = time() - total_start
     write_output.logger('TOTAL TIME ELAPSED FOR 3CO:{0}'.format(str(total_elapsed)), params.logfile)
-    clean_dir(params)
+
+    if params.cleanup:
+        clean_dir(params)
 
 def run_stat_filter(params):
     total_start = time()
@@ -107,7 +109,8 @@ def run_stat_filter(params):
 
     threeco.stat_filter_candidates(params.fl_reads, params.candidates, alignments_of_x_to_c, params)
     total_elapsed = time() - total_start
-    clean_dir(params)
+    if params.cleanup:
+        clean_dir(params)
     write_output.logger('TOTAL TIME ELAPSED FOR STAT_FILTER:{0}'.format(str(total_elapsed)), params.logfile)
 
 def initialize_logger(params):
@@ -147,7 +150,8 @@ def run_pipeline(params):
     stats_elapsed = time() - stats_start
     write_output.logger('TIME ELAPSED FOR STATISTICAL TEST OF CANDIDATES:{0}'.format(str(stats_elapsed)), params.logfile)
 
-    clean_dir(params)
+    if params.cleanup:
+        clean_dir(params)
     total_elapsed = time() - total_start
     write_output.logger('TOTAL TIME ELAPSED FOR 3CO:{0}'.format(str(total_elapsed)), params.logfile)
 

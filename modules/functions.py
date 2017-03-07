@@ -18,6 +18,10 @@ def get_multiplier_for_variant(state, char, pos, target_alignment, candidate_ali
     """
         Entering this function only if state = I or D, and the read has the same character as the target at the starting position "pos".
         That is the premise.
+        ## TODO: If delation in candidate, wee need to count the number of identical bases to the deleted base in the target.
+        ## TODO: If insertion, the inserted base has to be identical to any of the neighboring nucleotides to count as alignment invariant 
+        TODO: If delation in candidate: we need to count the number of identical bases to the deleted base in the target. In that case, the u_v = len(identical stretch in target)
+        TODO: If insertion and inserted base == target base: the inserted base has to be identical to any of the neighboring nucleotides to count as alignment. In that case, the u_v = len(identical stretch in target)
     """
     stop = len(target_alignment) - 1
     u_v = 1
@@ -512,14 +516,69 @@ def create_multialignment_format(query_to_target_positioned_dict, start, stop):
         if (start + j) % 2 == 0:  # we are between a target base pairs (need to check the longest one)
             insertions = [(segments[q_acc][j], q_acc) for q_acc in segments]
             max_insertion, q_acc_max_ins = max(insertions, key= lambda x : len(x[0]))
+
+            # for q_acc in segments:
+            #     for p in range(len(max_insertion)):
+            #         # all shorter insertions are left shifted -- identical indels are guaranteed to be aligned
+            #         # however, no multialignment is performed among the indels
+            #         if p < len(segments[q_acc][j]):
+            #             alignment_matrix[q_acc].append(segments[q_acc][j][p])
+            #         else:
+            #             alignment_matrix[q_acc].append("-")
+
             for q_acc in segments:
+                # check if identical substring in biggest insertion first:
+                q_ins = segments[q_acc][j]
+                pos = max_insertion.find(q_ins) 
+                q_insertion_modified = ""
+                if pos >=0:
+                    if pos >= 1:
+                        pass
+                        # print("here perfect new!! q: {0} max: {1}, new q_ins:{2}".format(q_ins, max_insertion,  "-"*pos + max_insertion[ pos : pos + len(q_ins) ] + "-"* len(max_insertion[ pos + len(q_ins) : ])))
+                    
+                    q_insertion_modified = "-"*pos + max_insertion[ pos : pos + len(q_ins) ] + "-"* len(max_insertion[ pos + len(q_ins) : ])
+
+                
+                if not q_insertion_modified:
+                    # else, check is smaller deletion can be aligned from left to write, e.g. say max deletion is GACG
+                    # then an insertion AG may be aligned as -A-G. Take this alignment instead
+                    can_be_threaded = True
+                    prev_pos = -1
+                    match_pos = set()
+                    for q_nucl in q_ins:
+                        pos = max_insertion.find(q_nucl) 
+                        match_pos.add(pos)
+                        if pos <= prev_pos:
+                            can_be_threaded = False
+                            break
+                        prev_pos = pos
+
+                    if can_be_threaded:
+                        q_insertion_modified = ""
+                        for p in range(len(max_insertion)):
+                            if p in match_pos:
+                                nucl = max_insertion[p]
+                            else:
+                                nucl = "-"
+                            q_insertion_modified = q_insertion_modified + nucl
+                        # print("NEW can be threaded: q:{0}, max: {1}, new thread: {2}".format(q_ins, max_insertion, q_insertion_modified))
+
+                if not q_insertion_modified:
+                    # otherwise just shift left
+                    q_insertion_modified = []
+                    for p in range(len(max_insertion)):
+                        # all shorter insertions are left shifted -- identical indels are guaranteed to be aligned
+                        # however, no multialignment is performed among the indels
+                        if p < len(q_ins):
+                            q_insertion_modified.append(q_ins[p])
+                        else:
+                            q_insertion_modified.append("-")
+
+                #### finally add to alignment matrix
+                assert len(q_insertion_modified) == len(max_insertion)
                 for p in range(len(max_insertion)):
-                    # all shorter insertions are left shifted -- identical indels are guaranteed to be aligned
-                    # however, no multialignment is performed among the indels
-                    if p < len(segments[q_acc][j]):
-                        alignment_matrix[q_acc].append(segments[q_acc][j][p])
-                    else:
-                        alignment_matrix[q_acc].append("-")
+                    alignment_matrix[q_acc].append(q_insertion_modified[p])
+
         else: # we are on a target base pair -- all varinats must be exactly A,C,G,T, - i.e., length 1
             for q_acc in segments:
                 alignment_matrix[q_acc].append(segments[q_acc][j])
