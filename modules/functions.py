@@ -579,7 +579,7 @@ def create_multialignment_format(query_to_target_positioned_dict, start, stop):
                     # check if there is at least one matching character we could align to
                     max_p = 0
                     max_matches = 0
-                    for p in range(0, len(max_insertion) - len(q_ins)):
+                    for p in range(0, len(max_insertion) - len(q_ins) + 1 ):
                         nr_matches = len([1 for c1, c2 in zip(q_ins, max_insertion[p: p + len(q_ins) ] ) if c1 == c2])
                         if nr_matches > max_matches:
                             max_p = p
@@ -587,7 +587,7 @@ def create_multialignment_format(query_to_target_positioned_dict, start, stop):
 
                     if max_p > 0:
                         q_insertion_modified = "-"*max_p + q_ins + "-"*len(max_insertion[max_p + len(q_ins) : ])
-                        print("specially solved: q:{0} max:{1} ".format(q_insertion_modified, max_insertion) )
+                        # print("specially solved: q:{0} max:{1} ".format(q_insertion_modified, max_insertion) )
 
                 if not q_insertion_modified:
                     q_insertion_modified = []
