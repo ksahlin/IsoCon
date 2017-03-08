@@ -516,7 +516,9 @@ def create_multialignment_format(query_to_target_positioned_dict, start, stop):
         if (start + j) % 2 == 0:  # we are between a target base pairs (need to check the longest one)
             insertions = [(segments[q_acc][j], q_acc) for q_acc in segments]
             max_insertion, q_acc_max_ins = max(insertions, key= lambda x : len(x[0]))
+            max_insertion = "-" + max_insertion + "-"  # pad the max insertion
 
+            ###### OLD WORKING CODE #########
             # for q_acc in segments:
             #     for p in range(len(max_insertion)):
             #         # all shorter insertions are left shifted -- identical indels are guaranteed to be aligned
@@ -525,18 +527,26 @@ def create_multialignment_format(query_to_target_positioned_dict, start, stop):
             #             alignment_matrix[q_acc].append(segments[q_acc][j][p])
             #         else:
             #             alignment_matrix[q_acc].append("-")
+            #########################
 
             for q_acc in segments:
                 # check if identical substring in biggest insertion first:
                 q_ins = segments[q_acc][j]
-                pos = max_insertion.find(q_ins) 
                 q_insertion_modified = ""
-                if pos >=0:
-                    if pos >= 1:
-                        pass
-                        # print("here perfect new!! q: {0} max: {1}, new q_ins:{2}".format(q_ins, max_insertion,  "-"*pos + max_insertion[ pos : pos + len(q_ins) ] + "-"* len(max_insertion[ pos + len(q_ins) : ])))
-                    
-                    q_insertion_modified = "-"*pos + max_insertion[ pos : pos + len(q_ins) ] + "-"* len(max_insertion[ pos + len(q_ins) : ])
+
+                if q_ins == "-":
+                    # print("LOOL")
+                    q_insertion_modified = "-"*len(max_insertion)
+
+                if not q_insertion_modified:
+                    pos = max_insertion.find(q_ins) 
+                    q_insertion_modified = ""
+                    if pos >=0:
+                        if pos >= 1:
+                            pass
+                            # print("here perfect new!! q: {0} max: {1}, new q_ins:{2}".format(q_ins, max_insertion,  "-"*pos + max_insertion[ pos : pos + len(q_ins) ] + "-"* len(max_insertion[ pos + len(q_ins) : ])))
+                        
+                        q_insertion_modified = "-"*pos + max_insertion[ pos : pos + len(q_ins) ] + "-"* len(max_insertion[ pos + len(q_ins) : ])
 
                 
                 if not q_insertion_modified:
@@ -565,6 +575,21 @@ def create_multialignment_format(query_to_target_positioned_dict, start, stop):
 
                 if not q_insertion_modified:
                     # otherwise just shift left
+                    # print("Not solved: q:{0}, max: {1}".format(q_ins, max_insertion))
+                    # check if there is at least one matching character we could align to
+                    max_p = 0
+                    max_matches = 0
+                    for p in range(0, len(max_insertion) - len(q_ins)):
+                        nr_matches = len([1 for c1, c2 in zip(q_ins, max_insertion[p: p + len(q_ins) ] ) if c1 == c2])
+                        if nr_matches > max_matches:
+                            max_p = p
+                            max_matches = nr_matches
+
+                    if max_p > 0:
+                        q_insertion_modified = "-"*max_p + q_ins + "-"*len(max_insertion[max_p + len(q_ins) : ])
+                        print("specially solved: q:{0} max:{1} ".format(q_insertion_modified, max_insertion) )
+
+                if not q_insertion_modified:
                     q_insertion_modified = []
                     for p in range(len(max_insertion)):
                         # all shorter insertions are left shifted -- identical indels are guaranteed to be aligned
@@ -575,6 +600,8 @@ def create_multialignment_format(query_to_target_positioned_dict, start, stop):
                             q_insertion_modified.append("-")
 
                 #### finally add to alignment matrix
+                if len(q_insertion_modified) != len(max_insertion):
+                    print(q_insertion_modified, max_insertion, q_ins)
                 assert len(q_insertion_modified) == len(max_insertion)
                 for p in range(len(max_insertion)):
                     alignment_matrix[q_acc].append(q_insertion_modified[p])
