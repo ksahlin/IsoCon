@@ -137,7 +137,7 @@ def run_pipeline(params):
     params.read_file = params.fl_reads
     if params.barcodes:
         # need to redirect path to reads to the new path with modified reads as well
-        filtered_file = identify_barcodes.remove_barcodes_fcn(read_file, params)
+        filtered_file = identify_barcodes.remove_barcodes_fcn(params.read_file, params)
         params.read_file = filtered_file
 
     minimizer_start = time() 
