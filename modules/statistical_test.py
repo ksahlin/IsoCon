@@ -228,7 +228,7 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
             #         print("OMG!!!", epsilon[q_acc][state], p_i, delta_t[c_acc])
 
         lambda_po_approx_inv = sum([ epsilon_invariant_adjusted[q_acc] for q_acc in epsilon_invariant_adjusted])
-        mult_factor_inv = (m**n_I)* choose(m, n_D) * choose(m-n_D, n_S)
+        mult_factor_inv = ( (4*(m+1))**n_I ) * choose(m, n_D) * choose( 3*(m-n_D), n_S)
         p_val_appprox_inv = mult_factor_inv * poisson.sf(k - 1, lambda_po_approx_inv)
         print("lambda inv adjusted", lambda_po_approx_inv, mult_factor_inv, k, len(delta_t[c_acc]), candidate_indiv_invariant_factors[c_acc])
         #############################

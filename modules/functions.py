@@ -40,7 +40,7 @@ def get_multiplier_for_variant(state, char, pos, target_alignment, candidate_ali
             pass
         elif pos + offset > stop:
             upper_stop = True
-        elif target_alignment[pos + offset] == candidate_alignment[pos + offset] == v:
+        elif target_alignment[pos + offset] == v: # == candidate_alignment[pos + offset] == v:
             u_v += 1
         elif target_alignment[pos + offset] == candidate_alignment[pos + offset] == "-":
             pass
@@ -52,7 +52,7 @@ def get_multiplier_for_variant(state, char, pos, target_alignment, candidate_ali
             pass
         elif pos - offset < 0:
             lower_stop = True                    
-        elif target_alignment[pos - offset] == candidate_alignment[pos - offset] == v:
+        elif target_alignment[pos - offset] == v: # candidate_alignment[pos - offset] == v:
             u_v += 1
         elif target_alignment[pos - offset] == candidate_alignment[pos - offset] == "-":
             pass

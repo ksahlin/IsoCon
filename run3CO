@@ -69,9 +69,14 @@ def run_remove_barcodes():
 def run_get_candidates(params):
     total_start = time()
     initialize_logger(params)
-    candidate_file = threeco.find_candidate_transcripts(params.fl_reads, params)
+    params.read_file = params.fl_reads
+    if params.barcodes:
+        # need to redirect path to reads to the new path with modified reads as well
+        filtered_file = identify_barcodes.remove_barcodes_fcn(params.read_file, params)
+        params.read_file = filtered_file
+    candidate_file = threeco.find_candidate_transcripts(params.read_file, params)
     total_elapsed = time() - total_start
-    write_output.logger('TOTAL TIME ELAPSED FOR 3CO:{0}'.format(str(total_elapsed)), params.logfile)
+    write_output.logger('TOTAL TIME ELAPSED FOR MINIMIZER APPROACH:{0}'.format(str(total_elapsed)), params.logfile)
 
     if params.cleanup:
         clean_dir(params)

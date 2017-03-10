@@ -95,7 +95,7 @@ def remove_barcodes_fcn(read_file, params):
                 Require at least 15 matches with indels or a stretch of matches of at least 10bp 
     """
 
-    read_file = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
+    reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
     barcodes = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.barcodes, 'r'))}
     barcode_length = 21
 
@@ -108,23 +108,23 @@ def remove_barcodes_fcn(read_file, params):
             seq_r = reverse_complement(seq)
             end_barcode_set.add(seq_r)
 
-    min_seq_len = min([len(seq) for seq in read_file.values()])
-    reads_before = set([seq for seq in read_file.values()])
+    min_seq_len = min([len(seq) for seq in reads.values()])
+    reads_before = set([seq for seq in reads.values()])
     print("Nr unique sequences before barcode correction:", len(reads_before))
     print("MIN seq before barcode:", min_seq_len)
 
 
 
-    print("total ends to analyze: {0}".format(len(read_file)*2))
+    print("total ends to analyze: {0}".format(len(reads)*2))
 
-    read_file_filtered = {}
+    reads_filtered = {}
     perfect_count = 0
     imperfect_snippet = 0
     imperfect_inexact = 0
     not_found_count = 0
 
-    for c_acc in read_file.keys():
-        c_seq = read_file[c_acc]
+    for c_acc in reads.keys():
+        c_seq = reads[c_acc]
 
         # start of sequence
         start_cut_point, start_barcode_match = find_cutpoint_exact_match(c_seq, start_barcode_set, barcode_length)
@@ -166,24 +166,24 @@ def remove_barcodes_fcn(read_file, params):
         else:
             not_found_count +=1
 
-        read_file_filtered[c_acc] = cleaned_read
+        reads_filtered[c_acc] = cleaned_read
         # print(len(c_seq))
 
     print("Perfect:{0}, imperfect snippets:{1}, inperfect inexact:{2} not found:{3}".format(perfect_count, imperfect_snippet, imperfect_inexact, not_found_count))
     print("total count: {0}".format(perfect_count + imperfect_snippet + imperfect_inexact + not_found_count))
 
-    reads_after = set([seq for seq in read_file_filtered.values()])
+    reads_after = set([seq for seq in reads_filtered.values()])
     print("Nr unique sequences after barcode correction:", len(reads_after))
 
-    assert len(read_file_filtered) == len(read_file)
+    assert len(reads_filtered) == len(reads)
     corrected_read_file = open(os.path.join(params.outfolder, "reads_barcode_corrected.fa"), "w")
-    for acc, seq in misc_functions.iteritems(read_file_filtered):
+    for acc, seq in list(reads_filtered.items()):
         corrected_read_file.write(">{0}\n{1}\n".format(acc, seq))
     corrected_read_file.close() 
     
     # barcode_corrected_reads_file_name = remove_redundant_after_barcode_removal(read_file_filtered)
 
-    return barcode_corrected_reads_file_name
+    return corrected_read_file.name
 
 
 
