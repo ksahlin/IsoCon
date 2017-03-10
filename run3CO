@@ -42,7 +42,7 @@ import re
 from multiprocessing import Pool
 import multiprocessing as mp
 
-import threeco
+import threeco, threeco_v2
 from modules import threeco_parameters
 from modules.input_output import write_output, fasta_parser
 from modules import partitions
@@ -112,7 +112,7 @@ def run_stat_filter(params):
     filtered_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
     G_star, partition_of_X, alignments_of_x_to_c =  partitions.partition_strings_2set(original_reads, filtered_candidates, params.fl_reads, params.candidates)
 
-    threeco.stat_filter_candidates(params.fl_reads, params.candidates, alignments_of_x_to_c, params)
+    threeco_v2.stat_filter_candidates(params.fl_reads, params.candidates, alignments_of_x_to_c, params)
     total_elapsed = time() - total_start
     if params.cleanup:
         clean_dir(params)
@@ -151,7 +151,7 @@ def run_pipeline(params):
     write_output.logger('TIME ELAPSED FOR FINDING CANDIDATES WITH MINIMIZERS:{0}'.format(str(minimizer_elapsed)), params.logfile)
 
     stats_start = time()
-    threeco.stat_filter_candidates(params.read_file, candidate_file, alignments_of_reads_to_candidates, params)
+    threeco_v2.stat_filter_candidates(params.read_file, candidate_file, alignments_of_reads_to_candidates, params)
     stats_elapsed = time() - stats_start
     write_output.logger('TIME ELAPSED FOR STATISTICAL TEST OF CANDIDATES:{0}'.format(str(stats_elapsed)), params.logfile)
 

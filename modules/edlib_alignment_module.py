@@ -119,8 +119,8 @@ def edlib_alignment(x, y, i,j, x_acc = "", y_acc = ""):
     else:
         return (x_acc, y_acc, (x,y,ed))  
 
-def edlib_traceback(x, y, mode="HW", task="path", k=1):
-    result = edlib.align(x, y, mode="HW", task="path", k=k)
+def edlib_traceback(x, y, mode="NW", task="path", k=1):
+    result = edlib.align(x, y, mode=mode, task=task, k=k)
     ed = result["editDistance"]
     locations =  result["locations"]
     cigar =  result["cigar"]
