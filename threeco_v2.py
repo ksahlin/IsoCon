@@ -273,11 +273,11 @@ def vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C):
     plt.clf()
 
 def get_minimizer_graph(candidate_transcripts):
-    minimizer_graph = {}
+    best_edit_distances = {}
     for i, (c1, seq1) in enumerate(candidate_transcripts.items()):
         if i % 50 == 0:
             print("processing ", i)
-        minimizer_graph[c1] = {}
+        best_edit_distances[c1] = {}
         # best_cigars[c1] = {}
         best_ed = len(seq1)
         for c2, seq2 in  candidate_transcripts.items() :
@@ -290,40 +290,38 @@ def get_minimizer_graph(candidate_transcripts):
 
             if 0 <= edit_distance < best_ed:
                 best_ed = edit_distance
-                best_cigar = (cigar,)
-                best_c2 = (c2,)
+                best_edit_distances[c1] = {}
+                best_edit_distances[c1][c2] = best_ed
+                # best_cigars[c1] = {}
+                # best_cigars[c1][c2] =  cigar
             elif edit_distance == best_ed:
-                best_c2 = best_c2 +(c2,)
-                best_cigar = best_cigar + (cigar,)
-            # if edit_distance == 1:
-            #     if "D" in cigar:
-            #         error_types["D"] +=1
-            #     if "X" in cigar:
-            #         error_types["S"] +=1
-            #     if "I" in cigar:
-            #         error_types["I"] +=1
+                best_edit_distances[c1][c2] = best_ed
+                # best_cigars[c1][c2] =  cigar
 
-                # print(cigar)
 
-        for c2 in best_c2:
-            minimizer_graph[c1][c2] = best_ed 
-
-        # best_cigars[c1] = { best_c2 : best_cigar }
-
-    # print(error_types)
-    # for c1 in minimizer_graph:
-    #     # print(minimizer_graph[c1])
-    #     for c2 in minimizer_graph[c1]:
-    #         ed = minimizer_graph[c1][c2]
-    #         if len(c2) > 1:
-    #             print()
-    #             print("ED:",ed)
-    #             print("Multiple best:", c1, len(c2), best_cigars[c1][c2])
-    #             print(c2)
-    #             print()
-            # print(ed, c1, c2)
+    minimizer_graph = transpose(best_edit_distances)
+    # seen_in_test = set()
+    # for m in minimizer_graph:
+        # print(best_edit_distances[c1])
+        # print("NEW", m, "size:", len(minimizer_graph[m]))
+        # if len(best_edit_distances[c1]) > 1:
+        #     print("Minimizer to multiple candidates:", m, len(minimizer_graph[m]))
+        # for c in minimizer_graph[m]:
+        #     ed = minimizer_graph[m][c]
+            # if c in seen_in_test:
+            #     print("Seen:", c)
+            # seen_in_test.add(c)
+            # print("ED:",ed, c )
+                # print("Multiple best:", c1, len(c2), best_cigars[c1][c2])
+                # print(c2)
+                # print()
+        # print()
 
     return minimizer_graph
+
+def stat_test(t_acc, c_acc, total_reads, alignment_matrix_to_t, reads_allocated_to_c):
+
+    return  p_value, k
 
 def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C ):
     partition_dict = {t_acc : {}}
@@ -344,7 +342,7 @@ def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C ):
             edit_dist = mismatches + indels
             partition_alignments[t_acc][x_acc] = (edit_dist, aln_t, aln_x, 1)
     print("NR candidates with at least one hit:", len(partition_alignments))
-    alignment_matrix_to_t, PFM_to_t = create_position_probability_matrix(C[t_acc], partition_alignments_t[t_acc])
+    alignment_matrix_to_t, PFM_to_t = create_position_probability_matrix(C[t_acc], partition_alignments[t_acc])
     return alignment_matrix_to_t, PFM_to_t
 
 def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, params):
@@ -423,7 +421,8 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
             print("testing", minimizer_graph[t_acc])
             if len(minimizer_graph[t_acc]) == 0:
                 significance_values[t_acc] = (len(partition_of_X[t_acc]), "not_tested", len(partition_of_X[t_acc]) )
-            
+                continue
+
             reads = set([x_acc for c_acc in minimizer_graph[t_acc] for x_acc in partition_of_X[c_acc]])
             N_t = len(reads)
             print("N_t:", N_t)
@@ -433,8 +432,17 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
             # get multialignment matrix here
             alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C )
 
+            # get parameter estimates for statistical test
+            candidate_accessions = set( [ c_acc in minimizer_graph[t_acc]] )
+            delta_t = get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
+            epsilon, lambda_S, lambda_D, lambda_I = functions.get_error_rates_and_lambda(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
+            # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
+            candidate_support = functions.get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
+            # read_indiv_invariant_factors = adjust_probability_of_read_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
+            candidate_indiv_invariant_factors = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
+
             for c_acc, c_seq in list(minimizer_graph[t_acc].items()):
-                p_value, k = statistical_test(t_acc, c_acc, reads, alignment_matrix_to_t, partition_of_X[c_acc])
+                p_value, k = stat_test(t_acc, c_acc, reads, alignment_matrix_to_t, partition_of_X[c_acc])
                 actual_tests += 1
                 if c_acc in significance_values:
                     if p_value > significance_values[c_acc][0]:
