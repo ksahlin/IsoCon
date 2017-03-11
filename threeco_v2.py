@@ -10,6 +10,7 @@ import copy
 import math 
 
 from modules.functions import transpose, create_position_probability_matrix
+from modules import functions
 from modules.partitions import partition_strings_paths, partition_strings_2set, partition_to_statistical_test
 from modules import graphs
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
@@ -433,8 +434,8 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
             alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C )
 
             # get parameter estimates for statistical test
-            candidate_accessions = set( [ c_acc in minimizer_graph[t_acc]] )
-            delta_t = get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
+            candidate_accessions = set( [ c_acc for c_acc in minimizer_graph[t_acc]] )
+            delta_t = functions.get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
             epsilon, lambda_S, lambda_D, lambda_I = functions.get_error_rates_and_lambda(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
             # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
             candidate_support = functions.get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
