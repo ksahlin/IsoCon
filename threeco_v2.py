@@ -454,7 +454,6 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         # parallelize over outer for loop
         for t_acc in minimizer_graph:
             t_seq = C[t_acc]
-            print("testing", minimizer_graph[t_acc])
             if len(minimizer_graph[t_acc]) == 0:
                 significance_values[t_acc] = ("not_tested", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]) )
                 continue

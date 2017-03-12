@@ -57,8 +57,8 @@ def print_candidates(out_file_name, alignments_of_x_to_c, C, C_pvals, final = Fa
 
                 final_candidate_count += 1
         else:
-            print("deleting:", "support:", support, "pval:", p_value, "tot reads in partition:", N_t  )
-    print("Final candidate count: ", final_candidate_count)
+            print("Not printing candidate to file:", c_acc, "support:", support, "pval:", p_value, "tot reads in partition:", N_t  )
+    print("Candidates written to file: ", final_candidate_count)
     out_file.close()
 
 
