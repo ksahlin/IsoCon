@@ -327,7 +327,7 @@ def get_minimizer_graph(candidate_transcripts):
 
     return minimizer_graph
 
-def stat_test(k, m, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc):
+def stat_test(k, m, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c):
     n_S, n_D, n_I = 0, 0, 0
     for pos, (state, char) in delta_t[c_acc].items():
         if state == "S":
@@ -352,7 +352,7 @@ def stat_test(k, m, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, 
     mult_factor_inv = ( (4*(m+1))**n_I ) * functions.choose(m, n_D) * functions.choose( 3*(m-n_D), n_S)
     p_value = poisson.sf(k - 1, lambda_po_approx_inv)
     corrected_p_value = mult_factor_inv * p_value
-    print("Corrected p value:", corrected_p_value, k)
+    print("Corrected p value:", corrected_p_value, "k:", k, "Nr mapped to:", original_mapped_to_c)
     print("lambda inv adjusted", lambda_po_approx_inv, mult_factor_inv, k, len(delta_t[c_acc]), candidate_indiv_invariant_factors[c_acc])
     #############################
     #################################### 
@@ -477,9 +477,10 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
             candidate_indiv_invariant_factors = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
 
             for c_acc, c_seq in list(minimizer_graph[t_acc].items()):
+                original_mapped_to_c = len(partition_of_X[c_acc])
                 k = len(candidate_support[c_acc])
                 # print("supprot:", k, "diff:", len(delta_t[c_acc]))
-                corrected_p_value = stat_test(k, len(t_seq), epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc)
+                corrected_p_value = stat_test(k, len(t_seq), epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c)
                 actual_tests += 1
                 if c_acc in significance_values:
                     if corrected_p_value > significance_values[c_acc][0]:
