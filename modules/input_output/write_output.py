@@ -17,7 +17,7 @@ def print_candidates(out_file_name, alignments_of_x_to_c, C, C_pvals, final = Fa
     final_candidate_count = 0
     alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)
     for c_acc, seq in C.items():
-        support, p_value, N_t = C_pvals[c_acc] 
+        p_value, support, N_t = C_pvals[c_acc] 
         #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
         # add extra constraint that the candidate has to have majority on _each_ position in c here otherwise most likely error
         if support >= 4:

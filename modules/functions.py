@@ -14,6 +14,21 @@
 import unittest
 from collections import defaultdict
 
+def choose(n, k):
+    """
+    A fast way to calculate binomial coefficients by Andrew Dalke (contrib).
+    """
+    if 0 <= k <= n:
+        ntok = 1
+        ktok = 1
+        for t in range(1, min(k, n - k) + 1):
+            ntok *= n
+            ktok *= t
+            n -= 1
+        return ntok // ktok
+    else:
+        return 0
+
 def get_multiplier_for_variant(state, char, pos, target_alignment, candidate_alignment):
     """
         Entering this function only if state = I or D, and the read has the same character as the target at the starting position "pos".

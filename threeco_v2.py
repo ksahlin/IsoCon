@@ -5,9 +5,10 @@
 """
 import os
 import unittest
-
 import copy
 import math 
+
+from scipy.stats import poisson
 
 from modules.functions import transpose, create_position_probability_matrix
 from modules import functions
@@ -275,6 +276,7 @@ def vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C):
 
 def get_minimizer_graph(candidate_transcripts):
     best_edit_distances = {}
+    isolated_nodes = set()
     for i, (c1, seq1) in enumerate(candidate_transcripts.items()):
         if i % 50 == 0:
             print("processing ", i)
@@ -299,8 +301,13 @@ def get_minimizer_graph(candidate_transcripts):
                 best_edit_distances[c1][c2] = best_ed
                 # best_cigars[c1][c2] =  cigar
 
+        if len(best_edit_distances[c1]) == 0: # all isolated nodes in this graph
+            isolated_nodes.add(c1)
 
+ 
     minimizer_graph = transpose(best_edit_distances)
+    for c_isolated in isolated_nodes:
+        minimizer_graph[c_isolated] = {}
     # seen_in_test = set()
     # for m in minimizer_graph:
         # print(best_edit_distances[c1])
@@ -320,9 +327,36 @@ def get_minimizer_graph(candidate_transcripts):
 
     return minimizer_graph
 
-def stat_test(t_acc, c_acc, total_reads, alignment_matrix_to_t, reads_allocated_to_c):
+def stat_test(k, m, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc):
+    n_S, n_D, n_I = 0, 0, 0
+    for pos, (state, char) in delta_t[c_acc].items():
+        if state == "S":
+            n_S += 1
+        elif state == "D":
+            n_D += 1
+        if state == "I":
+            n_I += 1
 
-    return  p_value, k
+    ######### INVARIANTS ##########
+    u_v_factor = 1
+    epsilon_invariant_adjusted = {}
+    for q_acc in epsilon:
+        p_i = 1
+        for pos, (state, char) in delta_t[c_acc].items():
+            u_v = candidate_indiv_invariant_factors[c_acc][pos][(state, char)]
+            p_iv = epsilon[q_acc][state]
+            p_i *= u_v*p_iv
+        epsilon_invariant_adjusted[q_acc] = p_i
+
+    lambda_po_approx_inv = sum([ epsilon_invariant_adjusted[q_acc] for q_acc in epsilon_invariant_adjusted])
+    mult_factor_inv = ( (4*(m+1))**n_I ) * functions.choose(m, n_D) * functions.choose( 3*(m-n_D), n_S)
+    p_value = poisson.sf(k - 1, lambda_po_approx_inv)
+    corrected_p_value = mult_factor_inv * p_value
+    print("Corrected p value:", corrected_p_value, k)
+    print("lambda inv adjusted", lambda_po_approx_inv, mult_factor_inv, k, len(delta_t[c_acc]), candidate_indiv_invariant_factors[c_acc])
+    #############################
+    #################################### 
+    return  corrected_p_value
 
 def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C ):
     partition_dict = {t_acc : {}}
@@ -414,14 +448,15 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         # these are all candidates that are minimizers to some other, isolated nodes are not tested
         # candidatate in G_star_C
         nr_of_tests_this_round = len(minimizer_graph)
-        print("NUMBER OF CANDIDATES LEFT:", nr_of_tests_this_round)
+        print("NUMBER OF CANDIDATES LEFT:", len(C))
         significance_values = {}
         actual_tests = 0
         # parallelize over outer for loop
-        for t_acc, t_seq in list(minimizer_graph.items()):
+        for t_acc in minimizer_graph:
+            t_seq = C[t_acc]
             print("testing", minimizer_graph[t_acc])
             if len(minimizer_graph[t_acc]) == 0:
-                significance_values[t_acc] = (len(partition_of_X[t_acc]), "not_tested", len(partition_of_X[t_acc]) )
+                significance_values[t_acc] = ("not_tested", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]) )
                 continue
 
             reads = set([x_acc for c_acc in minimizer_graph[t_acc] for x_acc in partition_of_X[c_acc]])
@@ -443,20 +478,29 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
             candidate_indiv_invariant_factors = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
 
             for c_acc, c_seq in list(minimizer_graph[t_acc].items()):
-                p_value, k = stat_test(t_acc, c_acc, reads, alignment_matrix_to_t, partition_of_X[c_acc])
+                k = len(candidate_support[c_acc])
+                # print("supprot:", k, "diff:", len(delta_t[c_acc]))
+                corrected_p_value = stat_test(k, len(t_seq), epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc)
                 actual_tests += 1
                 if c_acc in significance_values:
-                    if p_value > significance_values[c_acc][0]:
-                        significance_values[c_acc] = (p_value, k, N_t)
+                    if corrected_p_value > significance_values[c_acc][0]:
+                        significance_values[c_acc] = (corrected_p_value, k, N_t)
                 else:
-                    significance_values[c_acc] = (p_value, k, N_t)
+                    significance_values[c_acc] = (corrected_p_value, k, N_t)
 
         print("actual tests performed this round:", actual_tests)
 
-        for c_acc, (p_value, k, N_t) in list(significance_values.items()):
-            if p_value > 0.01/nr_of_tests_this_round:
+        for c_acc, (corrected_p_value, k, N_t) in list(significance_values.items()):
+            if corrected_p_value > 0.01/nr_of_tests_this_round and corrected_p_value != "not_tested":
+                print("removing", c_acc, "p-val:", corrected_p_value, "k", k, "N_t", N_t )
                 del C[c_acc] 
                 modified = True
+
+        print("nr candidates left:", len(C))
+        candidate_file = os.path.join(params.outfolder, "candidates_after_step_{0}.fa".format(step))
+        print("LEN SIGN:", len(significance_values), len(C))
+        write_output.print_candidates(candidate_file, alignments_of_x_to_c, C, significance_values)
+
 
         # do a last realingment to avoind local maxima of reads
 
