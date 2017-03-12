@@ -491,7 +491,9 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         print("actual tests performed this round:", actual_tests)
 
         for c_acc, (corrected_p_value, k, N_t) in list(significance_values.items()):
-            if corrected_p_value > 0.01/nr_of_tests_this_round and corrected_p_value != "not_tested":
+            if corrected_p_value == "not_tested":
+                pass
+            elif corrected_p_value > 0.01/nr_of_tests_this_round:
                 print("removing", c_acc, "p-val:", corrected_p_value, "k", k, "N_t", N_t )
                 del C[c_acc] 
                 modified = True
