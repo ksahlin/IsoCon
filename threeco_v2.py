@@ -458,9 +458,11 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
                 significance_values[t_acc] = ("not_tested", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]) )
                 continue
 
-            reads = set([x_acc for c_acc in minimizer_graph[t_acc] for x_acc in partition_of_X[c_acc]])
+            reads = set([x_acc for c_acc in minimizer_graph[t_acc] for x_acc in partition_of_X[c_acc]] )
+            reads.update(partition_of_X[t_acc])
+
             N_t = len(reads)
-            print("N_t:", N_t)
+            print("N_t:", N_t, "ref:", t_acc )
             reads_and_candidates = reads.union( [c_acc for c_acc in minimizer_graph[t_acc]]) 
             reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
 
