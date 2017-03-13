@@ -419,6 +419,13 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
             remaining_to_align, C = filter_C_X_and_partition(X, C, alignments_of_x_to_c, partition_of_X)
             remaining_to_align_read_file = os.path.join(params.outfolder, "remaining_to_align.fa")
             write_output.print_reads(remaining_to_align_read_file, remaining_to_align, X)
+            
+            temp_candidate_name = os.path.join(params.outfolder, "temp_candidates_step_{0}.fa".format(step))
+            temp_candidate_file = open(temp_candidate_name, "w")
+
+            for c_acc, c_seq in C.items():
+                temp_candidate_file.write(">{0}\n{1}\n".format(c_acc, c_seq))
+            temp_candidate_file.close()
 
         else:
             print("REALIGNING EVERYTHING FINAL STEP")
@@ -428,7 +435,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
                 partition_of_X[c_acc] = set()
 
         # align reads that is not yet assigned to candidate here
-        G_star_rem, partition_of_remaining_X, remaining_alignments_of_x_to_c = partition_strings_2set(remaining_to_align, C, remaining_to_align_read_file, candidate_file)
+        G_star_rem, partition_of_remaining_X, remaining_alignments_of_x_to_c = partition_strings_2set(remaining_to_align, C, remaining_to_align_read_file, temp_candidate_file.name)
 
         # add reads to best candidate given new alignments
         for c_acc in partition_of_remaining_X:
