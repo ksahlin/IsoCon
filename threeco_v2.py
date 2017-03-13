@@ -286,7 +286,7 @@ def get_minimizer_graph(candidate_transcripts):
         for c2, seq2 in  candidate_transcripts.items() :
             if c1 == c2:
                 continue
-            elif math.fabs(len(c2) - len(c1)) > best_ed:
+            elif math.fabs(len(seq1) - len(seq2)) > best_ed:
                 continue
             # TODO: remove task = "path" to speed up
             edit_distance, locations, cigar = edlib_traceback(seq1, seq2, mode="NW", task="path", k=min(15, best_ed))
@@ -463,6 +463,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
 
             N_t = len(reads)
             print("N_t:", N_t, "ref:", t_acc )
+            print("Nr candidates:", len(minimizer_graph[t_acc]), minimizer_graph[t_acc])
             reads_and_candidates = reads.union( [c_acc for c_acc in minimizer_graph[t_acc]]) 
             reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
 
