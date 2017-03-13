@@ -502,6 +502,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
 
         print("nr candidates left:", len(C))
         candidate_file = os.path.join(params.outfolder, "candidates_after_step_{0}.fa".format(step))
+        step += 1
         print("LEN SIGN:", len(significance_values), len(C))
         write_output.print_candidates(candidate_file, alignments_of_x_to_c, C, significance_values)
 
