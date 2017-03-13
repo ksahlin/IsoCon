@@ -5,14 +5,17 @@
 """
 import os
 import unittest
-
 import copy
+import math 
 
-from modules.functions import transpose,create_position_probability_matrix
+from scipy.stats import poisson
+
+from modules.functions import transpose, create_position_probability_matrix
+from modules import functions
 from modules.partitions import partition_strings_paths, partition_strings_2set, partition_to_statistical_test
 from modules import graphs
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
-from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession
+from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession, edlib_traceback
 from modules.input_output import fasta_parser, write_output
 from modules import statistical_test
 from modules import correct_sequence_to_minimizer
@@ -271,11 +274,119 @@ def vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C):
     plt.savefig(fig_file, format="PNG")
     plt.clf()
 
+def get_minimizer_graph(candidate_transcripts):
+    best_edit_distances = {}
+    isolated_nodes = set()
+    for i, (c1, seq1) in enumerate(candidate_transcripts.items()):
+        if i % 50 == 0:
+            print("processing ", i)
+        best_edit_distances[c1] = {}
+        # best_cigars[c1] = {}
+        best_ed = len(seq1)
+        for c2, seq2 in  candidate_transcripts.items() :
+            if c1 == c2:
+                continue
+            elif math.fabs(len(seq1) - len(seq2)) > best_ed:
+                continue
+            # TODO: remove task = "path" to speed up
+            edit_distance, locations, cigar = edlib_traceback(seq1, seq2, mode="NW", task="path", k=min(15, best_ed))
+
+            if 0 <= edit_distance < best_ed:
+                best_ed = edit_distance
+                best_edit_distances[c1] = {}
+                best_edit_distances[c1][c2] = best_ed
+                # best_cigars[c1] = {}
+                # best_cigars[c1][c2] =  cigar
+            elif edit_distance == best_ed:
+                best_edit_distances[c1][c2] = best_ed
+                # best_cigars[c1][c2] =  cigar
+
+        if len(best_edit_distances[c1]) == 0: # all isolated nodes in this graph
+            isolated_nodes.add(c1)
+
+ 
+    minimizer_graph = transpose(best_edit_distances)
+    for c_isolated in isolated_nodes:
+        minimizer_graph[c_isolated] = {}
+    # seen_in_test = set()
+    # for m in minimizer_graph:
+        # print(best_edit_distances[c1])
+        # print("NEW", m, "size:", len(minimizer_graph[m]))
+        # if len(best_edit_distances[c1]) > 1:
+        #     print("Minimizer to multiple candidates:", m, len(minimizer_graph[m]))
+        # for c in minimizer_graph[m]:
+        #     ed = minimizer_graph[m][c]
+            # if c in seen_in_test:
+            #     print("Seen:", c)
+            # seen_in_test.add(c)
+            # print("ED:",ed, c )
+                # print("Multiple best:", c1, len(c2), best_cigars[c1][c2])
+                # print(c2)
+                # print()
+        # print()
+
+    return minimizer_graph
+
+def stat_test(k, m, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c):
+    n_S, n_D, n_I = 0, 0, 0
+    for pos, (state, char) in delta_t[c_acc].items():
+        if state == "S":
+            n_S += 1
+        elif state == "D":
+            n_D += 1
+        if state == "I":
+            n_I += 1
+
+    ######### INVARIANTS ##########
+    u_v_factor = 1
+    epsilon_invariant_adjusted = {}
+    for q_acc in epsilon:
+        p_i = 1
+        for pos, (state, char) in delta_t[c_acc].items():
+            u_v = candidate_indiv_invariant_factors[c_acc][pos][(state, char)]
+            p_iv = epsilon[q_acc][state]
+            p_i *= u_v*p_iv
+        epsilon_invariant_adjusted[q_acc] = p_i
+
+    lambda_po_approx_inv = sum([ epsilon_invariant_adjusted[q_acc] for q_acc in epsilon_invariant_adjusted])
+    mult_factor_inv = ( (4*(m+1))**n_I ) * functions.choose(m, n_D) * functions.choose( 3*(m-n_D), n_S)
+    p_value = poisson.sf(k - 1, lambda_po_approx_inv)
+    corrected_p_value = mult_factor_inv * p_value
+    print("Corrected p value:", corrected_p_value, "k:", k, "Nr mapped to:", original_mapped_to_c)
+    print("lambda inv adjusted", lambda_po_approx_inv, mult_factor_inv, k, len(delta_t[c_acc]), candidate_indiv_invariant_factors[c_acc])
+    #############################
+    #################################### 
+    return  corrected_p_value
+
+def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C ):
+    partition_dict = {t_acc : {}}
+    for seq_acc in reads_and_candidates_and_ref:
+        if seq_acc in X:
+            partition_dict[t_acc][seq_acc] = (C[t_acc], X[seq_acc])
+        else:
+            partition_dict[t_acc][seq_acc] = (C[t_acc], C[seq_acc])
+
+    exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, single_core = True)    
+    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, single_core = True)
+    partition_alignments = {} 
+
+    for t_acc in exact_alignments:
+        partition_alignments[t_acc] = {}
+        for x_acc in exact_alignments[t_acc]:
+            aln_t, aln_x, (matches, mismatches, indels) = exact_alignments[t_acc][x_acc]
+            edit_dist = mismatches + indels
+            partition_alignments[t_acc][x_acc] = (edit_dist, aln_t, aln_x, 1)
+    print("NR candidates with at least one hit:", len(partition_alignments))
+    alignment_matrix_to_t, PFM_to_t = create_position_probability_matrix(C[t_acc], partition_alignments[t_acc])
+    return alignment_matrix_to_t, PFM_to_t
+
 def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, params):
     modified = True
 
-    ############ GET READ SUPORT AND ALIGNMENTS #################
+    ############ GET READS AND CANDIDATES #################
     X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
+    C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
+
     ################################################################
 
     step = 1
@@ -290,9 +401,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
 
         ############ GET READ SUPORT AND ALIGNMENTS #################
 
-        C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
         partition_of_X = {}
-
         if realignment_to_avoid_local_max != 1:
             alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)
             # remove the alignments of candidates that didn't pass the consensus over each base pair here
@@ -332,108 +441,72 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         ################################################################
 
         ############# GET THE CLOSES HIGHEST SUPPORTED REFERENCE TO TEST AGAINST FOR EACH CANDIDATE ############
-        weights = { C[c_acc] : len(x_hits) for c_acc, x_hits in partition_of_X.items()} 
-        G_star_C, partition_of_C, M, converged = partition_to_statistical_test(C, params, node_weights = weights, edge_creating_min_treshold = params.statistical_test_editdist,  edge_creating_max_treshold = 15)
-        # self edges not allowed
-        print(len(C), len(partition_of_C), len(M) )
+        minimizer_graph = get_minimizer_graph(C)
         #####################################################################################################
 
         # get all candidats that serve as null-hypothesis references and have neighbors subject to testing
         # these are all candidates that are minimizers to some other, isolated nodes are not tested
         # candidatate in G_star_C
-        null_hypothesis_references_to_candidates = set([c for c in partition_of_C if partition_of_C[c] ])
-        print("References in testing:", len(null_hypothesis_references_to_candidates))
-        nr_of_tests_this_round = len([1 for c1 in partition_of_C for c2 in  partition_of_C[c1]])
-        if nr_of_tests < nr_of_tests_this_round:
-            nr_of_tests = nr_of_tests_this_round
+        nr_of_tests_this_round = len(minimizer_graph)
+        print("NUMBER OF CANDIDATES LEFT:", len(C))
+        significance_values = {}
+        actual_tests = 0
+        # parallelize over outer for loop
+        for t_acc in minimizer_graph:
+            t_seq = C[t_acc]
+            if len(minimizer_graph[t_acc]) == 0:
+                significance_values[t_acc] = ("not_tested", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]) )
+                continue
 
-        ######### just for vizualization ###############
-        if params.develop_mode:
-            vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C)
-        ####################################################
+            reads = set([x_acc for c_acc in minimizer_graph[t_acc] for x_acc in partition_of_X[c_acc]] )
+            reads.update(partition_of_X[t_acc])
 
+            N_t = len(reads)
+            print("N_t:", N_t, "ref:", t_acc )
+            print("Nr candidates:", len(minimizer_graph[t_acc]), minimizer_graph[t_acc])
+            reads_and_candidates = reads.union( [c_acc for c_acc in minimizer_graph[t_acc]]) 
+            reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
 
-        #all reads tested against a reference are aligned to that reference 
-        # do one reference candidate at a time, this is therefore easily  parallellized 
+            # get multialignment matrix here
+            alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C )
 
-        C_pvals = { C_seq_to_acc[c] : (len(partition_of_X[C_seq_to_acc[c]]), "not_tested", len(partition_of_X[C_seq_to_acc[c]]) ) for c in partition_of_C if not partition_of_C[c]} # initialize with transcripts not tested
-        candidate_p_values = statistical_test.do_statistical_tests(null_hypothesis_references_to_candidates, C_seq_to_acc, partition_of_X, partition_of_C, X, C, previous_round_tests, previous_candidate_p_values, single_core = params.single_core)
+            # get parameter estimates for statistical test
+            candidate_accessions = set( [ c_acc for c_acc in minimizer_graph[t_acc]] )
+            delta_t = functions.get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
+            epsilon, lambda_S, lambda_D, lambda_I = functions.get_error_rates_and_lambda(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
+            # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
+            candidate_support = functions.get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
+            # read_indiv_invariant_factors = adjust_probability_of_read_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
+            candidate_indiv_invariant_factors = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
 
-        ##########################################################
-        ##########################################################
-
-        # store the performed tests to avoid identical testing in next iteration.
-        previous_round_tests = {}
-        for t in null_hypothesis_references_to_candidates:
-            t_acc = C_seq_to_acc[t]
-            N_t = len(partition_of_X[t_acc])
-            for c in partition_of_C[t]:
-                c_acc = C_seq_to_acc[c]
-                N_t += len(partition_of_X[c_acc])
-            previous_round_tests[t] = (set([c for c in partition_of_C[t]]), N_t)
-            # print("PREVIOUS TEST: candidates {0}, N_t: {1}".format(previous_round_tests[t][0], previous_round_tests[t][1]))
-        previous_candidate_p_values = copy.deepcopy(candidate_p_values)
-
-        ##########################################################
-        ##########################################################
-
-        p_vals = []
-        # wait for all candidate p_values to be calculated
-        removed_nodes_reference_graph = {}
-
-        for c_acc, (t_acc, k, p_value, N_t) in candidate_p_values.items():
-            if p_value > 0.05/nr_of_tests or k == 0:
-                print("Potential delete:", c_acc, k, p_value, N_t)
-                if t_acc in removed_nodes_reference_graph: # t_acc is also subject to removal
-                    if removed_nodes_reference_graph[t_acc][0] == c_acc:
-                        print("preventing cycle!")
-                        if removed_nodes_reference_graph[t_acc][1] > k:
-                            del removed_nodes_reference_graph[t_acc]
-                            removed_nodes_reference_graph[c_acc] = (t_acc, k)
-                    else:
-                        # next_t_acc, next_k  = removed_nodes_reference_graph[t_acc]
-                        # removed_nodes_reference_graph[c_acc] =  (next_t_acc, next_k)
-                        removed_nodes_reference_graph[c_acc] =  (t_acc, k)
+            for c_acc, c_seq in list(minimizer_graph[t_acc].items()):
+                original_mapped_to_c = len(partition_of_X[c_acc])
+                k = len(candidate_support[c_acc])
+                # print("supprot:", k, "diff:", len(delta_t[c_acc]))
+                corrected_p_value = stat_test(k, len(t_seq), epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c)
+                actual_tests += 1
+                if c_acc in significance_values:
+                    if corrected_p_value > significance_values[c_acc][0]:
+                        significance_values[c_acc] = (corrected_p_value, k, N_t)
                 else:
-                    removed_nodes_reference_graph[c_acc] = (t_acc, k)  
-                # deleted.add(c_acc)
-                # print(c_acc, t_acc,t_acc_transfer_reads_to )
+                    significance_values[c_acc] = (corrected_p_value, k, N_t)
 
-            C_pvals[c_acc] = (k, p_value, N_t)
+        print("actual tests performed this round:", actual_tests)
 
-            p_vals.append(p_value)
-
-
-        for c_acc in removed_nodes_reference_graph:
-            modified = True
-            t_acc, k = removed_nodes_reference_graph[c_acc]
-            while t_acc in removed_nodes_reference_graph:
-                t_acc, k = removed_nodes_reference_graph[t_acc]
-
-            del C[c_acc]
-            # partition_of_X[t_acc].update(partition_of_X[c_acc])
-            for x_acc in partition_of_X[c_acc]:
-                if x_acc not in alignments_of_x_to_c:
-                    print(x_acc, "not in alignments_of_x_to_c but in partition_X[c_acc]. len partition_X[c_acc]: {0}".format(len(partition_of_X[c_acc])))
-                else:
-                    del alignments_of_x_to_c[x_acc]
-
-            del partition_of_X[c_acc]
-
-            print("merging:", c_acc, "into", t_acc, "k:", k)
-
+        for c_acc, (corrected_p_value, k, N_t) in list(significance_values.items()):
+            if corrected_p_value == "not_tested":
+                pass
+            elif corrected_p_value > 0.01/nr_of_tests_this_round:
+                print("removing", c_acc, "p-val:", corrected_p_value, "k", k, "N_t", N_t )
+                del C[c_acc] 
+                modified = True
 
         print("nr candidates left:", len(C))
-        print(p_vals)
         candidate_file = os.path.join(params.outfolder, "candidates_after_step_{0}.fa".format(step))
-        write_output.print_candidates(candidate_file, alignments_of_x_to_c, C, C_pvals)
+        step += 1
+        print("LEN SIGN:", len(significance_values), len(C))
+        write_output.print_candidates(candidate_file, alignments_of_x_to_c, C, significance_values)
 
-        if params.develop_mode:
-            plt.hist(p_vals)
-            fig_file = os.path.join(params.plotfolder, "p_vals_step_" + str(step) +".png")
-            plt.savefig(fig_file, format="PNG")
-            plt.clf()
-            step += 1
 
         # do a last realingment to avoind local maxima of reads
 
@@ -444,67 +517,6 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
             modified = True
 
     final_out_file_name =  os.path.join(params.outfolder, "final_candidates.fa")
-    write_output.print_candidates(final_out_file_name, alignments_of_x_to_c, C, C_pvals, final = True)
+    write_output.print_candidates(final_out_file_name, alignments_of_x_to_c, C, significance_values, final = True)
+
     return C
-
-
-
-class TestFunctions(unittest.TestCase):
-
-    # def test_find_candidate_transcripts(self):
-    #     self.maxDiff = None
-
-    #     from input_output import fasta_parser
-    #     try:
-    #         fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_200/simulated_pacbio_reads.fa"
-    #         # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
-    #         # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
-    #         # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
-    #         # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
-    #         # fasta_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
-
-    #         S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(fasta_file_name, 'r'))} 
-    #     except:
-    #         print("test file not found:",fasta_file_name) 
-
-    #     partition_alignments = find_candidate_transcripts(S)
-    #     print(len(partition_alignments))
-
-    def test_stat_filter_candidates(self):
-        self.maxDiff = None
-
-        from input_output import fasta_parser
-        try:
-            read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/RBMY_44_-_constant_-.fa"
-            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/ISOseq_sim_n_1000/simulated_pacbio_reads.fa"
-
-            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/DAZ2_2_exponential_constant_0.001.fa"
-            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_2_constant_constant_0.0001.fa"
-            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
-            # read_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
-
-            # X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file_name, 'r'))} 
-        except:
-            print("test file not found:",read_file_name) 
-
-        try:
-            # consensus_file_name = "/Users/kxs624/tmp/minimizer_test_1000_converged.fa"
-            # consensus_file_name = ""
-            consensus_file_name = "/Users/kxs624/tmp/initial_candidates_RBMY_44_-_constant_-.fa"
-            # consensus_file_name = "/Users/kxs624/tmp/final_candidates_RBMY_44_-_constant_-pass2.fa"
-
-            # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_final_RBMY_44_-_constant_-.fa"
-            # consensus_file_name = "/Users/kxs624/tmp/minimizer_consensus_DAZ2_2_exponential_constant_0.001_step10.fa"
-            # consensus_file_name = "/Users/kxs624/tmp/TSPY13P_2_constant_constant_0.0001_converged.fa"
-            # consensus_file_name = "/Users/kxs624/tmp/final_candidates_TSPY13P_2_constant_constant_0.0001.fa"
-            # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/TSPY13P_4_linear_exponential_0.05.fa"
-            # consensus_file_name = "/Users/kxs624/Documents/data/pacbio/simulated/HSFY2_2_constant_constant_0.0001.fa"
-
-            # C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(consensus_file_name, 'r'))} 
-        except:
-            print("test file not found:",consensus_file_name) 
-
-        stat_filter_candidates(read_file_name, consensus_file_name, params)
-
-if __name__ == '__main__':
-    unittest.main()

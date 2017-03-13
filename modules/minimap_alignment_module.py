@@ -152,7 +152,7 @@ def map_with_minimap(targets, queries):
 
     with open(minimap_output, "w") as minimap_file:
         sys.stdout.flush()
-        subprocess.check_call([ "minimap", "-f", "0.0000000001", "-Sw5", "-L40", "-m0", 
+        subprocess.check_call([ "minimap", "-f", "0.0000000001", "-w5", "-L40", "-m0", 
                                 "-t", str(processes),
                                targets, queries ],
                                 stdout=minimap_file,
@@ -193,7 +193,7 @@ def minimap_partition(targets, queries, params):
 
     target_bins = []
     query_bins = []
-    query_bin_size =  min(len(query_strings), 200 )
+    query_bin_size =  min(len(query_strings), 400 )
     # print("LEN QUERY STRINGS:", len(query_strings))
     # print("LEN TARGET STRINGS:", len(target_strings))
     # print([query_seq_to_acc[b] for b in query_strings])

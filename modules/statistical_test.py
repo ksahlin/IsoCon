@@ -9,12 +9,40 @@ from scipy.stats import poisson, binom, norm
 from modules.multinomial_distr import multinomial_
 from modules.SW_alignment_module import sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences_keeping_accession
-from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, get_invariant_adjustment
+from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, get_invariant_adjustment, adjust_probability_of_read_to_alignment_invariant, adjust_probability_of_candidate_to_alignment_invariant
 
 
-def do_statistical_tests(null_hypothesis_references_t, C_seq_to_acc, partition_of_X, partition_of_C, X, C, single_core = False):
-    # statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C)
+def do_statistical_tests(null_hypothesis_references_t, C_seq_to_acc, partition_of_X, partition_of_C, X, C, previous_round_tests, previous_candidate_p_values, single_core = False):
+
     p_values = {}
+
+    ###############################################
+    ###############################################
+    # if the reference support and all candidate supports are identical to previous round, skip test
+    # store the performed tests to avoid identical testing in next iteration.
+    current_round_tests = {}
+    for t in null_hypothesis_references_t:
+        t_acc = C_seq_to_acc[t]
+        N_t = len(partition_of_X[t_acc])
+        for c in partition_of_C[t]:
+            c_acc = C_seq_to_acc[c]
+            N_t += len(partition_of_X[c_acc])
+        current_round_tests[t] = (set([c for c in partition_of_C[t]]), N_t)
+        print("CURRENT TEST: candidates {0}, N_t: {1}".format(len(current_round_tests[t][0]), current_round_tests[t][1]))
+
+    for t in current_round_tests:
+        if t in previous_round_tests:
+            if current_round_tests[t][0] == previous_round_tests[t][0] and current_round_tests[t][1] == previous_round_tests[t][1]:
+                print("SKIPPING TESTS BECAUSE IDENTICAL TO PREVIOUS:", len(previous_round_tests[t][0]), previous_round_tests[t][1]) 
+                
+                for c in partition_of_C[t]:
+                    c_acc = C_seq_to_acc[c]
+                    p_values[c_acc] =  previous_candidate_p_values[c_acc] 
+                
+                null_hypothesis_references_t.remove(t)
+    ###############################################
+    ###############################################
+
     if single_core:
         for t in null_hypothesis_references_t:
             p_vals = statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C)
@@ -85,8 +113,6 @@ def statistical_test(t, C_seq_to_acc, partition_of_X, partition_of_C, X, C):
     # also get base pair errors distribution (approximated as poisson), 
     # estimate this from all positions andvariants except for the variant and position combination of the candidates
 
-
-    # here we do two separate tests: against cluster center and against closest candidate (they may be the same).
     p_values_on_closest_highest_support = test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_accessions, partition_of_X, partition_of_C, C)
 
     return p_values_on_closest_highest_support
@@ -99,7 +125,7 @@ def choose(n, k):
     if 0 <= k <= n:
         ntok = 1
         ktok = 1
-        for t in xrange(1, min(k, n - k) + 1):
+        for t in range(1, min(k, n - k) + 1):
             ntok *= n
             ktok *= t
             n -= 1
@@ -151,6 +177,8 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
     # format:  { c_acc1 : u_delta, c_acc2 : u_delta, ... , }
     invariant_factors = get_invariant_adjustment(delta_t, alignment_matrix_to_t, t_acc)
 
+    # read_indiv_invariant_factors = adjust_probability_of_read_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
+    candidate_indiv_invariant_factors = adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
     # print()
     # print("INVARIANT FACTORS:", invariant_factors)
     # print()
@@ -167,6 +195,52 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
 
         ############################################################################################
         ############################################################################################
+
+        ############ NEW TEST ##############
+
+        n_S, n_D, n_I = 0, 0, 0
+        for pos, (state, char) in delta_t[c_acc].items():
+            if state == "S":
+                n_S += 1
+            elif state == "D":
+                n_D += 1
+            if state == "I":
+                n_I += 1
+
+        ######### INVARIANTS ##########
+        u_v_factor = 1
+        epsilon_invariant_adjusted = {}
+        for q_acc in epsilon:
+            p_i = 1
+            for pos, (state, char) in delta_t[c_acc].items():
+                u_v = candidate_indiv_invariant_factors[c_acc][pos][(state, char)]
+                p_iv = epsilon[q_acc][state]
+                p_i *= u_v*p_iv
+                # if u_v != 1:
+                #     p_i *= binom.pmf(1, u_v, p_iv)
+                #     u_v_factor = u_v
+                # else:
+                #     p_i *= p_iv
+
+            epsilon_invariant_adjusted[q_acc] = p_i
+            # if u_v_factor == 1 and len(delta_t[c_acc]) == 1:
+            #     if epsilon[q_acc][state] != p_i:
+            #         print("OMG!!!", epsilon[q_acc][state], p_i, delta_t[c_acc])
+
+        lambda_po_approx_inv = sum([ epsilon_invariant_adjusted[q_acc] for q_acc in epsilon_invariant_adjusted])
+        mult_factor_inv = ( (4*(m+1))**n_I ) * choose(m, n_D) * choose( 3*(m-n_D), n_S)
+        p_val_appprox_inv = mult_factor_inv * poisson.sf(k - 1, lambda_po_approx_inv)
+        print("lambda inv adjusted", lambda_po_approx_inv, mult_factor_inv, k, len(delta_t[c_acc]), candidate_indiv_invariant_factors[c_acc])
+        #############################
+        
+        lambda_po_approx = sum([ ((epsilon[q_acc]["I"])**n_I) * ((epsilon[q_acc]["S"])**n_S) * ((epsilon[q_acc]["D"])**n_D)  for q_acc in epsilon])
+
+        mult_factor = (m**n_I)* choose(m, n_D) * choose(m-n_D, n_S)
+        p_val_appprox = (mult_factor/ (u_c_S * u_c_D * u_c_I) ) * poisson.sf(k - 1, lambda_po_approx)
+        print("lambda", lambda_po_approx, mult_factor, k, (u_c_S * u_c_D * u_c_I), n_I, n_D, n_S)
+        print("LAMBDA OLD:", lambda_I, lambda_S, lambda_D )
+        # print("FFFFFFFF", len(epsilon),len(epsilon_invariant_adjusted))
+        #################################### 
 
 
         if k <= 1:
@@ -246,8 +320,9 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
 
         ############################################################################################
         ############################################################################################
-
-        p_values[c_acc] = (t_acc, k, p_value, N_t)
+        print("DIFFERENCE:", p_value, p_val_appprox, p_val_appprox_inv, k)
+        # p_values[c_acc] = (t_acc, k, p_value, N_t)
+        p_values[c_acc] = (t_acc, k, p_val_appprox_inv, N_t)
 
         if math.isnan(p_value):
             print("LOOOOL math is nan!:")
@@ -257,6 +332,8 @@ def test_against_center(delta_t, alignment_matrix_to_t, t_acc, t, candidate_acce
             print("lengths:", len(t), len(C[c_acc]))
             sys.exit()
 
+        # if m == 1881:
+        #     sys.exit()
     return p_values
 
 

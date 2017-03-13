@@ -17,12 +17,12 @@ def print_candidates(out_file_name, alignments_of_x_to_c, C, C_pvals, final = Fa
     final_candidate_count = 0
     alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)
     for c_acc, seq in C.items():
-        support, p_value, N_t = C_pvals[c_acc] 
+        p_value, support, N_t = C_pvals[c_acc] 
         #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
         # add extra constraint that the candidate has to have majority on _each_ position in c here otherwise most likely error
         if support >= 4:
-            if p_value == "not_tested":
-                print("not tested with support", support, "needs to be consensus over each base pair")
+            if p_value == "not_tested" or final == True:
+                print("Support:", support, "needs to be consensus over each base pair. P-value:", p_value)
                 
                 partition_alignments_c = {c_acc : (0, C[c_acc], C[c_acc], 1)}  # format: (edit_dist, aln_c, aln_x, 1)
                 for x_acc in alignments_of_x_to_c_transposed[c_acc]:
@@ -57,8 +57,8 @@ def print_candidates(out_file_name, alignments_of_x_to_c, C, C_pvals, final = Fa
 
                 final_candidate_count += 1
         else:
-            print("deleting:", "support:", support, "pval:", p_value, "tot reads in partition:", N_t  )
-    print("Final candidate count: ", final_candidate_count)
+            print("Not printing candidate to file:", c_acc, "support:", support, "pval:", p_value, "tot reads in partition:", N_t  )
+    print("Candidates written to file: ", final_candidate_count)
     out_file.close()
 
 

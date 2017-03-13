@@ -14,6 +14,138 @@
 import unittest
 from collections import defaultdict
 
+def choose(n, k):
+    """
+    A fast way to calculate binomial coefficients by Andrew Dalke (contrib).
+    """
+    if 0 <= k <= n:
+        ntok = 1
+        ktok = 1
+        for t in range(1, min(k, n - k) + 1):
+            ntok *= n
+            ktok *= t
+            n -= 1
+        return ntok // ktok
+    else:
+        return 0
+
+def get_multiplier_for_variant(state, char, pos, target_alignment, candidate_alignment):
+    """
+        Entering this function only if state = I or D, and the read has the same character as the target at the starting position "pos".
+        That is the premise.
+        ## TODO: If delation in candidate, wee need to count the number of identical bases to the deleted base in the target.
+        ## TODO: If insertion, the inserted base has to be identical to any of the neighboring nucleotides to count as alignment invariant 
+        TODO: If delation in candidate: we need to count the number of identical bases to the deleted base in the target. In that case, the u_v = len(identical stretch in target)
+        TODO: If insertion and inserted base == target base: the inserted base has to be identical to any of the neighboring nucleotides to count as alignment. In that case, the u_v = len(identical stretch in target)
+    """
+    stop = len(target_alignment) - 1
+    u_v = 1
+    if state == "D":
+        v = target_alignment[pos]
+    elif state == "I":
+        v = char
+
+    # print(v, state)
+    offset = 1
+    upper_stop = False
+    lower_stop = False
+    while True:
+
+        if upper_stop:
+            pass
+        elif pos + offset > stop:
+            upper_stop = True
+        elif target_alignment[pos + offset] == v: # == candidate_alignment[pos + offset] == v:
+            u_v += 1
+        elif target_alignment[pos + offset] == candidate_alignment[pos + offset] == "-":
+            pass
+        else:
+            upper_stop = True
+
+
+        if lower_stop:
+            pass
+        elif pos - offset < 0:
+            lower_stop = True                    
+        elif target_alignment[pos - offset] == v: # candidate_alignment[pos - offset] == v:
+            u_v += 1
+        elif target_alignment[pos - offset] == candidate_alignment[pos - offset] == "-":
+            pass
+        else:
+            lower_stop = True
+
+        if lower_stop == upper_stop == True:
+            break
+
+
+        offset += 1
+
+    return u_v
+
+
+def adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix, t_acc):
+
+    target_alignment = alignment_matrix[t_acc]
+    # Get the individual invariant factors u_iv for each read and variant x_i and v in delta, v is a tuple (state, char).
+    # store this 3 dimensional in dictionary u_iv = {c_acc: {pos: { (state,char) : u_iv} }} 
+    u_iv = {}
+
+    for c_acc in delta_t:
+        u_iv[c_acc] = {}
+        candidate_alignment = alignment_matrix[c_acc]
+        for pos in delta_t[c_acc]:
+            if pos not in u_iv[c_acc]:
+                u_iv[c_acc][pos] = {}
+        
+            state, char = delta_t[c_acc][pos]
+            if state == "S": # substitutions has u_v =1 by definition
+                u_v = 1
+            else: # read matches candidate variant, now we need to check how many possible combinations an error can cause them to match due to invariant
+                u_v = get_multiplier_for_variant(state, char, pos, target_alignment, candidate_alignment)
+                # print("multiplier:", u_v)
+                # print(target_alignment[pos-10: pos+10],state, char)
+                # print(read_alignment[pos-10: pos+10],state, char)
+                # print(candidate_alignment[pos-10: pos+10],state, char)
+
+            u_iv[c_acc][pos][(state, char)] = u_v
+
+    return u_iv
+
+
+def adjust_probability_of_read_to_alignment_invariant(delta_t, alignment_matrix, t_acc):
+
+    target_alignment = alignment_matrix[t_acc]
+    # Get the individual invariant factors u_iv for each read and variant x_i and v in delta, v is a tuple (state, char).
+    # store this 3 dimensional in dictionary u_iv = {x_acc: {pos: { (state,char) : u_iv} }} 
+    u_iv = {}
+    for q_acc in alignment_matrix:
+        if q_acc == t_acc or q_acc in delta_t:
+            continue
+        u_iv[q_acc] = {}
+        read_alignment = alignment_matrix[q_acc]
+
+        for c_acc in delta_t:
+            candidate_alignment = alignment_matrix[c_acc]
+            for pos in delta_t[c_acc]:
+                if pos not in u_iv[q_acc]:
+                    u_iv[q_acc][pos] = {}
+            
+                state, char = delta_t[c_acc][pos]
+                if state == "S": # substitutions has u_v =1 by definition
+                    u_v = 1
+                elif candidate_alignment[pos] != read_alignment[pos]: # read is not matching the varinat at the candidate position, this also has u_v = 1
+                    u_v = 1
+                else: # read matches candidate variant, now we need to check how many possible combinations an error can cause them to match due to invariant
+                    u_v = get_multiplier_for_variant(state, char, pos, target_alignment, read_alignment)
+                    # print("multiplier:", u_v)
+                    # print(target_alignment[pos-10: pos+10],state, char)
+                    # print(read_alignment[pos-10: pos+10],state, char)
+                    # print(candidate_alignment[pos-10: pos+10],state, char)
+
+                u_iv[q_acc][pos][(state, char)] = u_v
+
+    return u_iv
+
 def get_invariant_adjustment(delta_t, alignment_matrix, t_acc):
     invariant_factors = {}
     target_alignment = alignment_matrix[t_acc]
@@ -96,7 +228,7 @@ def get_supporting_reads_for_candidates(target_accession, candidate_accessions, 
 
         for q_acc in partition_of_X[c]:
             if q_acc not in  alignment_matrix:
-                print("READ {0} ALIGNED TO {0} BUT FAINED TO ALIGN TO {1}".format(q_acc, c, target_accession) )
+                print("READ {0} ALIGNED TO {0} BUT FAILED TO ALIGN TO {1}".format(q_acc, c, target_accession) )
                 continue
             query_alignment = alignment_matrix[q_acc]    
             support = 1
@@ -143,6 +275,9 @@ def get_error_rates_and_lambda(target_accession, segment_length, candidate_acces
     for q_acc in alignment_matrix:
         if q_acc == target_accession:
             continue
+        if q_acc in candidate_accessions:
+            continue  
+
         epsilon[q_acc] = {}
         query_alignment = alignment_matrix[q_acc]
         ed_i, ed_s, ed_d = 0, 0, 0
@@ -157,9 +292,7 @@ def get_error_rates_and_lambda(target_accession, segment_length, candidate_acces
                     ed_d += 1
                 else:
                     ed_s += 1
-
-        if q_acc in candidate_accessions:
-            continue   
+ 
 
         # get poisson counts on all positions
         for j in range(len(query_alignment)):
@@ -398,14 +531,96 @@ def create_multialignment_format(query_to_target_positioned_dict, start, stop):
         if (start + j) % 2 == 0:  # we are between a target base pairs (need to check the longest one)
             insertions = [(segments[q_acc][j], q_acc) for q_acc in segments]
             max_insertion, q_acc_max_ins = max(insertions, key= lambda x : len(x[0]))
+            max_insertion = "-" + max_insertion + "-"  # pad the max insertion
+
+            ###### OLD WORKING CODE #########
+            # for q_acc in segments:
+            #     for p in range(len(max_insertion)):
+            #         # all shorter insertions are left shifted -- identical indels are guaranteed to be aligned
+            #         # however, no multialignment is performed among the indels
+            #         if p < len(segments[q_acc][j]):
+            #             alignment_matrix[q_acc].append(segments[q_acc][j][p])
+            #         else:
+            #             alignment_matrix[q_acc].append("-")
+            #########################
+
             for q_acc in segments:
+                # check if identical substring in biggest insertion first:
+                q_ins = segments[q_acc][j]
+                q_insertion_modified = ""
+
+                if q_ins == "-":
+                    # print("LOOL")
+                    q_insertion_modified = "-"*len(max_insertion)
+
+                if not q_insertion_modified:
+                    pos = max_insertion.find(q_ins) 
+                    q_insertion_modified = ""
+                    if pos >=0:
+                        if pos >= 1:
+                            pass
+                            # print("here perfect new!! q: {0} max: {1}, new q_ins:{2}".format(q_ins, max_insertion,  "-"*pos + max_insertion[ pos : pos + len(q_ins) ] + "-"* len(max_insertion[ pos + len(q_ins) : ])))
+                        
+                        q_insertion_modified = "-"*pos + max_insertion[ pos : pos + len(q_ins) ] + "-"* len(max_insertion[ pos + len(q_ins) : ])
+
+                
+                if not q_insertion_modified:
+                    # else, check is smaller deletion can be aligned from left to write, e.g. say max deletion is GACG
+                    # then an insertion AG may be aligned as -A-G. Take this alignment instead
+                    can_be_threaded = True
+                    prev_pos = -1
+                    match_pos = set()
+                    for q_nucl in q_ins:
+                        pos = max_insertion.find(q_nucl) 
+                        match_pos.add(pos)
+                        if pos <= prev_pos:
+                            can_be_threaded = False
+                            break
+                        prev_pos = pos
+
+                    if can_be_threaded:
+                        q_insertion_modified = ""
+                        for p in range(len(max_insertion)):
+                            if p in match_pos:
+                                nucl = max_insertion[p]
+                            else:
+                                nucl = "-"
+                            q_insertion_modified = q_insertion_modified + nucl
+                        # print("NEW can be threaded: q:{0}, max: {1}, new thread: {2}".format(q_ins, max_insertion, q_insertion_modified))
+
+                if not q_insertion_modified:
+                    # otherwise just shift left
+                    # print("Not solved: q:{0}, max: {1}".format(q_ins, max_insertion))
+                    # check if there is at least one matching character we could align to
+                    max_p = 0
+                    max_matches = 0
+                    for p in range(0, len(max_insertion) - len(q_ins) + 1 ):
+                        nr_matches = len([1 for c1, c2 in zip(q_ins, max_insertion[p: p + len(q_ins) ] ) if c1 == c2])
+                        if nr_matches > max_matches:
+                            max_p = p
+                            max_matches = nr_matches
+
+                    if max_p > 0:
+                        q_insertion_modified = "-"*max_p + q_ins + "-"*len(max_insertion[max_p + len(q_ins) : ])
+                        # print("specially solved: q:{0} max:{1} ".format(q_insertion_modified, max_insertion) )
+
+                if not q_insertion_modified:
+                    q_insertion_modified = []
+                    for p in range(len(max_insertion)):
+                        # all shorter insertions are left shifted -- identical indels are guaranteed to be aligned
+                        # however, no multialignment is performed among the indels
+                        if p < len(q_ins):
+                            q_insertion_modified.append(q_ins[p])
+                        else:
+                            q_insertion_modified.append("-")
+
+                #### finally add to alignment matrix
+                if len(q_insertion_modified) != len(max_insertion):
+                    print(q_insertion_modified, max_insertion, q_ins)
+                assert len(q_insertion_modified) == len(max_insertion)
                 for p in range(len(max_insertion)):
-                    # all shorter insertions are left shifted -- identical indels are guaranteed to be aligned
-                    # however, no multialignment is performed among the indels
-                    if p < len(segments[q_acc][j]):
-                        alignment_matrix[q_acc].append(segments[q_acc][j][p])
-                    else:
-                        alignment_matrix[q_acc].append("-")
+                    alignment_matrix[q_acc].append(q_insertion_modified[p])
+
         else: # we are on a target base pair -- all varinats must be exactly A,C,G,T, - i.e., length 1
             for q_acc in segments:
                 alignment_matrix[q_acc].append(segments[q_acc][j])

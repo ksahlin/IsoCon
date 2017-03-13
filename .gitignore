@@ -1,3 +1,4 @@
 *.pyc
 modules/__pycache__/__init__.cpython-34.pyc
 modules/input_output/__pycache__/__init__.cpython-34.pyc
+modules/input_output/write_output.pyc

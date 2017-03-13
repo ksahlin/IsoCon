@@ -31,6 +31,7 @@
 
 from __future__ import print_function
 import os
+import shutil
 import sys
 import copy
 import argparse
@@ -41,11 +42,26 @@ import re
 from multiprocessing import Pool
 import multiprocessing as mp
 
-import threeco
+import threeco, threeco_v2
 from modules import threeco_parameters
 from modules.input_output import write_output, fasta_parser
 from modules import partitions
 from modules import identify_barcodes
+
+def clean_dir(params):
+    keep_files = set(["logfile.txt", "candidates_converged.fa", "final_candidates.fa"])
+    for the_file in os.listdir(params.outfolder):
+        if the_file in keep_files:
+            continue
+
+        file_path = os.path.join(params.outfolder, the_file)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path): 
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(e)
 
 def run_remove_barcodes():
     pass
@@ -53,11 +69,17 @@ def run_remove_barcodes():
 def run_get_candidates(params):
     total_start = time()
     initialize_logger(params)
-    candidate_file = threeco.find_candidate_transcripts(params.fl_reads, params)
+    params.read_file = params.fl_reads
+    if params.barcodes:
+        # need to redirect path to reads to the new path with modified reads as well
+        filtered_file = identify_barcodes.remove_barcodes_fcn(params.read_file, params)
+        params.read_file = filtered_file
+    candidate_file = threeco.find_candidate_transcripts(params.read_file, params)
     total_elapsed = time() - total_start
-    write_output.logger('TOTAL TIME ELAPSED FOR 3CO:{0}'.format(str(total_elapsed)), params.logfile)
+    write_output.logger('TOTAL TIME ELAPSED FOR MINIMIZER APPROACH:{0}'.format(str(total_elapsed)), params.logfile)
 
-    pass
+    if params.cleanup:
+        clean_dir(params)
 
 def run_stat_filter(params):
     total_start = time()
@@ -90,8 +112,10 @@ def run_stat_filter(params):
     filtered_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
     G_star, partition_of_X, alignments_of_x_to_c =  partitions.partition_strings_2set(original_reads, filtered_candidates, params.fl_reads, params.candidates)
 
-    threeco.stat_filter_candidates(params.fl_reads, params.candidates, alignments_of_x_to_c, params)
+    threeco_v2.stat_filter_candidates(params.fl_reads, params.candidates, alignments_of_x_to_c, params)
     total_elapsed = time() - total_start
+    if params.cleanup:
+        clean_dir(params)
     write_output.logger('TOTAL TIME ELAPSED FOR STAT_FILTER:{0}'.format(str(total_elapsed)), params.logfile)
 
 def initialize_logger(params):
@@ -118,7 +142,7 @@ def run_pipeline(params):
     params.read_file = params.fl_reads
     if params.barcodes:
         # need to redirect path to reads to the new path with modified reads as well
-        filtered_file = identify_barcodes.remove_barcodes_fcn(read_file, params)
+        filtered_file = identify_barcodes.remove_barcodes_fcn(params.read_file, params)
         params.read_file = filtered_file
 
     minimizer_start = time() 
@@ -127,11 +151,12 @@ def run_pipeline(params):
     write_output.logger('TIME ELAPSED FOR FINDING CANDIDATES WITH MINIMIZERS:{0}'.format(str(minimizer_elapsed)), params.logfile)
 
     stats_start = time()
-    threeco.stat_filter_candidates(params.read_file, candidate_file, alignments_of_reads_to_candidates, params)
+    threeco_v2.stat_filter_candidates(params.read_file, candidate_file, alignments_of_reads_to_candidates, params)
     stats_elapsed = time() - stats_start
     write_output.logger('TIME ELAPSED FOR STATISTICAL TEST OF CANDIDATES:{0}'.format(str(stats_elapsed)), params.logfile)
 
-
+    if params.cleanup:
+        clean_dir(params)
     total_elapsed = time() - total_start
     write_output.logger('TOTAL TIME ELAPSED FOR 3CO:{0}'.format(str(total_elapsed)), params.logfile)
 
@@ -139,11 +164,11 @@ def run_pipeline(params):
 if __name__ == '__main__':
 
     # create the top-level parser
-    parser = argparse.ArgumentParser("Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads.")
-    #parser.add_argument('--foo', action='store_true', help='help for foo arg.')
-    parser.add_argument('--version', action='version', version='%(prog)s 0.0.2')
+    parent_parser = argparse.ArgumentParser("Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads.")
+    # parent_parser.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
+    parent_parser.add_argument('--version', action='version', version='%(prog)s 0.0.3')
 
-    subparsers = parser.add_subparsers(help='help for subcommand')
+    subparsers = parent_parser.add_subparsers(help='help for subcommand')
 
     # # create the parser for the "pipeline" command
     pipeline = subparsers.add_parser('pipeline', help='Run the entire pipeline, i.e., \n\n {0}'.format(run_pipeline.__doc__))
@@ -155,6 +180,7 @@ if __name__ == '__main__':
     pipeline.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
     pipeline.add_argument('--min_candidate_support', type=int, default=3, help='Required minimum number of reads converged to the same sequence to be included in statistical test.')
     pipeline.add_argument('--statistical_test_editdist', type=int, default=0, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
+    pipeline.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
     pipeline.set_defaults(which='pipeline')
 
 
@@ -162,6 +188,7 @@ if __name__ == '__main__':
     remove_barcodes = subparsers.add_parser('remove_barcodes', help='Remove barcodes from sequences.')
     remove_barcodes.add_argument('-fl_reads', type=str, help='Path to the consensus fasta file')
     remove_barcodes.add_argument('outfolder', type=str, help='Output folder to results')
+    remove_barcodes.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
     remove_barcodes.set_defaults(which='remove_barcodes')
 
     # create the parser for the "get_candidates" command
@@ -173,26 +200,29 @@ if __name__ == '__main__':
     get_candidates.add_argument('--min_candidate_support', type=int, default=3, help='Required minimum number of reads converged to the same sequence to be included in statistical test.')
     get_candidates.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     get_candidates.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
+    get_candidates.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
     get_candidates.set_defaults(which='get_candidates')
+
 
     # create the parser for the "stat_filter" command
     stat_filter = subparsers.add_parser('stat_filter', help='Get candidate transcripts with minimizer approach.')
     stat_filter_required = stat_filter.add_argument_group('required arguments')
     stat_filter_required.add_argument('-fl_reads', type=str, required=True, help='Full length RoIs. ')
     stat_filter_required.add_argument('-candidates', type=str, help='Already generated candidates. ')
-    stat_filter_required.add_argument('-candidate_alignments', type=str, help='Already generated read to candidate alignments. ')
+    # stat_filter_required.add_argument('-candidate_alignments', type=str, help='Already generated read to candidate alignments. ')
     stat_filter_required.add_argument('-outfolder', type=str, required=True, help='Outfolder. ')
     stat_filter.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     stat_filter.add_argument('--min_candidate_support', type=int, default=3, help='Required minimum number of reads converged to the same sequence to be included in statistical test. Can only be applies if fasta accessions comes from previous step in pipline')
     stat_filter.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
     stat_filter.add_argument('--statistical_test_editdist', type=int, default=0, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
     stat_filter.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
+    stat_filter.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
     stat_filter.set_defaults(which='stat_filter')
 
     # stat_filter.add_argument('--consensus', type=str, help='Additional canditates supplied by user (This still runs the minimizer step, but additional candidates can help with guidance). ')
 
 
-    args = parser.parse_args()
+    args = parent_parser.parse_args()
 
 
     try:
