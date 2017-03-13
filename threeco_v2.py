@@ -380,6 +380,7 @@ def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C ):
     alignment_matrix_to_t, PFM_to_t = create_position_probability_matrix(C[t_acc], partition_alignments[t_acc])
     return alignment_matrix_to_t, PFM_to_t
 
+
 def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, params):
     modified = True
 
@@ -414,6 +415,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
                 partition_of_X[c_acc] = set()
                 for x_acc in alignments_of_x_to_c_transposed[c_acc].keys():
                     partition_of_X[c_acc].add(x_acc)
+
             remaining_to_align, C = filter_C_X_and_partition(X, C, alignments_of_x_to_c, partition_of_X)
             remaining_to_align_read_file = os.path.join(params.outfolder, "remaining_to_align.fa")
             write_output.print_reads(remaining_to_align_read_file, remaining_to_align, X)
@@ -461,9 +463,28 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
             reads = set([x_acc for c_acc in minimizer_graph[t_acc] for x_acc in partition_of_X[c_acc]] )
             reads.update(partition_of_X[t_acc])
 
+            #### Bug FIX ############
+            total_read_in_partition = len(partition_of_X[t_acc])
+            reads_in_partition = set(partition_of_X[t_acc])
+            # print(partition_of_X[t_acc])
+            for c_acc in minimizer_graph[t_acc]:
+                # for x_acc in partition_of_X[c_acc]:
+                #     if x_acc in reads_in_partition:
+                #         print("Already in partition:", x_acc)
+                #         print(x_acc in partition_of_X[t_acc])
+                #         print("candidate:", c_acc)
+                #     else:
+                #         reads_in_partition.add(x_acc)
+                total_read_in_partition += len(partition_of_X[c_acc])
+                # print(partition_of_X[c_acc])
+
+            ############################
+
             N_t = len(reads)
-            print("N_t:", N_t, "ref:", t_acc )
+
+            print("N_t:", N_t, "reads in partition:", total_read_in_partition, "ref:", t_acc )
             print("Nr candidates:", len(minimizer_graph[t_acc]), minimizer_graph[t_acc])
+            assert total_read_in_partition == N_t # each read should be uiquely assinged to a candidate
             reads_and_candidates = reads.union( [c_acc for c_acc in minimizer_graph[t_acc]]) 
             reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
 
