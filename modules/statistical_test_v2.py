@@ -25,8 +25,8 @@ def do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = Fa
     candidates_to = {}
     for t_acc in minimizer_graph:
         candidates_to[t_acc] = minimizer_graph[t_acc]
-        partition_of_X_for_minmizer[t_acc] = {c_acc : set([x_acc for x_acc in partition_of_X[c_acc]]) for c_acc in minimizer_graph[t_acc].keys() + [t_acc]}
-        C_for_minmizer[t_acc] = { c_acc : C[c_acc] for c_acc in minimizer_graph[t_acc].keys() + [t_acc] }
+        partition_of_X_for_minmizer[t_acc] = {c_acc : set([x_acc for x_acc in partition_of_X[c_acc]]) for c_acc in list(minimizer_graph[t_acc].keys()) + [t_acc]}
+        C_for_minmizer[t_acc] = { c_acc : C[c_acc] for c_acc in list(minimizer_graph[t_acc].keys()) + [t_acc] }
         X_for_minmizer[t_acc] = { x_acc : X[x_acc] for c_acc in partition_of_X_for_minmizer[t_acc] for x_acc in partition_of_X_for_minmizer[t_acc][c_acc]}
 
     if single_core:

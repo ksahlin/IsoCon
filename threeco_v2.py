@@ -391,9 +391,10 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
     ################################################################
 
     step = 1
-    nr_of_tests = 0
-    previous_round_tests = {}
-    previous_candidate_p_values = {}
+    
+    previous_partition_of_X = { c_acc : set() for c_acc in C.keys()}
+    previous_components = { c_acc : set() for c_acc in C.keys()}
+    significance_values = {}   
     realignment_to_avoid_local_max = 0
     to_realign = {}
     remaining_to_align_read_file = os.path.join(params.outfolder, "remaining_to_align.fa")
@@ -441,89 +442,38 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         C_seq_to_acc = {seq : acc for acc, seq in C.items()}
         ################################################################
 
+
         ############# GET THE CLOSES HIGHEST SUPPORTED REFERENCE TO TEST AGAINST FOR EACH CANDIDATE ############
         minimizer_graph = get_minimizer_graph(C)
+
+        ## save time if the minimizer and all cantidates in a component has identical reads assignmed to them as previous step
+        # Since indata is the same, the test is guaranteed to give same siginficance values as previous step
+
+        previous_significance_values = {}
+        for t_acc in list(minimizer_graph.keys()):
+            accessions_in_component_to_test = set([c_acc for c_acc in minimizer_graph[t_acc].keys()] + [t_acc])
+            # print(accessions_in_component_to_test)
+            if (accessions_in_component_to_test == previous_components[t_acc]) and all([ len(previous_partition_of_X[acc]) == len(partition_of_X[acc]) for acc in accessions_in_component_to_test]):
+                print("TEST IDENTICAL TO PREVIOUS STEP, SKIPPING")
+                for acc in accessions_in_component_to_test:
+                    previous_significance_values[acc] = significance_values[acc]
+                del minimizer_graph[t_acc]
+            else: 
+                # print("Modified")
+                previous_components[t_acc] = accessions_in_component_to_test
+
         #####################################################################################################
+
 
         # get all candidats that serve as null-hypothesis references and have neighbors subject to testing
         # these are all candidates that are minimizers to some other, isolated nodes are not tested
         # candidatate in G_star_C
         nr_of_tests_this_round = len(minimizer_graph)
         print("NUMBER OF CANDIDATES LEFT:", len(C))
-        significance_values = statistical_test_v2.do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = params.single_core )
+        new_significance_values = statistical_test_v2.do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = params.single_core )
+        previous_partition_of_X = copy.deepcopy(partition_of_X)
 
-        ###################################### PARALLELIZING THIS SECTION ####################################
-        ######################################################################################################
-        ######################################################################################################
-
-        # significance_values = {}
-        # actual_tests = 0
-        # # parallelize over outer for loop with function:  significance_values = do_statistical_tests(minimizer_graph, C, X, partition_of_X )
-        # for t_acc in minimizer_graph:
-        #     t_seq = C[t_acc]
-        #     if len(minimizer_graph[t_acc]) == 0:
-        #         significance_values[t_acc] = ("not_tested", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]) )
-        #         continue
-
-        #     reads = set([x_acc for c_acc in minimizer_graph[t_acc] for x_acc in partition_of_X[c_acc]] )
-        #     reads.update(partition_of_X[t_acc])
-
-        #     #### Bug FIX ############
-        #     total_read_in_partition = len(partition_of_X[t_acc])
-        #     reads_in_partition = set(partition_of_X[t_acc])
-        #     # print(partition_of_X[t_acc])
-        #     for c_acc in minimizer_graph[t_acc]:
-        #         # for x_acc in partition_of_X[c_acc]:
-        #         #     if x_acc in reads_in_partition:
-        #         #         print("Already in partition:", x_acc)
-        #         #         print(x_acc in partition_of_X[t_acc])
-        #         #         print("candidate:", c_acc)
-        #         #     else:
-        #         #         reads_in_partition.add(x_acc)
-        #         total_read_in_partition += len(partition_of_X[c_acc])
-        #         # print(partition_of_X[c_acc])
-
-        #     ############################
-
-        #     N_t = len(reads)
-
-        #     print("N_t:", N_t, "reads in partition:", total_read_in_partition, "ref:", t_acc )
-        #     print("Nr candidates:", len(minimizer_graph[t_acc]), minimizer_graph[t_acc])
-        #     assert total_read_in_partition == N_t # each read should be uiquely assinged to a candidate
-        #     reads_and_candidates = reads.union( [c_acc for c_acc in minimizer_graph[t_acc]]) 
-        #     reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
-
-        #     # get multialignment matrix here
-        #     alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C )
-
-        #     # get parameter estimates for statistical test
-        #     candidate_accessions = set( [ c_acc for c_acc in minimizer_graph[t_acc]] )
-        #     delta_t = functions.get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
-        #     epsilon, lambda_S, lambda_D, lambda_I = functions.get_error_rates_and_lambda(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
-        #     # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
-        #     candidate_support = functions.get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
-        #     # read_indiv_invariant_factors = adjust_probability_of_read_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
-        #     candidate_indiv_invariant_factors = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
-
-        #     for c_acc, c_seq in list(minimizer_graph[t_acc].items()):
-        #         original_mapped_to_c = len(partition_of_X[c_acc])
-        #         k = len(candidate_support[c_acc])
-        #         # print("supprot:", k, "diff:", len(delta_t[c_acc]))
-        #         corrected_p_value = stat_test(k, len(t_seq), epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c)
-        #         actual_tests += 1
-        #         if c_acc in significance_values:
-        #             if corrected_p_value > significance_values[c_acc][0]:
-        #                 significance_values[c_acc] = (corrected_p_value, k, N_t)
-        #         else:
-        #             significance_values[c_acc] = (corrected_p_value, k, N_t)
-
-        # print("actual tests performed this round:", actual_tests)
-
-        ######################################################################################################
-        ######################################################################################################
-        ######################################################################################################
-
-        for c_acc, (corrected_p_value, k, N_t) in list(significance_values.items()):
+        for c_acc, (corrected_p_value, k, N_t) in list(new_significance_values.items()):
             if corrected_p_value == "not_tested":
                 pass
             elif corrected_p_value > 0.01/nr_of_tests_this_round:
@@ -539,6 +489,9 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         print("nr candidates left:", len(C))
         candidate_file = os.path.join(params.outfolder, "candidates_after_step_{0}.fa".format(step))
         step += 1
+        significance_values = previous_significance_values.copy()
+        significance_values.update(new_significance_values) # which returns None since it mutates z
+
         print("LEN SIGN:", len(significance_values), len(C))
         write_output.print_candidates(candidate_file, alignments_of_x_to_c, C, significance_values)
 
