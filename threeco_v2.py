@@ -460,7 +460,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         print("NUMBER OF CANDIDATES LEFT:", len(C))
 
 
-        significance_values = statistical_test_v2.do_statistical_tests(minimizer_graph, C, X, partition_of_X )
+        significance_values = statistical_test_v2.do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = params.single_core )
 
         ###################################### PARALLELIZING THIS SECTION ####################################
         ######################################################################################################
