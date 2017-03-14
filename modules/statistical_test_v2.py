@@ -17,10 +17,21 @@ from modules.functions import create_position_probability_matrix, get_error_rate
 def do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = False):
     p_values = {}
     actual_tests = 0
+    
+    # separate partition_of_X and X, C here into subsets for each t in minimizer graph to speed up parallelization when lots of reads
+    partition_of_X_for_minmizer = {}
+    X_for_minmizer = {}
+    C_for_minmizer = {}
+    candidates_to = {}
+    for t_acc in minimizer_graph:
+        candidates_to[t_acc] = minimizer_graph[t_acc]
+        partition_of_X_for_minmizer[t_acc] = {c_acc : set([x_acc for x_acc in partition_of_X[c_acc]]) for c_acc in minimizer_graph[t_acc].keys() + [t_acc]}
+        C_for_minmizer[t_acc] = { c_acc : C[c_acc] for c_acc in minimizer_graph[t_acc].keys() + [t_acc] }
+        X_for_minmizer[t_acc] = { x_acc : X[x_acc] for c_acc in partition_of_X_for_minmizer[t_acc] for x_acc in partition_of_X_for_minmizer[t_acc][c_acc]}
 
     if single_core:
         for t_acc in minimizer_graph:
-            p_vals = statistical_test(t_acc, X, C, partition_of_X, minimizer_graph)
+            p_vals = statistical_test(t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc])
             for c_acc, (corrected_p_value, k, N_t) in p_vals.items():
                 if corrected_p_value ==  "not_tested":
                     assert c_acc not in p_values # should only be here once
@@ -42,7 +53,7 @@ def do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = Fa
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
         try:
-            res = pool.map_async(statistical_test_helper, [ ( (t_acc, X, C, partition_of_X, minimizer_graph), {}) for t_acc in minimizer_graph  ] )
+            res = pool.map_async(statistical_test_helper, [ ( (t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc]), {}) for t_acc in minimizer_graph  ] )
             statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -132,21 +143,21 @@ def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C ):
 
 
 
-def statistical_test(t_acc, X, C, partition_of_X, minimizer_graph):
+def statistical_test(t_acc, X, C, partition_of_X, candidates):
     significance_values = {}
     t_seq = C[t_acc]
-    if len(minimizer_graph[t_acc]) == 0:
+    if len(candidates) == 0:
         significance_values[t_acc] = ("not_tested", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]) )
         return significance_values
 
-    reads = set([x_acc for c_acc in minimizer_graph[t_acc] for x_acc in partition_of_X[c_acc]] )
+    reads = set([x_acc for c_acc in candidates for x_acc in partition_of_X[c_acc]] )
     reads.update(partition_of_X[t_acc])
 
     #### Bug FIX ############
     total_read_in_partition = len(partition_of_X[t_acc])
     reads_in_partition = set(partition_of_X[t_acc])
     # print(partition_of_X[t_acc])
-    for c_acc in minimizer_graph[t_acc]:
+    for c_acc in candidates:
         # for x_acc in partition_of_X[c_acc]:
         #     if x_acc in reads_in_partition:
         #         print("Already in partition:", x_acc)
@@ -162,16 +173,16 @@ def statistical_test(t_acc, X, C, partition_of_X, minimizer_graph):
     N_t = len(reads)
 
     print("N_t:", N_t, "reads in partition:", total_read_in_partition, "ref:", t_acc )
-    print("Nr candidates:", len(minimizer_graph[t_acc]), minimizer_graph[t_acc])
+    print("Nr candidates:", len(candidates), candidates)
     assert total_read_in_partition == N_t # each read should be uiquely assinged to a candidate
-    reads_and_candidates = reads.union( [c_acc for c_acc in minimizer_graph[t_acc]]) 
+    reads_and_candidates = reads.union( [c_acc for c_acc in candidates]) 
     reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
 
     # get multialignment matrix here
     alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C )
 
     # get parameter estimates for statistical test
-    candidate_accessions = set( [ c_acc for c_acc in minimizer_graph[t_acc]] )
+    candidate_accessions = set( [ c_acc for c_acc in candidates] )
     delta_t = functions.get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
     epsilon, lambda_S, lambda_D, lambda_I = functions.get_error_rates_and_lambda(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
     # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
@@ -179,7 +190,7 @@ def statistical_test(t_acc, X, C, partition_of_X, minimizer_graph):
     # read_indiv_invariant_factors = adjust_probability_of_read_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
     candidate_indiv_invariant_factors = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
 
-    for c_acc, c_seq in list(minimizer_graph[t_acc].items()):
+    for c_acc in list(candidates):
         original_mapped_to_c = len(partition_of_X[c_acc])
         k = len(candidate_support[c_acc])
         # print("supprot:", k, "diff:", len(delta_t[c_acc]))

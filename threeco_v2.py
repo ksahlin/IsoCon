@@ -395,56 +395,48 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
     previous_round_tests = {}
     previous_candidate_p_values = {}
     realignment_to_avoid_local_max = 0
+    to_realign = {}
+    remaining_to_align_read_file = os.path.join(params.outfolder, "remaining_to_align.fa")
+
 
     while modified:
         modified = False
-        print("NEW STEP")
+        print("STEP NR: {0}".format(step))
+
+        ########### Write current candidates to file ##########
+        temp_candidate_name = os.path.join(params.outfolder, "temp_candidates_step_{0}.fa".format(step))
+        temp_candidate_file = open(temp_candidate_name, "w")
+
+        for c_acc, c_seq in C.items():
+            temp_candidate_file.write(">{0}\n{1}\n".format(c_acc, c_seq))
+        temp_candidate_file.close()
+        #######################################################
+
+        # create partition
+        partition_of_X = { c_acc : set() for c_acc in C.keys()}
+        for x_acc in alignments_of_x_to_c:
+            for c_acc in alignments_of_x_to_c[x_acc]:
+                partition_of_X[c_acc].add(x_acc)
 
         ############ GET READ SUPORT AND ALIGNMENTS #################
 
-        partition_of_X = {}
-        if realignment_to_avoid_local_max != 1:
-            alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)
-            # remove the alignments of candidates that didn't pass the consensus over each base pair here
-            for c_acc in list(alignments_of_x_to_c_transposed.keys()):
-                if c_acc not in C:
-                    del alignments_of_x_to_c_transposed[c_acc]
-            alignments_of_x_to_c = transpose(alignments_of_x_to_c_transposed)
-
-            for c_acc in alignments_of_x_to_c_transposed.keys():
-                partition_of_X[c_acc] = set()
-                for x_acc in alignments_of_x_to_c_transposed[c_acc].keys():
-                    partition_of_X[c_acc].add(x_acc)
-
-            remaining_to_align, C = filter_C_X_and_partition(X, C, alignments_of_x_to_c, partition_of_X)
-            remaining_to_align_read_file = os.path.join(params.outfolder, "remaining_to_align.fa")
-            write_output.print_reads(remaining_to_align_read_file, remaining_to_align, X)
-            
-            temp_candidate_name = os.path.join(params.outfolder, "temp_candidates_step_{0}.fa".format(step))
-            temp_candidate_file = open(temp_candidate_name, "w")
-
-            for c_acc, c_seq in C.items():
-                temp_candidate_file.write(">{0}\n{1}\n".format(c_acc, c_seq))
-            temp_candidate_file.close()
-
-        else:
+        if realignment_to_avoid_local_max == 1:
             print("REALIGNING EVERYTHING FINAL STEP")
-            remaining_to_align = X
-            remaining_to_align_read_file = read_file
-            for c_acc in C:
-                partition_of_X[c_acc] = set()
+            to_realign = X      
+        
+        if to_realign:
+            write_output.print_reads(remaining_to_align_read_file, to_realign)
+            # align reads that is not yet assigned to candidate here
+            G_star_rem, partition_of_remaining_X, remaining_alignments_of_x_to_c = partition_strings_2set(to_realign, C, remaining_to_align_read_file, temp_candidate_file.name)
+            # add reads to best candidate given new alignments
+            for c_acc in partition_of_remaining_X:
+                partition_of_X[c_acc].update(partition_of_remaining_X[c_acc])
 
-        # align reads that is not yet assigned to candidate here
-        G_star_rem, partition_of_remaining_X, remaining_alignments_of_x_to_c = partition_strings_2set(remaining_to_align, C, remaining_to_align_read_file, temp_candidate_file.name)
-
-        # add reads to best candidate given new alignments
-        for c_acc in partition_of_remaining_X:
-            partition_of_X[c_acc].update(partition_of_remaining_X[c_acc])
-            # print("adding", partition_of_remaining_X[c_acc], "to", c_acc)
-        # add the alignments to alignment structure
-        for x_acc in remaining_alignments_of_x_to_c.keys():
-            for c_acc in remaining_alignments_of_x_to_c[x_acc].keys():
-                alignments_of_x_to_c[x_acc][c_acc] = remaining_alignments_of_x_to_c[x_acc][c_acc]
+            # add the alignments to alignment structure
+            for x_acc in remaining_alignments_of_x_to_c.keys():
+                alignments_of_x_to_c[x_acc] = remaining_alignments_of_x_to_c[x_acc]
+                # for c_acc in remaining_alignments_of_x_to_c[x_acc].keys():
+                #     alignments_of_x_to_c[x_acc][c_acc] = remaining_alignments_of_x_to_c[x_acc][c_acc]
 
         C_seq_to_acc = {seq : acc for acc, seq in C.items()}
         ################################################################
@@ -458,8 +450,6 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         # candidatate in G_star_C
         nr_of_tests_this_round = len(minimizer_graph)
         print("NUMBER OF CANDIDATES LEFT:", len(C))
-
-
         significance_values = statistical_test_v2.do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = params.single_core )
 
         ###################################### PARALLELIZING THIS SECTION ####################################
@@ -540,6 +530,11 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
                 print("removing", c_acc, "p-val:", corrected_p_value, "k", k, "N_t", N_t )
                 del C[c_acc] 
                 modified = True
+                for x_acc in partition_of_X[c_acc]:
+                    to_realign[x_acc] = X[x_acc]
+                    del alignments_of_x_to_c[x_acc]
+
+                del partition_of_X[c_acc]
 
         print("nr candidates left:", len(C))
         candidate_file = os.path.join(params.outfolder, "candidates_after_step_{0}.fa".format(step))

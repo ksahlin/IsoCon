@@ -92,11 +92,9 @@ def print_candidates_from_minimizers(out_file_candidates_name, out_file_alignmen
 
     out_file_alignments.close()
 
-def print_reads(remaining_to_align_read_file, remaining_to_align, X):
+def print_reads(remaining_to_align_read_file, remaining_to_align):
     read_file_align = open(remaining_to_align_read_file, "w")
-
-    for x_acc, seq in X.items():
-        if x_acc in remaining_to_align:
-            read_file_align.write(">{0}\n{1}\n".format(x_acc, seq) )
+    for x_acc, seq in remaining_to_align.items():
+        read_file_align.write(">{0}\n{1}\n".format(x_acc, seq) )
 
 
