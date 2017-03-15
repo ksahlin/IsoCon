@@ -147,6 +147,8 @@ def run_pipeline(params):
 
     minimizer_start = time() 
     candidate_file, alignments_of_reads_to_candidates = threeco.find_candidate_transcripts(params.read_file, params)
+    for x_acc in alignments_of_reads_to_candidates:
+        assert len(alignments_of_reads_to_candidates[x_acc]) == 1
     minimizer_elapsed = time() - minimizer_start
     write_output.logger('TIME ELAPSED FOR FINDING CANDIDATES WITH MINIMIZERS:{0}'.format(str(minimizer_elapsed)), params.logfile)
 
@@ -166,7 +168,7 @@ if __name__ == '__main__':
     # create the top-level parser
     parent_parser = argparse.ArgumentParser("Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads.")
     # parent_parser.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
-    parent_parser.add_argument('--version', action='version', version='%(prog)s 0.0.3')
+    parent_parser.add_argument('--version', action='version', version='%(prog)s 0.1.0')
 
     subparsers = parent_parser.add_subparsers(help='help for subcommand')
 

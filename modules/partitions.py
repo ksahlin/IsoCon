@@ -368,8 +368,13 @@ def partition_strings_2set(X, C, X_file, C_file):
     assert len(M) == nr_candidates_with_hits
     assert marked == set(G_star.keys())
 
+    read_to_targets_unique_partition = {}
+    for m_acc in partition:
+        for x_acc in partition[m_acc]:
+            info_tuple = alignment_graph[x_acc][m_acc]
+            read_to_targets_unique_partition[x_acc] = {m_acc : info_tuple }
 
-    return G_star, partition, alignment_graph
+    return G_star, partition, read_to_targets_unique_partition
 
 
 
