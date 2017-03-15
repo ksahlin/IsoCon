@@ -424,7 +424,10 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         if realignment_to_avoid_local_max == 1:
             print("REALIGNING EVERYTHING FINAL STEP")
             to_realign = X      
-        
+            partition_of_X = { c_acc : set() for c_acc in C.keys()}
+
+
+
         if to_realign:
             write_output.print_reads(remaining_to_align_read_file, to_realign)
             # align reads that is not yet assigned to candidate here
@@ -472,7 +475,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         print("NUMBER OF CANDIDATES LEFT:", len(C))
         new_significance_values = statistical_test_v2.do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = params.single_core )
         previous_partition_of_X = copy.deepcopy(partition_of_X)
-
+        to_realign = {}
         for c_acc, (corrected_p_value, k, N_t) in list(new_significance_values.items()):
             if corrected_p_value == "not_tested":
                 pass
