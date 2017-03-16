@@ -24,7 +24,7 @@ def find_cutpoint_exact_match(read, barcode_set, barcode_length):
     else:
         for i in range(50):
             if read[i: barcode_length + i] in barcode_set:
-                # print("found start primer further in!", i)
+                print("found start primer further in!", i)
                 cut_point = barcode_length + i
                 match_barcode = read[i: barcode_length + i]
                 break
@@ -52,36 +52,37 @@ def find_cutpoint_inexact_match(read, barcode_set, barcode_length):
     cut_point = 0
     best_mismatches = barcode_length
     for barcode in barcode_set:
-        ed, locations, cigar = edlib_alignment_module.edlib_traceback(barcode, read, mode="HW", task="path", k=2)
-        ed_begin, locations_begin, cigar_begin = edlib_alignment_module.edlib_traceback(barcode, read[:30], mode="HW", task="path", k=5)
-        last_global_matches, last_local_matches = 0,0
+        ed, locations, cigar = edlib_alignment_module.edlib_traceback(barcode, read[:30], mode="HW", task="path", k=6)
+        # ed_begin, locations_begin, cigar_begin = edlib_alignment_module.edlib_traceback(barcode, read[:30], mode="HW", task="path", k=5)
+        # last_global_matches, last_local_matches = 0,0
 
-        if cigar and cigar[-1] == "=":
-            try:
-                last_global_matches = int(cigar[-3:-1])
-            except ValueError:
-                last_global_matches = int(cigar[-2:-1])
+        # if cigar and cigar[-1] == "=":
+        #     try:
+        #         last_global_matches = int(cigar[-3:-1])
+        #     except ValueError:
+        #         last_global_matches = int(cigar[-2:-1])
 
-        if cigar_begin and cigar_begin[-1] == "=":
-            try:
-                # print(ed_begin, locations_begin,cigar)
-                last_local_matches = int(cigar_begin[-3:-1])
-            except ValueError:
-                last_local_matches = int(cigar_begin[-2:-1])
+        # if cigar_begin and cigar_begin[-1] == "=":
+        #     try:
+        #         # print(ed_begin, locations_begin,cigar)
+        #         last_local_matches = int(cigar_begin[-3:-1])
+        #     except ValueError:
+        #         last_local_matches = int(cigar_begin[-2:-1])
         # print(ed, locations, cigar)
-        if 0 <= ed < best_mismatches and last_global_matches > 4: # need to have sufficient last matches to get a well defined cuttinng point
+        if 0 <= ed < best_mismatches: # and last_global_matches > 4: # need to have sufficient last matches to get a well defined cuttinng point
             best_mismatches = ed
             cut_point = locations[-1][1]
             match_barcode = barcode
             # if len(locations) > 1:
             #     print(ed, locations, cigar)
 
-        elif 0 <= ed_begin < best_mismatches and last_local_matches > 4:
-            best_mismatches = ed
-            cut_point = locations_begin[-1][1]
-            match_barcode = barcode
-            # print(ed_begin, locations_begin, cigar_begin)                    
-        
+        # elif 0 <= ed_begin < best_mismatches and last_local_matches > 4:
+        #     best_mismatches = ed
+        #     cut_point = locations_begin[-1][1]
+        #     match_barcode = barcode
+            # print(ed_begin, locations_begin, cigar_begin)
+    if ed >4:
+        print(ed, locations, cigar)
     return cut_point, match_barcode
 
 
@@ -118,7 +119,8 @@ def remove_barcodes_fcn(read_file, params):
     print("total ends to analyze: {0}".format(len(reads)*2))
 
     reads_filtered = {}
-    perfect_count = 0
+    perfect_start_count = 0
+    perfect_end_count = 0
     imperfect_snippet = 0
     imperfect_inexact = 0
     not_found_count = 0
@@ -129,7 +131,7 @@ def remove_barcodes_fcn(read_file, params):
         # start of sequence
         start_cut_point, start_barcode_match = find_cutpoint_exact_match(c_seq, start_barcode_set, barcode_length)
         if 21 <= start_cut_point:
-            perfect_count += 1
+            perfect_start_count += 1
         elif 0 < start_cut_point < 21:
             imperfect_snippet += 1
         else:
@@ -142,17 +144,24 @@ def remove_barcodes_fcn(read_file, params):
         # end of sequence
         c_seq_rc = reverse_complement(c_seq)
         end_cut_point, end_barcode_match = find_cutpoint_exact_match(c_seq_rc, end_barcode_set, barcode_length)
+        if c_acc == "m151209_215352_42146_c100926392550000001823199905121696_s1_p0/67265/687_0_CCS":
+            print(start_cut_point, end_cut_point)
         if 21 <= end_cut_point:
-            perfect_count += 1
+            perfect_end_count += 1
         elif 0 < end_cut_point < 21:
             imperfect_snippet += 1
         else:
             end_cut_point, end_barcode_match = find_cutpoint_inexact_match(c_seq_rc, end_barcode_set, barcode_length)
+            if c_acc == "m151209_215352_42146_c100926392550000001823199905121696_s1_p0/67265/687_0_CCS":
+                print(start_cut_point, end_cut_point)
+                # sys.exit()
 
             if 0 < end_cut_point:
                 imperfect_inexact += 1
                 # print(len(c_seq))
 
+        if c_acc == "m151209_215352_42146_c100926392550000001823199905121696_s1_p0/67265/687_0_CCS":
+            print(start_cut_point, end_cut_point)
         # trim read and add error corrected adapters
         if end_cut_point:
             c_seq_rc = end_barcode_match + c_seq_rc[ end_cut_point : ]
@@ -161,16 +170,21 @@ def remove_barcodes_fcn(read_file, params):
         
         cleaned_read = reverse_complement(c_seq_rc)
 
+        if len(cleaned_read) == 21:
+            print("here", len(cleaned_read), len(c_seq), c_acc, start_cut_point, end_cut_point )
+
         if start_cut_point:
             cleaned_read = start_barcode_match + cleaned_read[ start_cut_point : ]
         else:
             not_found_count +=1
 
         reads_filtered[c_acc] = cleaned_read
+        if len(cleaned_read) == 21 : #len(cleaned_read) < len(c_seq): # and len(cleaned_read) < 320:
+            print( "now", len(cleaned_read), len(c_seq), c_acc, start_cut_point, end_cut_point )
         # print(len(c_seq))
 
-    print("Perfect:{0}, imperfect snippets:{1}, inperfect inexact:{2} not found:{3}".format(perfect_count, imperfect_snippet, imperfect_inexact, not_found_count))
-    print("total count: {0}".format(perfect_count + imperfect_snippet + imperfect_inexact + not_found_count))
+    print("Perfect starts:{0}, Perfect ends:{1} imperfect snippets:{2}, imperfect inexact:{3} not found:{4}".format(perfect_start_count, perfect_end_count, imperfect_snippet, imperfect_inexact, not_found_count))
+    print("total count: {0}".format(perfect_start_count + perfect_end_count + imperfect_snippet + imperfect_inexact + not_found_count))
 
     reads_after = set([seq for seq in reads_filtered.values()])
     print("Nr unique sequences after barcode correction:", len(reads_after))
@@ -182,7 +196,6 @@ def remove_barcodes_fcn(read_file, params):
     corrected_read_file.close() 
     
     # barcode_corrected_reads_file_name = remove_redundant_after_barcode_removal(read_file_filtered)
-
     return corrected_read_file.name
 
 

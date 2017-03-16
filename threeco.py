@@ -64,6 +64,12 @@ def find_candidate_transcripts(read_file, params):
     """ 
     S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
 
+    lenghts = [len(seq) for seq in S.values()]
+    print(sorted(lenghts))
+    max_len = max(lenghts)
+    min_len = min(lenghts)
+    print("Max transcript length:{0}, Min transcript length:{1}".format(max_len, min_len))
+
     C = {}
     unique_seq_to_acc = get_unique_seq_accessions(S)
 
