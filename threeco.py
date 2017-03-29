@@ -91,6 +91,24 @@ def find_candidate_transcripts(read_file, params):
         edit_distances = [ partition_alignments[s1][s2][0] for s1 in partition_alignments for s2 in partition_alignments[s1]  ] 
         print("edit distances:", edit_distances) 
 
+        #################################################
+        ###### temp check for isoform collapse###########
+        import re
+        pattern = r"[-]{8,}"
+        big_edit_distances = [ partition_alignments[s1][s2] for s1 in partition_alignments for s2 in partition_alignments[s1] if re.search(pattern, partition_alignments[s1][s2][1]) or  re.search(pattern, partition_alignments[s1][s2][2]) ] 
+        # for tup in big_edit_distances:
+        #     print("{0}\n{1}\n{2}\n\n".format(tup[0], tup[1], tup[2]))
+        cccntr = 0
+        for s1, s1_dict in partition_alignments.items(): 
+            for s2, alignment_tuple in s1_dict.items():
+                if re.search(pattern, alignment_tuple[1][20: -20]) or  re.search(pattern, alignment_tuple[2][20: -20]): # [20: -20] --> ignore this if-statement if missing or truncated barcode
+                    del partition_alignments[s1][s2]
+                    cccntr += 1
+        print("Number containing exon difference and removed in this pass:", cccntr)
+        # sys.exit()
+        ########################################################
+
+
         ###### Different convergence criterion #########
 
         if prev_edit_distances_2steps_ago == edit_distances:
