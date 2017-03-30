@@ -96,7 +96,7 @@ def partition_strings_paths(S, params, node_weights = {}, edge_creating_min_tres
                     if u in unmarked:
                         nbrs_to_visit.add(u)
 
-        print("Center count = ", m_count)
+        # print("Center count = ", m_count)
     print("Chosen minimizers:", len(M))
 
 
@@ -120,74 +120,6 @@ def partition_strings_paths(S, params, node_weights = {}, edge_creating_min_tres
 
     return G_star, partition, M, converged
 
-
-
-def partition_to_statistical_test(S, params, node_weights, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
-    G_star, alignment_graph, converged = graphs.construct_minimizer_graph(S, params, edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold)
-    partition_alignments = {}
-    unique_start_strings = set(G_star.keys())
-    partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
-
-    marked = set()
-    M = {}
-    nr_nodes = len(G_star.keys())
-    V_not_centers_yet = set(G_star.keys())
-    partition_counter = 1
-
-    for s in G_star:
-        if s in G_star[s]:
-            if  G_star[s][s] == 1: # isolate
-                # isolated += 1
-                # partition[n] = set()
-                M[s] = partition_counter
-                marked.add(s)
-                partition[s] = set()
-                partition_counter += 1
-                partition_alignments[s] = {}
-                edit_dist, a1, a_min =  alignment_graph[s][s]
-                indegree = G_star[s][s]
-                partition_alignments[s][s] = (edit_dist, a_min, a1 , indegree)
-                # print("DETECTED!!")
-    isolated = set(partition.keys())
-    print("nr isolated nodes:", len(isolated))
-
-    G_star_transposed = functions.transpose(G_star)
-    # check so that there are no "leaves" in G^* (a sequence that has no minimizer but is a minimizer to some other sequence, this should not happen)
-    # for n in G_star_transposed:
-    #     assert n not in isolated
-    print()
-    print("EDGES IN G STAR:", sum([1 for i in G_star_transposed for j in G_star_transposed[i]]) )
-    print()
-    # do_while as long as there is a node with positive indegree of unmarked nbrs
-    while len(partition) <  nr_nodes:
-        # find node with biggest indegree
-        max_indegree = -1
-        for s in V_not_centers_yet:
-            indegree = node_weights[s]  # choose the node with the max support of reads that is not already chosen, this is found in the node weight
-            if indegree > max_indegree:
-                m, max_indegree = s, indegree
-
-        if max_indegree < 1:
-            break
-        M[m] = partition_counter
-        partition[m] = set()
-        V_not_centers_yet.remove(m)
-        partition_alignments[m] = {}
-        # partition_counter += 1
-        # marked.add(m)
-        for in_nbr_to_m in G_star_transposed[m]:
-            if in_nbr_to_m not in marked:
-                partition[m].add(in_nbr_to_m)
-                marked.add(in_nbr_to_m)
-                edit_dist, aln_s, aln_m =  alignment_graph[in_nbr_to_m][m]
-                partition_alignments[m][in_nbr_to_m] = (edit_dist, aln_m, aln_s, 1)
-
-
-    print("Chosen minimizers:", len(M))
-
-    assert unique_start_strings == set(partition.keys())
-
-    return partition_alignments, partition, M, converged
 
 def partition_strings(S, params, node_weights = {}, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
     G_star, alignment_graph, converged = graphs.construct_minimizer_graph(S, params, edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold)
@@ -360,7 +292,7 @@ def partition_strings_2set(X, C, X_file, C_file):
             m_count += 1
 
         consensus_processed += 1
-        print("Center count = ", m_count)
+        # print("Center count = ", m_count)
         # print(len(not_visited_candidates))
     print("Chosen minimizers:", len(M))
 

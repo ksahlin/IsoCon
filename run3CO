@@ -42,7 +42,7 @@ import re
 from multiprocessing import Pool
 import multiprocessing as mp
 
-import threeco, threeco_v2
+import threeco_get_candidates, threeco_statistical_test
 from modules import threeco_parameters
 from modules.input_output import write_output, fasta_parser
 from modules import partitions
@@ -74,7 +74,7 @@ def run_get_candidates(params):
         # need to redirect path to reads to the new path with modified reads as well
         filtered_file = identify_barcodes.remove_barcodes_fcn(params.read_file, params)
         params.read_file = filtered_file
-    candidate_file = threeco.find_candidate_transcripts(params.read_file, params)
+    candidate_file = threeco_get_candidates.find_candidate_transcripts(params.read_file, params)
     total_elapsed = time() - total_start
     write_output.logger('TOTAL TIME ELAPSED FOR MINIMIZER APPROACH:{0}'.format(str(total_elapsed)), params.logfile)
 
@@ -112,7 +112,7 @@ def run_stat_filter(params):
     filtered_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
     G_star, partition_of_X, alignments_of_x_to_c =  partitions.partition_strings_2set(original_reads, filtered_candidates, params.fl_reads, params.candidates)
 
-    threeco_v2.stat_filter_candidates(params.fl_reads, params.candidates, alignments_of_x_to_c, params)
+    threeco_statistical_test.stat_filter_candidates(params.fl_reads, params.candidates, alignments_of_x_to_c, params)
     total_elapsed = time() - total_start
     if params.cleanup:
         clean_dir(params)
@@ -146,14 +146,14 @@ def run_pipeline(params):
         params.read_file = filtered_file
 
     minimizer_start = time() 
-    candidate_file, alignments_of_reads_to_candidates = threeco.find_candidate_transcripts(params.read_file, params)
+    candidate_file, alignments_of_reads_to_candidates = threeco_get_candidates.find_candidate_transcripts(params.read_file, params)
     for x_acc in alignments_of_reads_to_candidates:
         assert len(alignments_of_reads_to_candidates[x_acc]) == 1
     minimizer_elapsed = time() - minimizer_start
     write_output.logger('TIME ELAPSED FOR FINDING CANDIDATES WITH MINIMIZERS:{0}'.format(str(minimizer_elapsed)), params.logfile)
 
     stats_start = time()
-    threeco_v2.stat_filter_candidates(params.read_file, candidate_file, alignments_of_reads_to_candidates, params)
+    threeco_statistical_test.stat_filter_candidates(params.read_file, candidate_file, alignments_of_reads_to_candidates, params)
     stats_elapsed = time() - stats_start
     write_output.logger('TIME ELAPSED FOR STATISTICAL TEST OF CANDIDATES:{0}'.format(str(stats_elapsed)), params.logfile)
 
