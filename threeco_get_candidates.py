@@ -100,8 +100,8 @@ def find_candidate_transcripts(read_file, params):
         print("Barcodes:", params.barcodes )
         out_file = open(os.path.join(params.outfolder, "exon_difs.fa"), "w")
         if params.barcodes:
-            for s1, s1_dict in partition_alignments.items(): 
-                for s2, alignment_tuple in s1_dict.items():
+            for s1, s1_dict in list(partition_alignments.items()): 
+                for s2, alignment_tuple in list(s1_dict.items()):
                     if re.search(pattern, alignment_tuple[1][20: -20]) or  re.search(pattern, alignment_tuple[2][20: -20]): # [20: -20] --> ignore this if-statement if missing or truncated barcode
                         del partition_alignments[s1][s2]
                         print("Deleted:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0])
@@ -109,8 +109,8 @@ def find_candidate_transcripts(read_file, params):
                         cccntr += 1
                         out_file.write(">{0}\n{1}\n".format(unique_seq_to_acc[s2],s2))
         else:
-            for s1, s1_dict in partition_alignments.items(): 
-                for s2, alignment_tuple in s1_dict.items():
+            for s1, s1_dict in list(partition_alignments.items()): 
+                for s2, alignment_tuple in list(s1_dict.items()):
                     if re.search(pattern, alignment_tuple[1]) or  re.search(pattern, alignment_tuple[2]):
                         del partition_alignments[s1][s2]
                         cccntr += 1        
