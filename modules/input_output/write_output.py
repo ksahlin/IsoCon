@@ -22,7 +22,7 @@ def print_candidates(out_file_name, alignments_of_x_to_c, C, significance_test_v
         # add extra constraint that the candidate has to have majority on _each_ position in c here otherwise most likely error
         # if support >= 4:
         if p_value == "not_tested" or final == True:
-            print("Support:", support, "needs to be consensus over each base pair. P-value:", p_value)
+            print(c_acc, "Support:", support, "needs to be consensus over each base pair. P-value:", p_value)
             
             partition_alignments_c = {c_acc : (0, C[c_acc], C[c_acc], 1)}  # format: (edit_dist, aln_c, aln_x, 1)
             for x_acc in alignments_of_x_to_c_transposed[c_acc]:
@@ -42,9 +42,11 @@ def print_candidates(out_file_name, alignments_of_x_to_c, C, significance_test_v
 
             if is_consensus:
                 if final:
-                    if support > 4:
+                    if support > 2: # need at least 3 reads for meaningful consensus
                         out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
                         final_candidate_count += 1
+                    else:
+                        print("consensus had support: {0} and were not reported to output despite being consensus.".format(support) )
                 else:
                     out_file.write(">{0}\n{1}\n".format(c_acc, seq))
                     final_candidate_count += 1
@@ -52,7 +54,7 @@ def print_candidates(out_file_name, alignments_of_x_to_c, C, significance_test_v
                 print("were not consensus")
         else:
             if final:
-                if support > 4:
+                if support > 2:
                     out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
                     final_candidate_count += 1
             else:
