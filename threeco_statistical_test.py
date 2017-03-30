@@ -12,7 +12,7 @@ from scipy.stats import poisson
 
 from modules.functions import transpose, create_position_probability_matrix
 from modules import functions
-from modules.partitions import partition_strings_paths, partition_strings_2set, partition_to_statistical_test
+from modules.partitions import partition_strings_paths, partition_strings_2set
 from modules import graphs
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession, edlib_traceback
