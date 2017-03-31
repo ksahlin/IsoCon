@@ -3,6 +3,8 @@ from multiprocessing import Pool
 import multiprocessing as mp
 import sys
 
+import re
+
 import edlib
 
 def edlib_align_sequences(matches, single_core = False):
@@ -106,14 +108,19 @@ def edlib_alignment(x, y, i,j, x_acc = "", y_acc = ""):
     if i % 10000 == 0 and j % 100 == 0:
         print("processing alignments on y_j with j={0}".format(j+1))
 
-    result = edlib.align(x,y, "NW")
+    result = edlib.align(x,y, "NW") # , task="path")
     ed = result["editDistance"]
-    # if result["editDistance"] != mismatches + indels:
-    #     print(result["editDistance"], mismatches + indels, len(x), len(y), result["cigar"] )
-    #     print(x_alignment)
-    #     print(y_alignment)
-    #     print(x)
-    #     print(y)
+    # cigar = result["cigar"]
+    # pattern = "[\d]+[ID]"
+    # m = re.findall(pattern, cigar)
+    # for ma in m:
+    #     if len(ma)>2:
+    #         ed = len(x)
+    #         print("HERE!", ma)
+    #         maybe fix back paf score to previous, does not seem to work!!!
+    #         can we do a weightes scoring scheeme here demending on the indel length??
+    #         break
+
     if x_acc == y_acc == "":
         return (x,y, ed)
     else:
