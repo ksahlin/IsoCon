@@ -93,7 +93,7 @@ def find_candidate_transcripts(read_file, params):
         ###### temp check for isoform collapse###########
         import re
         pattern = r"[-]{8,}"
-        big_edit_distances = [ partition_alignments[s1][s2] for s1 in partition_alignments for s2 in partition_alignments[s1] if re.search(pattern, partition_alignments[s1][s2][1]) or  re.search(pattern, partition_alignments[s1][s2][2]) ] 
+        # big_edit_distances = [ partition_alignments[s1][s2] for s1 in partition_alignments for s2 in partition_alignments[s1] if re.search(pattern, partition_alignments[s1][s2][1]) or  re.search(pattern, partition_alignments[s1][s2][2]) ] 
         # for tup in big_edit_distances:
         #     print("{0}\n{1}\n{2}\n\n".format(tup[0], tup[1], tup[2]))
         cccntr = 0
@@ -103,20 +103,20 @@ def find_candidate_transcripts(read_file, params):
             for s1, s1_dict in list(partition_alignments.items()): 
                 for s2, alignment_tuple in list(s1_dict.items()):
                     if re.search(pattern, alignment_tuple[1][20: -20]) or  re.search(pattern, alignment_tuple[2][20: -20]): # [20: -20] --> ignore this if-statement if missing or truncated barcode
-                        del partition_alignments[s1][s2]
-                        print("Deleted:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0])
-                        print(s2)
+                        # del partition_alignments[s1][s2]
+                        # print("Deleted:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0])
+                        # print(s2)
                         cccntr += 1
                         out_file.write(">{0}\n{1}\n".format(unique_seq_to_acc[s2],s2))
         else:
             for s1, s1_dict in list(partition_alignments.items()): 
                 for s2, alignment_tuple in list(s1_dict.items()):
                     if re.search(pattern, alignment_tuple[1]) or  re.search(pattern, alignment_tuple[2]):
-                        del partition_alignments[s1][s2]
+                        # del partition_alignments[s1][s2]
                         cccntr += 1        
                         out_file.write(">{0}\n{1}\n".format(unique_seq_to_acc[s2],s2))
 
-        print("Number containing exon difference and removed in this pass:", cccntr)
+        print("Number of alignments containing exon difference in this pass:", cccntr)
         # sys.exit()
         ########################################################
 
