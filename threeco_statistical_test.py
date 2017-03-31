@@ -154,6 +154,38 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
             write_output.print_reads(remaining_to_align_read_file, to_realign)
             # align reads that is not yet assigned to candidate here
             G_star_rem, partition_of_remaining_X, remaining_alignments_of_x_to_c = partition_strings_2set(to_realign, C, remaining_to_align_read_file, temp_candidate_file.name)
+
+
+            #################################################################
+            ###### temp check for best alignment to wrong isoform ###########
+            import re
+            pattern = r"[-]{8,}"
+            cccntr = 0
+            print("Barcodes:", params.barcodes )
+            out_file = open(os.path.join(params.outfolder, "statistical_exon_difs.fa"), "w")
+            if params.barcodes:
+                for s1, s1_dict in list(remaining_alignments_of_x_to_c.items()): 
+                    for s2, alignment_tuple in list(s1_dict.items()):
+                        if re.search(pattern, alignment_tuple[1][20: -20]) or  re.search(pattern, alignment_tuple[2][20: -20]): # [20: -20] --> ignore this if-statement if missing or truncated barcode
+                            del remaining_alignments_of_x_to_c[s1][s2]
+                            print("Deleted:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0])
+                            print(s2)
+                            cccntr += 1
+                            out_file.write(">{0}\n{1}\n".format(unique_seq_to_acc[s2],s2))
+            else:
+                for s1, s1_dict in list(remaining_alignments_of_x_to_c.items()): 
+                    for s2, alignment_tuple in list(s1_dict.items()):
+                        if re.search(pattern, alignment_tuple[1]) or  re.search(pattern, alignment_tuple[2]):
+                            del remaining_alignments_of_x_to_c[s1][s2]
+                            cccntr += 1        
+                            out_file.write(">{0}\n{1}\n".format(unique_seq_to_acc[s2],s2))
+
+            print("Number containing exon difference and removed in this pass:", cccntr)
+            # sys.exit()
+            ###################################################################
+            ###################################################################
+
+
             # add reads to best candidate given new alignments
             for c_acc in partition_of_remaining_X:
                 partition_of_X[c_acc].update(partition_of_remaining_X[c_acc])
