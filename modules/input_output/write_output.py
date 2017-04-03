@@ -12,51 +12,81 @@ def logger(message, logfile, timestamp=True):
         logfile.write(message + "\n")
 
 
+def check_if_consensus(c_acc, C, alignments_of_x_to_c_transposed):
+    partition_alignments_c = {c_acc : (0, C[c_acc], C[c_acc], 1)}  # format: (edit_dist, aln_c, aln_x, 1)
+    for x_acc in alignments_of_x_to_c_transposed[c_acc]:
+        (ed, aln_x, aln_c) = alignments_of_x_to_c_transposed[c_acc][x_acc]
+        partition_alignments_c[x_acc] = (ed, aln_c, aln_x, 1) 
+
+    alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(C[c_acc], partition_alignments_c)
+    c_alignment = alignment_matrix_to_c[c_acc]
+    is_consensus = True
+    not_cons_positions = []
+    for j in range(len(PFM_to_c)):
+        c_v =  c_alignment[j]
+        candidate_count = PFM_to_c[j][c_v]
+        for v in PFM_to_c[j]:
+            if v != c_v and candidate_count <= PFM_to_c[j][v]: # needs to have at least one more in support than the second best as we have added c itself to the multialignment
+                # print("not consensus at:", j, PFM_to_c[j])
+                not_cons_positions.append((j, c_v, PFM_to_c[j]))
+                is_consensus = False
+
+    if not is_consensus:
+        print("Were not consensus at:", not_cons_positions)
+    else:
+        print("Were consensus")
+
+    return is_consensus
+
 def print_candidates(out_file_name, alignments_of_x_to_c, C, significance_test_values, final = False):
     out_file = open(out_file_name, "w")
     final_candidate_count = 0
     alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)
     for c_acc, seq in C.items():
-        p_value, support, N_t = significance_test_values[c_acc] 
-        #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
-        # add extra constraint that the candidate has to have majority on _each_ position in c here otherwise most likely error
-        # if support >= 4:
-        if p_value == "not_tested" or final == True:
-            print(c_acc, "Support:", support, "needs to be consensus over each base pair. P-value:", p_value)
+        p_value, support, N_t, delta_size = significance_test_values[c_acc] 
+        
+        print(c_acc, "Support:", support, "P-value:", p_value, "delta size:", delta_size)
+
+        # add extra constraint that if the candidate cannot be statistically tested in a meaningful way (e.g., too divergent from other sequences)
+        # the candidate has to have majority on _each_ position in c here otherwise most likely error
+        
+        is_consensus = check_if_consensus(c_acc, C, alignments_of_x_to_c_transposed)
+
+        if p_value == "not_tested":
             
-            partition_alignments_c = {c_acc : (0, C[c_acc], C[c_acc], 1)}  # format: (edit_dist, aln_c, aln_x, 1)
-            for x_acc in alignments_of_x_to_c_transposed[c_acc]:
-                (ed, aln_x, aln_c) = alignments_of_x_to_c_transposed[c_acc][x_acc]
-                partition_alignments_c[x_acc] = (ed, aln_c, aln_x, 1) 
+            # partition_alignments_c = {c_acc : (0, C[c_acc], C[c_acc], 1)}  # format: (edit_dist, aln_c, aln_x, 1)
+            # for x_acc in alignments_of_x_to_c_transposed[c_acc]:
+            #     (ed, aln_x, aln_c) = alignments_of_x_to_c_transposed[c_acc][x_acc]
+            #     partition_alignments_c[x_acc] = (ed, aln_c, aln_x, 1) 
 
-            alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(C[c_acc], partition_alignments_c)
-            c_alignment = alignment_matrix_to_c[c_acc]
-            is_consensus = True
-            for j in range(len(PFM_to_c)):
-                c_v =  c_alignment[j]
-                candidate_count = PFM_to_c[j][c_v]
-                for v in PFM_to_c[j]:
-                    if v != c_v and candidate_count <= PFM_to_c[j][v]: # needs to have at least one more in support than the second best as we have added c itself to the multialignment
-                        # print("not consensus at:", j)
-                        is_consensus = False
-
+            # alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(C[c_acc], partition_alignments_c)
+            # c_alignment = alignment_matrix_to_c[c_acc]
+            # is_consensus = True
+            # not_cons_positions = []
+            # for j in range(len(PFM_to_c)):
+            #     c_v =  c_alignment[j]
+            #     candidate_count = PFM_to_c[j][c_v]
+            #     for v in PFM_to_c[j]:
+            #         if v != c_v and candidate_count <= PFM_to_c[j][v]: # needs to have at least one more in support than the second best as we have added c itself to the multialignment
+            #             # print("not consensus at:", j, PFM_to_c[j])
+            #             not_cons_positions.append((j,PFM_to_c[j]))
+            #             is_consensus = False
+            
             if is_consensus:
                 if final:
                     if support > 2: # need at least 3 reads for meaningful consensus
-                        out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
+                        out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) + "_" + str(delta_size) , seq))
                         final_candidate_count += 1
                     else:
                         print("consensus had support: {0} and were not reported to output despite being consensus.".format(support) )
                 else:
                     out_file.write(">{0}\n{1}\n".format(c_acc, seq))
                     final_candidate_count += 1
-            else:
-                print("were not consensus")
+
         else:
             if final:
-                if support > 2:
-                    out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) , seq))
-                    final_candidate_count += 1
+                out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) + "_" + str(delta_size) , seq))
+                final_candidate_count += 1
             else:
                 out_file.write(">{0}\n{1}\n".format(c_acc, seq))
                 final_candidate_count += 1

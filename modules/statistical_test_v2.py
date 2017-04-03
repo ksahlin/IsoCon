@@ -32,19 +32,19 @@ def do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = Fa
     if single_core:
         for t_acc in minimizer_graph:
             p_vals = statistical_test(t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc])
-            for c_acc, (corrected_p_value, k, N_t) in p_vals.items():
+            for c_acc, (corrected_p_value, k, N_t, delta_size) in p_vals.items():
                 if corrected_p_value ==  "not_tested":
                     assert c_acc not in p_values # should only be here once
-                    p_values[c_acc] = (corrected_p_value, k, N_t)
+                    p_values[c_acc] = (corrected_p_value, k, N_t, delta_size)
 
                 elif c_acc in p_values: # new most insignificant p_value
                     actual_tests += 1
                     if corrected_p_value > p_values[c_acc][0]:
-                        p_values[c_acc] = (corrected_p_value, k, N_t)
+                        p_values[c_acc] = (corrected_p_value, k, N_t, delta_size)
 
                 else: # not tested before
                     actual_tests += 1
-                    p_values[c_acc] = (corrected_p_value, k, N_t)
+                    p_values[c_acc] = (corrected_p_value, k, N_t, delta_size)
 
     else:
         ####### parallelize statistical tests #########
@@ -65,18 +65,18 @@ def do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = Fa
         pool.join()
 
         for all_tests_to_a_given_target in statistical_test_results:
-            for c_acc, (corrected_p_value, k, N_t) in list(all_tests_to_a_given_target.items()): 
+            for c_acc, (corrected_p_value, k, N_t, delta_size) in list(all_tests_to_a_given_target.items()): 
                 if corrected_p_value ==  "not_tested":
                     assert c_acc not in p_values # should only be here once
-                    p_values[c_acc] = (corrected_p_value, k, N_t)
+                    p_values[c_acc] = (corrected_p_value, k, N_t, delta_size)
 
                 elif c_acc in p_values: # new most insignificant p_value
                     actual_tests += 1
                     if corrected_p_value > p_values[c_acc][0]:
-                        p_values[c_acc] = (corrected_p_value, k, N_t)
+                        p_values[c_acc] = (corrected_p_value, k, N_t, delta_size)
                 else: # not tested before
                     actual_tests += 1
-                    p_values[c_acc] = (corrected_p_value, k, N_t)
+                    p_values[c_acc] = (corrected_p_value, k, N_t, delta_size)
 
     print("Total number of tests performed this round:", actual_tests)
 
@@ -147,7 +147,7 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates):
     significance_values = {}
     t_seq = C[t_acc]
     if len(candidates) == 0:
-        significance_values[t_acc] = ("not_tested", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]) )
+        significance_values[t_acc] = ("not_tested", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
         return significance_values
 
     reads = set([x_acc for c_acc in candidates for x_acc in partition_of_X[c_acc]] )
@@ -195,7 +195,8 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates):
         k = len(candidate_support[c_acc])
         # print("supprot:", k, "diff:", len(delta_t[c_acc]))
         corrected_p_value = stat_test(k, len(t_seq), epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c)
-        significance_values[c_acc] = (corrected_p_value, k, N_t)
+        delta_size = len(delta_t[c_acc])
+        significance_values[c_acc] = (corrected_p_value, k, N_t, delta_size)
 
         # actual_tests += 1
         # if c_acc in significance_values:

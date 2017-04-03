@@ -228,26 +228,14 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         nr_of_tests_this_round = len(minimizer_graph)
         print("NUMBER OF CANDIDATES LEFT:", len(C))
 
-        if "read_2190_support_11" in minimizer_graph:
-            print("DETECTED:", minimizer_graph["read_2190_support_11"])
-        else:
-            for t_acc in minimizer_graph:
-                for c_acc in minimizer_graph[t_acc]:
-                    if c_acc == "read_2190_support_11":
-                        print("read_2190_support_11, A candidate:", minimizer_graph[t_acc])
-
         new_significance_values = statistical_test_v2.do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = params.single_core )
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}
-        for c_acc, (corrected_p_value, k, N_t) in list(new_significance_values.items()):
-
-            if "read_2190_support_11" == c_acc:
-                print("read_2190_support_11 is here with", (corrected_p_value, k, N_t) )
-
+        for c_acc, (corrected_p_value, k, N_t, delta_size) in list(new_significance_values.items()):
             if corrected_p_value == "not_tested":
                 print("Did not test", c_acc)
             elif corrected_p_value > 0.01/nr_of_tests_this_round:
-                print("removing", c_acc, "p-val:", corrected_p_value, "k", k, "N_t", N_t )
+                print("removing", c_acc, "p-val:", corrected_p_value, "k", k, "N_t", N_t, "delta_size:", delta_size )
                 del C[c_acc] 
                 modified = True
                 for x_acc in partition_of_X[c_acc]:
@@ -265,7 +253,6 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         print("LEN SIGN:", len(significance_values), len(C))
         write_output.print_candidates(candidate_file, alignments_of_x_to_c, C, significance_values)
 
-        print("GOOOOOO:", "read_2190_support_11" in C)
         # do a last realingment to avoind local maxima of reads
 
         if realignment_to_avoid_local_max == 1: # we have already done a last realignment, keep going until everythin is significant never realign
