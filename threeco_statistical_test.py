@@ -176,6 +176,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
             print("REALIGNING EVERYTHING FINAL STEP")
             to_realign = X      
             partition_of_X = { c_acc : set() for c_acc in C.keys()}
+            alignments_of_x_to_c = {}
 
 
 
