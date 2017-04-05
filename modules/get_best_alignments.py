@@ -13,10 +13,12 @@ def find_best_matches(approximate_matches, edge_creating_min_treshold = -1, edge
     exact_edit_distances = edlib_alignment_module.edlib_align_sequences(approximate_matches, single_core = False)
     best_exact_edit_distances = {}
     tot_ed = 0
+    cntrr = 0
     for s1 in exact_edit_distances:
         for s2 in exact_edit_distances[s1]:
             edit_distance = exact_edit_distances[s1][s2]
             tot_ed += edit_distance
+            cntrr += 1
             if edit_distance < edge_creating_max_treshold:
                 if s1 in best_exact_edit_distances:
                     best_exact_edit_distances[s1][s2] = edit_distance
@@ -30,22 +32,29 @@ def find_best_matches(approximate_matches, edge_creating_min_treshold = -1, edge
                     best_exact_edit_distances[s2] = {}
                     best_exact_edit_distances[s2][s1] = edit_distance
 
-
     print("TOTAL EDIT DISTANCE:", tot_ed)
+    print("TOTAL Visists:", cntrr)
+
+
+    cntrr = 0
     filtered_tot_ed = tot_ed
     ## filter best exact edit distances here
     for s1 in list(best_exact_edit_distances.keys()):
         s1_minimizer = min(best_exact_edit_distances[s1], key = lambda x: best_exact_edit_distances[s1][x])
+        # print(s1_minimizer)
         min_edit_distance = best_exact_edit_distances[s1][s1_minimizer]
         for s2 in list(best_exact_edit_distances[s1].keys()):
             ed =  best_exact_edit_distances[s1][s2]
+            # print(ed, min_edit_distance)
             if ed > min_edit_distance:
                 if ed > edge_creating_min_treshold:
                     del best_exact_edit_distances[s1][s2]
                     filtered_tot_ed -= ed
-
+                    cntrr += 1
+                    # print(filtered_tot_ed)
 
     print("TOTAL FILTERED EDIT DISTANCE:", filtered_tot_ed)
+    print("TOTAL Visists:", cntrr)
 
 
     exact_alignments = SW_alignment_module.sw_align_sequences(best_exact_edit_distances, single_core = False )

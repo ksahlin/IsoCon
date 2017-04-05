@@ -199,7 +199,7 @@ def minimap_partition(targets, queries, params):
 
     target_bins = []
     query_bins = []
-    query_bin_size =  min(len(query_strings), 400 )
+    query_bin_size =  min(len(query_strings), 40000 )
     # print("LEN QUERY STRINGS:", len(query_strings))
     # print("LEN TARGET STRINGS:", len(target_strings))
     # print([query_seq_to_acc[b] for b in query_strings])

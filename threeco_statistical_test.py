@@ -170,6 +170,9 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
             for c_acc in alignments_of_x_to_c[x_acc]:
                 partition_of_X[c_acc].add(x_acc)
 
+        for c_acc in partition_of_X:
+            print(c_acc, "has {0} reads assigned to it.".format(len(partition_of_X[c_acc])))
+
         ############ GET READ SUPORT AND ALIGNMENTS #################
 
         if realignment_to_avoid_local_max == 1:
