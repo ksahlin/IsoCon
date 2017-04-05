@@ -110,6 +110,7 @@ def edlib_alignment(x, y, i,j, x_acc = "", y_acc = ""):
 
     result = edlib.align(x,y, "NW") # , task="path")
     ed = result["editDistance"]
+    assert ed >= 0
     # cigar = result["cigar"]
     # pattern = "[\d]+[ID]"
     # m = re.findall(pattern, cigar)

@@ -257,7 +257,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         # do a last realingment to avoind local maxima of reads
 
         if realignment_to_avoid_local_max == 1: # we have already done a last realignment, keep going until everythin is significant never realign
-            realignment_to_avoid_local_max == 2
+            realignment_to_avoid_local_max = 2
         elif not modified and realignment_to_avoid_local_max == 0: # we have not yet done a final alignment and everythin is significant, realign to escape local maxima alignment
             realignment_to_avoid_local_max = 1
             modified = True
