@@ -10,7 +10,7 @@ def find_best_matches(approximate_matches, edge_creating_min_treshold = -1, edge
                 Each string in the inner dict has the same (lowest) edit distance to the key 
     """
 
-    exact_edit_distances = edlib_alignment_module.edlib_align_sequences(approximate_matches, single_core = False)
+    exact_edit_distances = edlib_alignment_module.edlib_align_sequences(approximate_matches, single_core = True)
     best_exact_edit_distances = {}
     tot_ed = 0
     cntrr = 0
@@ -56,7 +56,7 @@ def find_best_matches(approximate_matches, edge_creating_min_treshold = -1, edge
     print("TOTAL FILTERED EDIT DISTANCE:", filtered_tot_ed)
     print("TOTAL Visists:", cntrr)
 
-
+    sys.exit()
     exact_alignments = SW_alignment_module.sw_align_sequences(best_exact_edit_distances, single_core = False )
 
     # process the exact matches here
