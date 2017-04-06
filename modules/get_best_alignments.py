@@ -1,6 +1,6 @@
 
-import edlib_alignment_module
-import SW_alignment_module
+from modules import edlib_alignment_module
+from modules import SW_alignment_module
 
 def find_best_matches(approximate_matches, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
     """
@@ -56,7 +56,6 @@ def find_best_matches(approximate_matches, edge_creating_min_treshold = -1, edge
     print("TOTAL FILTERED EDIT DISTANCE:", filtered_tot_ed)
     print("TOTAL Visists:", cntrr)
 
-    sys.exit()
     exact_alignments = SW_alignment_module.sw_align_sequences(best_exact_edit_distances, single_core = False )
 
     # process the exact matches here

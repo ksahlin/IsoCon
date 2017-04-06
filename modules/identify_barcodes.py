@@ -2,7 +2,7 @@
 import os
 
 from modules.input_output import fasta_parser
-import edlib_alignment_module
+from modules import edlib_alignment_module
 
 def reverse_complement(string):
     #rev_nuc = {'A':'T', 'C':'G', 'G':'C', 'T':'A', 'N':'N', 'X':'X'}

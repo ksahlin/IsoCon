@@ -118,10 +118,10 @@ def paf_to_best_matches(paf_files, acc_to_strings):
                     # current alignment is better than at least one of previous scores, remove the worst one so far
                     if paf_similarity_score > highest_paf_scores[q_acc][0][0]: 
                         paf_score, t_acc_out = heapq.heappushpop(highest_paf_scores[q_acc], (paf_similarity_score, t_acc) )
-                        print("popping:", paf_score, "pushing:", paf_similarity_score )
+                        # print("popping:", paf_score, "pushing:", paf_similarity_score, t_acc_out )
                 else:
                     heapq.heappush(highest_paf_scores[q_acc], (paf_similarity_score, t_acc))
-                    print("pushing", paf_similarity_score)
+                    # print("pushing", paf_similarity_score)
 
                 # if len(highest_paf_scores[t_acc]) >= 5:
                 #     # current alignment is better than at least one of previous scores, remove the worst one so far
@@ -201,7 +201,7 @@ def minimap_partition(targets, queries, params):
 
     target_bins = []
     query_bins = []
-    query_bin_size =  min(len(query_strings), 40000 )
+    query_bin_size =  min(len(query_strings), params.minimap_bin_size )
     # print("LEN QUERY STRINGS:", len(query_strings))
     # print("LEN TARGET STRINGS:", len(target_strings))
     # print([query_seq_to_acc[b] for b in query_strings])
