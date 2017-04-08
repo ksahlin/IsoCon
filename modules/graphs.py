@@ -11,8 +11,44 @@ from modules import get_best_alignments
 from modules import minimap_alignment_module
 from modules import functions
 
+def construct_exact_minimizer_graph(S, params):
 
-def construct_minimizer_graph(S, params, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
+    """
+        input: a dict of strings, not necesarily unique
+        output: a directed graph implemented as a dict of dicts. Each edge has a weight assosiated to them.
+                self edges has a weight > 1 (identical sequences) and all other edges has weight 1.
+                Note, a node can be isolated!
+    """
+    G_star = {}
+    # adding self edges to strings that has converged
+    for acc, s in S.items():
+        if s not in G_star:
+            G_star[s] = {}
+        else:
+            if s in G_star[s]:
+                G_star[s][s] += 1  
+            else:
+                G_star[s][s] = 2
+
+    # check if converged, that is, if all nodes has self edges here, there will be no other edges added.
+    converged = False
+    not_in_clusters = set()
+    for s, nbr_dict in G_star.items():
+        if len(nbr_dict) == 0:
+            not_in_clusters.add(s)
+
+    if len(not_in_clusters) == 0:
+        converged = True
+        return G_star, converged
+
+    unique_strings = set(S.values())
+    minimizer_graph = compute_minimizer_graph(S, params)
+
+    for s in minimizer_graph
+
+    return minimizer_graph, converged    
+
+def construct_minimizer_graph_approximate(S, params, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
 
     """
         input: a dict of strings, not necesarily unique
@@ -76,7 +112,7 @@ def construct_minimizer_graph(S, params, edge_creating_min_treshold = -1, edge_c
             alignment_graph[s][s] = (0, s, s)
             # print("ISOLATED")
 
-    return G_star, alignment_graph, converged
+    return G_star, converged
 
 
 
