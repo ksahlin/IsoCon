@@ -10,6 +10,7 @@ import unittest
 from modules import get_best_alignments
 from modules import minimap_alignment_module
 from modules import functions
+from modules import minimizer_graph
 
 def construct_exact_minimizer_graph(S, params):
 
@@ -17,7 +18,8 @@ def construct_exact_minimizer_graph(S, params):
         input: a dict of strings, not necesarily unique
         output: a directed graph implemented as a dict of dicts. Each edge has a weight assosiated to them.
                 self edges has a weight > 1 (identical sequences) and all other edges has weight 1.
-                Note, a node can be isolated!
+                Note, a node can be isolated! An isolated node will point at itself, effectively having itself as a minimizer.
+
     """
     G_star = {}
     # adding self edges to strings that has converged
@@ -33,18 +35,31 @@ def construct_exact_minimizer_graph(S, params):
     # check if converged, that is, if all nodes has self edges here, there will be no other edges added.
     converged = False
     not_in_clusters = set()
+    already_converged = set()
     for s, nbr_dict in G_star.items():
         if len(nbr_dict) == 0:
             not_in_clusters.add(s)
+        else:
+            already_converged.add(s)
 
     if len(not_in_clusters) == 0:
         converged = True
         return G_star, converged
 
     unique_strings = set(S.values())
-    minimizer_graph = compute_minimizer_graph(S, params)
+    minimizer_graph, isolated_nodes = minimizer_graph.compute_minimizer_graph(S, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
+    # minimizer_graph, isolated_nodes = compute_minimizer_graph(S, already_converged, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
 
-    for s in minimizer_graph
+    for s in minimizer_graph:
+        if s in G_star[s]: # the minimizer had already identical minimizer
+            continue
+        else:
+            G_star[s] = minimizer_graph[s]
+
+    for s in isolated_nodes:
+        assert s in minimizer_graph
+        assert len(minimizer_graph[s]) == 0
+        G_star[s][s] = 1
 
     return minimizer_graph, converged    
 
