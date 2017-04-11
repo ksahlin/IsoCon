@@ -105,7 +105,7 @@ def construct_minimizer_graph_approximate(S, params, edge_creating_min_treshold 
 
     if len(not_in_clusters) == 0:
         converged = True
-        return G_star, alignment_graph, converged
+        return G_star, converged
 
     unique_strings = set(S.values())
 
