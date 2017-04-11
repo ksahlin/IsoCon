@@ -7,6 +7,7 @@ import os
 import unittest
 
 import copy
+from time import time
 
 from modules.functions import transpose,create_position_probability_matrix
 from modules.partitions import partition_strings_paths
@@ -71,8 +72,12 @@ def find_candidate_transcripts(read_file, params):
     C = {}
     unique_seq_to_acc = get_unique_seq_accessions(S)
 
+    minimizer_start = time() 
     G_star, graph_partition, M, converged = partition_strings_paths(S, params)
     partition_alignments = get_partition_alignments(graph_partition, M, G_star)       
+
+    minimizer_elapsed = time() - minimizer_start
+    write_output.logger('Time for minimizers and partition, step 1:{0}'.format(str(minimizer_elapsed)), params.logfile)
 
     # if converged:
     #     for m in M:
@@ -85,6 +90,8 @@ def find_candidate_transcripts(read_file, params):
     prev_edit_distances = [2**28]
 
     while not converged:
+        correction_start = time() 
+
         print("candidates:", len(M))
         edit_distances = [ partition_alignments[s1][s2][0] for s1 in partition_alignments for s2 in partition_alignments[s1]  ] 
         print("edit distances:", edit_distances) 
@@ -167,7 +174,9 @@ def find_candidate_transcripts(read_file, params):
         prev_edit_distances_2steps_ago = prev_edit_distances
         prev_edit_distances = edit_distances
 
-
+        correction_elapsed = time() - correction_start
+        write_output.logger('Time for correction, minimizers and partition, step {0}:{1}'.format(step, str(correction_elapsed)), params.logfile)
+   
 
     for m in M:
         N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
@@ -189,14 +198,18 @@ def find_candidate_transcripts(read_file, params):
             print("Minimizer did not pass threshold support of {0} reads.".format(C[m]))
             del C[m]
 
-    edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers)
-    alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m)
-    alignments_of_x_to_m_filtered, m_to_acc = filter_candidates(alignments_of_x_to_m, C, params)
+    # edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers)
+    # alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m)
+    m_to_acc = {}
+    for i, (m, support) in enumerate(list(C.items())):
+        m_acc = "read_" + str(i) + "_support_" + str(support)
+        m_to_acc[m] = m_acc
+    # alignments_of_x_to_m_filtered, m_to_acc = filter_candidates(alignments_of_x_to_m, C, params)
     candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
-    alignments_file_name = os.path.join(params.outfolder, "candidate_alignments.tsv")
-    write_output.print_candidates_from_minimizers(candidates_file_name, alignments_file_name, alignments_of_x_to_m_filtered, C, m_to_acc, params)
+    # alignments_file_name = os.path.join(params.outfolder, "candidate_alignments.tsv")
+    write_output.print_candidates_from_minimizers(candidates_file_name, C, m_to_acc, params)
 
-    return candidates_file_name, alignments_of_x_to_m_filtered
+    return candidates_file_name
 
 def filter_candidates(alignments_of_x_to_c, C, params):
     alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)   

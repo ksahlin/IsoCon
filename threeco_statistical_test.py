@@ -9,6 +9,8 @@ import copy
 import math 
 
 from scipy.stats import poisson
+from time import time
+
 
 from modules.functions import transpose, create_position_probability_matrix
 from modules import functions
@@ -132,7 +134,7 @@ def check_exon_diffs(alignments_of_x_to_c, params):
     ###################################################################
     ###################################################################
 
-def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, params):
+def stat_filter_candidates(read_file, candidate_file, partition_of_X, params):
     modified = True
 
     ############ GET READS AND CANDIDATES #################
@@ -143,7 +145,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
 
     step = 1
     
-    previous_partition_of_X = { c_acc : set() for c_acc in C.keys()}
+    previous_partition_of_X = copy.deepcopy(partition_of_X) #{ c_acc : set() for c_acc in C.keys()}
     previous_components = { c_acc : set() for c_acc in C.keys()}
     significance_values = {}   
     realignment_to_avoid_local_max = 0
@@ -152,6 +154,8 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
 
 
     while modified:
+        statistical_start = time() 
+
         modified = False
         print("STEP NR: {0}".format(step))
 
@@ -164,11 +168,11 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         temp_candidate_file.close()
         #######################################################
 
-        # create partition
-        partition_of_X = { c_acc : set() for c_acc in C.keys()}
-        for x_acc in alignments_of_x_to_c:
-            for c_acc in alignments_of_x_to_c[x_acc]:
-                partition_of_X[c_acc].add(x_acc)
+        # # create partition
+        # partition_of_X = { c_acc : set() for c_acc in C.keys()}
+        # for x_acc in alignments_of_x_to_c:
+        #     for c_acc in alignments_of_x_to_c[x_acc]:
+        #         partition_of_X[c_acc].add(x_acc)
 
         for c_acc in partition_of_X:
             print(c_acc, "has {0} reads assigned to it.".format(len(partition_of_X[c_acc])))
@@ -186,23 +190,21 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         if to_realign:
             write_output.print_reads(remaining_to_align_read_file, to_realign)
             # align reads that is not yet assigned to candidate here
-            G_star_rem, partition_of_remaining_X, remaining_alignments_of_x_to_c = partition_strings_2set(to_realign, C, remaining_to_align_read_file, temp_candidate_file.name)
+            G_star_rem, partition_of_remaining_X = partition_strings_2set(to_realign, C, remaining_to_align_read_file, temp_candidate_file.name, params)
 
             # add reads to best candidate given new alignments
             for c_acc in partition_of_remaining_X:
                 partition_of_X[c_acc].update(partition_of_remaining_X[c_acc])
 
             # add the alignments to alignment structure
-            for x_acc in remaining_alignments_of_x_to_c.keys():
-                alignments_of_x_to_c[x_acc] = remaining_alignments_of_x_to_c[x_acc]
-                # for c_acc in remaining_alignments_of_x_to_c[x_acc].keys():
-                #     alignments_of_x_to_c[x_acc][c_acc] = remaining_alignments_of_x_to_c[x_acc][c_acc]
+            # for x_acc in remaining_alignments_of_x_to_c.keys():
+            #     alignments_of_x_to_c[x_acc] = remaining_alignments_of_x_to_c[x_acc]
 
         C_seq_to_acc = {seq : acc for acc, seq in C.items()}
         ################################################################
 
 
-        check_exon_diffs(alignments_of_x_to_c, params)
+        # check_exon_diffs(alignments_of_x_to_c, params)
 
         ############# GET THE CLOSES HIGHEST SUPPORTED REFERENCE TO TEST AGAINST FOR EACH CANDIDATE ############
         minimizer_graph = get_minimizer_graph(C)
@@ -244,7 +246,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
                 modified = True
                 for x_acc in partition_of_X[c_acc]:
                     to_realign[x_acc] = X[x_acc]
-                    del alignments_of_x_to_c[x_acc]
+                    # del alignments_of_x_to_c[x_acc]
 
                 del partition_of_X[c_acc]
 
@@ -255,7 +257,7 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
         significance_values.update(new_significance_values) # which returns None since it mutates z
 
         print("LEN SIGN:", len(significance_values), len(C))
-        write_output.print_candidates(candidate_file, alignments_of_x_to_c, C, significance_values)
+        write_output.print_candidates(candidate_file, C, significance_values, partition_of_X, X)
 
         # do a last realingment to avoind local maxima of reads
 
@@ -265,7 +267,11 @@ def stat_filter_candidates(read_file, candidate_file, alignments_of_x_to_c, para
             realignment_to_avoid_local_max = 1
             modified = True
 
+        statistical_elapsed = time() - statistical_start
+        write_output.logger('Time for Statistical test, step {0}:{1}'.format(step, str(statistical_elapsed)), params.logfile)
+   
+
     final_out_file_name =  os.path.join(params.outfolder, "final_candidates.fa")
-    write_output.print_candidates(final_out_file_name, alignments_of_x_to_c, C, significance_values, final = True)
+    write_output.print_candidates(final_out_file_name, C, significance_values, partition_of_X, X, final = True)
 
     return C

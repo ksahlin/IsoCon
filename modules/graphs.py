@@ -165,6 +165,22 @@ def construct_minimizer_graph_approximate(S, params, edge_creating_min_treshold 
 
     return G_star, converged
 
+def construct_exact_2set_minimizer_bipartite_graph(X, C, X_file, C_file, params):
+
+    best_exact_matches = minimizer_graph.compute_2set_minimizer_graph(X, C, params)
+
+    G_star = {}
+
+    for x_acc in best_exact_matches:
+        G_star[x_acc] = {}
+        # if len(best_exact_matches[x_acc]) >1:
+        #     print(len(best_exact_matches[x_acc]), "best matches for read to consensus", best_exact_matches[x_acc].keys())
+        for c_acc in best_exact_matches[x_acc]:
+            assert c_acc not in G_star[x_acc]
+            G_star[x_acc][c_acc] = 1
+            edit_distance = best_exact_matches[x_acc][c_acc]
+
+    return G_star
 
 
 def construct_2set_minimizer_bipartite_graph(X, C, X_file, C_file):

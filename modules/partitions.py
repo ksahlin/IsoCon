@@ -240,13 +240,14 @@ def partition_strings_paths(S, params, node_weights = {}, edge_creating_min_tres
 
 
 
-def partition_strings_2set(X, C, X_file, C_file):
+def partition_strings_2set(X, C, X_file, C_file, params):
     """
 
     """
 
+    G_star = graphs.construct_exact_2set_minimizer_bipartite_graph(X, C, X_file, C_file, params)
+    # G_star, alignment_graph = graphs.construct_2set_minimizer_bipartite_graph(X, C, X_file, C_file)
 
-    G_star, alignment_graph = graphs.construct_2set_minimizer_bipartite_graph(X, C, X_file, C_file)
     partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
 
     partition_counter = 1
@@ -293,13 +294,14 @@ def partition_strings_2set(X, C, X_file, C_file):
     assert len(M) == nr_candidates_with_hits
     assert marked == set(G_star.keys())
 
-    read_to_targets_unique_partition = {}
-    for m_acc in partition:
-        for x_acc in partition[m_acc]:
-            info_tuple = alignment_graph[x_acc][m_acc]
-            read_to_targets_unique_partition[x_acc] = {m_acc : info_tuple }
+    no_alignmens_at_all = set(C.keys()).difference(set(G_star_transposed.keys()))
+    assert len(no_alignmens_at_all) + nr_candidates_with_hits == len(C)
+    print("no_alignmens_at_all:", no_alignmens_at_all)
+    for c in no_alignmens_at_all:
+        assert c not in partition
+        partition[c] = set()
 
-    return G_star, partition, read_to_targets_unique_partition
+    return G_star, partition 
 
 
 

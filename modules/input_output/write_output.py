@@ -12,11 +12,22 @@ def logger(message, logfile, timestamp=True):
         logfile.write(message + "\n")
 
 
-def check_if_consensus(c_acc, C, alignments_of_x_to_c_transposed):
-    partition_alignments_c = {c_acc : (0, C[c_acc], C[c_acc], 1)}  # format: (edit_dist, aln_c, aln_x, 1)
-    for x_acc in alignments_of_x_to_c_transposed[c_acc]:
-        (ed, aln_x, aln_c) = alignments_of_x_to_c_transposed[c_acc][x_acc]
-        partition_alignments_c[x_acc] = (ed, aln_c, aln_x, 1) 
+def check_if_consensus(c_acc, C, X, partition_of_X):
+
+    partition_dict = {c_acc : {}}
+    for x_acc in partition_of_X[c_acc]:
+        partition_dict[t_acc][x_acc] = (C[c_acc], X[x_acc])
+
+    exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, single_core = True)    
+    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, single_core = True)
+    partition_alignments_c = {} 
+
+    for c_acc in exact_alignments:
+        partition_alignments_c[c_acc] = {}
+        for x_acc in exact_alignments[c_acc]:
+            aln_c, aln_x, (matches, mismatches, indels) = exact_alignments[c_acc][x_acc]
+            edit_dist = mismatches + indels
+            partition_alignments_c[c_acc][x_acc] = (edit_dist, aln_c, aln_x, 1)
 
     alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(C[c_acc], partition_alignments_c)
     c_alignment = alignment_matrix_to_c[c_acc]
@@ -38,10 +49,9 @@ def check_if_consensus(c_acc, C, alignments_of_x_to_c_transposed):
 
     return is_consensus
 
-def print_candidates(out_file_name, alignments_of_x_to_c, C, significance_test_values, final = False):
+def print_candidates(out_file_name, C, significance_test_values, partition_of_X, X, final = False):
     out_file = open(out_file_name, "w")
     final_candidate_count = 0
-    alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)
     for c_acc, seq in C.items():
         p_value, support, N_t, delta_size = significance_test_values[c_acc] 
         
@@ -50,27 +60,9 @@ def print_candidates(out_file_name, alignments_of_x_to_c, C, significance_test_v
         # add extra constraint that if the candidate cannot be statistically tested in a meaningful way (e.g., too divergent from other sequences)
         # the candidate has to have majority on _each_ position in c here otherwise most likely error
         
-        is_consensus = check_if_consensus(c_acc, C, alignments_of_x_to_c_transposed)
+        is_consensus = check_if_consensus(c_acc, C, X, partition_of_X)
 
         if p_value == "not_tested":
-            
-            # partition_alignments_c = {c_acc : (0, C[c_acc], C[c_acc], 1)}  # format: (edit_dist, aln_c, aln_x, 1)
-            # for x_acc in alignments_of_x_to_c_transposed[c_acc]:
-            #     (ed, aln_x, aln_c) = alignments_of_x_to_c_transposed[c_acc][x_acc]
-            #     partition_alignments_c[x_acc] = (ed, aln_c, aln_x, 1) 
-
-            # alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(C[c_acc], partition_alignments_c)
-            # c_alignment = alignment_matrix_to_c[c_acc]
-            # is_consensus = True
-            # not_cons_positions = []
-            # for j in range(len(PFM_to_c)):
-            #     c_v =  c_alignment[j]
-            #     candidate_count = PFM_to_c[j][c_v]
-            #     for v in PFM_to_c[j]:
-            #         if v != c_v and candidate_count <= PFM_to_c[j][v]: # needs to have at least one more in support than the second best as we have added c itself to the multialignment
-            #             # print("not consensus at:", j, PFM_to_c[j])
-            #             not_cons_positions.append((j,PFM_to_c[j]))
-            #             is_consensus = False
             
             if is_consensus:
                 if final:
@@ -96,7 +88,7 @@ def print_candidates(out_file_name, alignments_of_x_to_c, C, significance_test_v
     out_file.close()
 
 
-def print_candidates_from_minimizers(out_file_candidates_name, out_file_alignments_name, alignments_of_x_to_m_filtered, M, m_to_acc, params):
+def print_candidates_from_minimizers(out_file_candidates_name, M, m_to_acc, params):
     """
         alignments_of_x_to_c has format
         {x_acc : {y_acc : (x_alignment, y_alignment, (matches, mismatches, indels)) } }
@@ -114,15 +106,15 @@ def print_candidates_from_minimizers(out_file_candidates_name, out_file_alignmen
     print("Final candidate count: ", final_candidate_count)
     out_file_candidates.close()
 
-# def print_alignments_from_reads_to_minimizers(out_file_alignments_name, alignments_of_x_to_m_filtered, params):
-    out_file_alignments = open(out_file_alignments_name, "w")
-    for x_acc in alignments_of_x_to_m_filtered.keys():
-        for m_acc in alignments_of_x_to_m_filtered[x_acc].keys():
-            ed, aln_x, aln_c = alignments_of_x_to_m_filtered[x_acc][m_acc]
-            # m_acc = m_to_acc[m]
-            out_file_alignments.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(x_acc, m_acc, ed, aln_x, aln_c) )
+# # def print_alignments_from_reads_to_minimizers(out_file_alignments_name, alignments_of_x_to_m_filtered, params):
+#     out_file_alignments = open(out_file_alignments_name, "w")
+#     for x_acc in alignments_of_x_to_m_filtered.keys():
+#         for m_acc in alignments_of_x_to_m_filtered[x_acc].keys():
+#             ed, aln_x, aln_c = alignments_of_x_to_m_filtered[x_acc][m_acc]
+#             # m_acc = m_to_acc[m]
+#             out_file_alignments.write("{0}\t{1}\t{2}\t{3}\t{4}\n".format(x_acc, m_acc, ed, aln_x, aln_c) )
 
-    out_file_alignments.close()
+#     out_file_alignments.close()
 
 def print_reads(remaining_to_align_read_file, remaining_to_align):
     read_file_align = open(remaining_to_align_read_file, "w")
