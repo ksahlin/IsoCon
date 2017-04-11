@@ -3,7 +3,10 @@ from modules import graphs
 from modules import functions
 
 def partition_strings_paths(S, params, node_weights = {}, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
-    G_star, converged = graphs.construct_minimizer_graph_approximate(S, params, edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold)
+
+    G_star, converged = graphs.construct_exact_minimizer_graph(S, params)
+    # G_star, converged = graphs.construct_minimizer_graph_approximate(S, params, edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold)
+
     unique_start_strings = set(G_star.keys())
     partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
 
