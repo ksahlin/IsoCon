@@ -125,7 +125,7 @@ def edlib_traceback(x, y, mode="NW", task="path", k=1):
 def get_minimizers(batch_of_queries, start_index, seq_to_acc_list_sorted):
     best_edit_distances = {}
     lower_target_edit_distances = {}
-    error_types = {"D":0, "S": 0, "I": 0}
+    # error_types = {"D":0, "S": 0, "I": 0}
     for i in range(start_index, start_index + len(batch_of_queries)):
         if i % 50 == 0:
             print("processing ", i)
@@ -167,22 +167,32 @@ def get_minimizers(batch_of_queries, start_index, seq_to_acc_list_sorted):
                 if 0 < edit_distance < best_ed:
                     best_ed = edit_distance
                     best_edit_distances[acc1] = {}
-                    best_edit_distances[acc1][acc2] = best_ed
-                    lower_target_edit_distances[acc2] = best_ed 
-
+                    best_edit_distances[acc1][acc2] = edit_distance
                 elif edit_distance == best_ed:
-                    best_edit_distances[acc1][acc2] = best_ed
+                    best_edit_distances[acc1][acc2] = edit_distance
+
+                if acc2 in lower_target_edit_distances:
+                    if 0 < edit_distance < lower_target_edit_distances[acc2]: 
+                        lower_target_edit_distances[acc2] = edit_distance 
+                else:
+                    if 0 < edit_distance: 
+                        lower_target_edit_distances[acc2] = edit_distance 
 
             if not stop_up:
                 edit_distance = edlib_ed(seq1, seq3, mode="NW", task="distance", k=best_ed)
                 if 0 < edit_distance < best_ed:
                     best_ed = edit_distance
                     best_edit_distances[acc1] = {}
-                    best_edit_distances[acc1][acc3] = best_ed
-                    lower_target_edit_distances[acc3] = best_ed 
-
+                    best_edit_distances[acc1][acc3] = edit_distance
                 elif edit_distance == best_ed:
-                    best_edit_distances[acc1][acc3] = best_ed
+                    best_edit_distances[acc1][acc3] = edit_distance
+
+                if acc3 in lower_target_edit_distances:
+                    if 0 < edit_distance < lower_target_edit_distances[acc3]: 
+                        lower_target_edit_distances[acc3] = edit_distance 
+                else:
+                    if 0 < edit_distance:                 
+                        lower_target_edit_distances[acc3] = edit_distance 
  
             if stop_down and stop_up:
                 break
@@ -190,7 +200,6 @@ def get_minimizers(batch_of_queries, start_index, seq_to_acc_list_sorted):
         # print("best ed:", best_ed)
         # if best_ed > 100:
         #     print(best_ed, "for seq with length", len(seq1), seq1)
-
     return best_edit_distances
 
 
@@ -200,7 +209,7 @@ def compute_minimizer_graph(S, params):
     """
     # consensus_transcripts = {acc: seq for (acc, seq) in  read_fasta(open(params.consensus_transcripts, 'r'))}
     # print("Number of consensus:", len(consensus_transcripts))
-    # seq_to_acc = {seq: acc for (acc, seq) in  read_fasta(open(params.consensus_transcripts, 'r'))}
+    seq_to_acc = { seq : acc for (acc, seq) in S.items() }
 
     seq_to_acc_list = list(seq_to_acc.items())
     seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
@@ -208,10 +217,14 @@ def compute_minimizer_graph(S, params):
     print("Number of collapsed consensus:", len(collapsed_consensus_transcripts))
     minimizer_graph = get_exact_minimizer_graph(seq_to_acc_list_sorted, single_core = params.single_core)
 
-    s1 = set( [ collapsed_consensus_transcripts[acc2] for acc1 in minimizer_graph for acc2 in minimizer_graph[acc1] ])
+    s1 = set()
+    for acc1 in minimizer_graph:
+        s1.add(S[acc1])
+
     s2 = set([seq for seq in seq_to_acc] )
     isolated = s2.difference(s1)
     print("isolated:", len(isolated))
+    # print("isolated:", isolated)
 
     edges = 0
     tot_ed = 0
@@ -233,6 +246,7 @@ def compute_minimizer_graph(S, params):
     histogram(neighbors, params, name='neighbours_zoomed.png', x='x-axis', y='y-axis', x_cutoff=20, title="Number of neighbours in minimizer graph")
 
     return minimizer_graph, isolated
+
 
 def main_temp(args):
     consensus_transcripts = {acc: seq for (acc, seq) in  read_fasta(open(args.consensus_transcripts, 'r'))}

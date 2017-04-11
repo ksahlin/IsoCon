@@ -29,8 +29,10 @@ def construct_exact_minimizer_graph(S, params):
         else:
             if s in G_star[s]:
                 G_star[s][s] += 1  
+                print(acc)
             else:
                 G_star[s][s] = 2
+                print(acc)
 
     # check if converged, that is, if all nodes has self edges here, there will be no other edges added.
     converged = False
@@ -46,22 +48,26 @@ def construct_exact_minimizer_graph(S, params):
         converged = True
         return G_star, converged
 
-    unique_strings = set(S.values())
-    minimizer_graph, isolated_nodes = minimizer_graph.compute_minimizer_graph(S, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
+    unique_strings = {seq : acc for acc, seq in S.items()}
+    S_prime = {acc : seq for seq, acc in unique_strings.items()}
+    all_internode_edges_in_minimizer_graph, isolated_nodes = minimizer_graph.compute_minimizer_graph(S_prime, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
     # minimizer_graph, isolated_nodes = compute_minimizer_graph(S, already_converged, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
-
-    for s in minimizer_graph:
-        if s in G_star[s]: # the minimizer had already identical minimizer
+    for s1_acc in all_internode_edges_in_minimizer_graph:
+        s1 = S[s1_acc]
+        if s1 in G_star[s1]: # the minimizer had already identical minimizer (ed = 0)
             continue
         else:
-            G_star[s] = minimizer_graph[s]
+            for s2_acc in all_internode_edges_in_minimizer_graph[s1_acc]:
+                s2 = S[s2_acc]
+                # G_star[s1][s2] = 1 
+                G_star[s1][s2] = all_internode_edges_in_minimizer_graph[s1_acc][s2_acc]
 
     for s in isolated_nodes:
-        assert s in minimizer_graph
-        assert len(minimizer_graph[s]) == 0
-        G_star[s][s] = 1
+        assert s in G_star
+        if s not in G_star[s]:
+            G_star[s][s] = 1
 
-    return minimizer_graph, converged    
+    return G_star, converged    
 
 def construct_minimizer_graph_approximate(S, params, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
 
@@ -74,6 +80,7 @@ def construct_minimizer_graph_approximate(S, params, edge_creating_min_treshold 
     G_star = {}
     alignment_graph = {}
     # adding self edges to strings that has converged
+    s_to_acc = {s : acc for acc, s in S.items()} 
     for acc, s in S.items():
         if s not in G_star:
             G_star[s] = {}
@@ -97,8 +104,10 @@ def construct_minimizer_graph_approximate(S, params, edge_creating_min_treshold 
         return G_star, alignment_graph, converged
 
     unique_strings = set(S.values())
-    paf_files, acc_to_strings = minimap_alignment_module.minimap_partition(unique_strings, not_in_clusters, params)
 
+    G_star_exact, _ = construct_exact_minimizer_graph(S, params)
+
+    paf_files, acc_to_strings = minimap_alignment_module.minimap_partition(unique_strings, not_in_clusters, params)
     approximate_matches = minimap_alignment_module.paf_to_best_matches(paf_files, acc_to_strings)
     best_exact_matches = get_best_alignments.find_best_matches(approximate_matches,  edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold )
 
@@ -126,6 +135,28 @@ def construct_minimizer_graph_approximate(S, params, edge_creating_min_treshold 
             G_star[s][s] = 1
             alignment_graph[s][s] = (0, s, s)
             # print("ISOLATED")
+
+
+
+    for s_acc in G_star:
+        if s_acc in G_star[s_acc]:
+            assert a_acc in G_star_exact[s_acc]
+            continue
+        s_approx_nbrs = len(G_star[s_acc])
+        s_approx_ed = sum( [alignment_graph[s_acc][s_nbr][0] for s_nbr in alignment_graph[s_acc] ])
+        s_exact_nbrs = len(G_star_exact[s_acc])
+        s_exact_ed = sum( [G_star_exact[s_acc][s_nbr] for s_nbr in G_star_exact[s_acc]])
+        if s_approx_nbrs != s_exact_nbrs or s_exact_ed != s_approx_ed:
+            # print("appro", G_star[s_acc])
+            # print("exact", G_star_exact[s_acc])
+            print("Approx:", s_approx_nbrs, s_approx_ed, s_approx_ed /float(s_approx_nbrs), "exact:", s_exact_nbrs, s_exact_ed, s_exact_ed/ float(s_exact_nbrs) )
+            print(s_to_acc[s_acc])
+            for saae in G_star_exact[s_acc]:
+                print("Exact:", s_to_acc[saae])
+            for saa in G_star[s_acc]:
+                print("Approx:", s_to_acc[saa])
+    sys.exit()
+
 
     return G_star, converged
 
