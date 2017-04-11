@@ -59,8 +59,8 @@ def construct_exact_minimizer_graph(S, params):
         else:
             for s2_acc in all_internode_edges_in_minimizer_graph[s1_acc]:
                 s2 = S[s2_acc]
-                # G_star[s1][s2] = 1 
-                G_star[s1][s2] = all_internode_edges_in_minimizer_graph[s1_acc][s2_acc]
+                G_star[s1][s2] = 1 
+                This is just for test: G_star[s1][s2] = all_internode_edges_in_minimizer_graph[s1_acc][s2_acc]
 
     for s in isolated_nodes:
         assert s in G_star
@@ -140,7 +140,7 @@ def construct_minimizer_graph_approximate(S, params, edge_creating_min_treshold 
 
     for s_acc in G_star:
         if s_acc in G_star[s_acc]:
-            assert a_acc in G_star_exact[s_acc]
+            assert s_acc in G_star_exact[s_acc]
             continue
         s_approx_nbrs = len(G_star[s_acc])
         s_approx_ed = sum( [alignment_graph[s_acc][s_nbr][0] for s_nbr in alignment_graph[s_acc] ])
