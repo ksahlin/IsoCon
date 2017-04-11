@@ -2,6 +2,8 @@ import os
 from time import time
 import datetime
 
+from modules.SW_alignment_module import sw_align_sequences_keeping_accession
+from modules.edlib_alignment_module import edlib_align_sequences_keeping_accession
 from modules.functions import create_position_probability_matrix, transpose
 
 def logger(message, logfile, timestamp=True):
@@ -14,22 +16,22 @@ def logger(message, logfile, timestamp=True):
 
 def check_if_consensus(c_acc, C, X, partition_of_X):
 
-    partition_dict = {c_acc : {}}
+    partition_dict = {c_acc : {c_acc : (C[c_acc], C[c_acc])}}
     for x_acc in partition_of_X[c_acc]:
-        partition_dict[t_acc][x_acc] = (C[c_acc], X[x_acc])
+        partition_dict[c_acc][x_acc] = (C[c_acc], X[x_acc])
 
     exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, single_core = True)    
     exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, single_core = True)
-    partition_alignments_c = {} 
+    partition_alignments = {} 
 
     for c_acc in exact_alignments:
-        partition_alignments_c[c_acc] = {}
+        partition_alignments[c_acc] = {}
         for x_acc in exact_alignments[c_acc]:
             aln_c, aln_x, (matches, mismatches, indels) = exact_alignments[c_acc][x_acc]
             edit_dist = mismatches + indels
-            partition_alignments_c[c_acc][x_acc] = (edit_dist, aln_c, aln_x, 1)
+            partition_alignments[c_acc][x_acc] = (edit_dist, aln_c, aln_x, 1)
 
-    alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(C[c_acc], partition_alignments_c)
+    alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(C[c_acc], partition_alignments[c_acc])
     c_alignment = alignment_matrix_to_c[c_acc]
     is_consensus = True
     not_cons_positions = []

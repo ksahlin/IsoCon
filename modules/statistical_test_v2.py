@@ -131,13 +131,14 @@ def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C ):
     exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, single_core = True)
     partition_alignments = {} 
 
+    assert len(exact_alignments) == 1
     for t_acc in exact_alignments:
         partition_alignments[t_acc] = {}
         for x_acc in exact_alignments[t_acc]:
             aln_t, aln_x, (matches, mismatches, indels) = exact_alignments[t_acc][x_acc]
             edit_dist = mismatches + indels
             partition_alignments[t_acc][x_acc] = (edit_dist, aln_t, aln_x, 1)
-    print("NR candidates with at least one hit:", len(partition_alignments))
+
     alignment_matrix_to_t, PFM_to_t = create_position_probability_matrix(C[t_acc], partition_alignments[t_acc])
     return alignment_matrix_to_t, PFM_to_t
 
