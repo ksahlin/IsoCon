@@ -151,7 +151,7 @@ def find_candidate_transcripts(read_file, params):
 
 
         # TODO: Parallelize this part over partitions: sent in the partition and return a dict s_acc : modified string
-        S_prime = correct_sequence_to_minimizer.correct_strings(partition_alignments, unique_seq_to_acc, single_core = False)
+        S_prime = correct_sequence_to_minimizer.correct_strings(partition_alignments, unique_seq_to_acc, single_core = params.single_core)
 
         for acc, s_prime in S_prime.items():
             S[acc] = s_prime

@@ -62,10 +62,9 @@ def print_candidates(out_file_name, C, significance_test_values, partition_of_X,
         # add extra constraint that if the candidate cannot be statistically tested in a meaningful way (e.g., too divergent from other sequences)
         # the candidate has to have majority on _each_ position in c here otherwise most likely error
         
-        is_consensus = check_if_consensus(c_acc, C, X, partition_of_X)
 
         if p_value == "not_tested":
-            
+            is_consensus = check_if_consensus(c_acc, C, X, partition_of_X)
             if is_consensus:
                 if final:
                     if support > 2: # need at least 3 reads for meaningful consensus

@@ -4,6 +4,7 @@ import multiprocessing as mp
 import sys
 import math
 import copy
+import random
 
 from modules.functions import create_position_probability_matrix
 
@@ -23,6 +24,8 @@ def correct_strings(partition_alignments, unique_seq_to_acc, single_core = False
             S_prime_partition = correct_to_minimizer(m, partition, unique_seq_to_acc)
         for acc, s in S_prime_partition.items():
             S_prime[acc] = s
+
+        # BUG IN SINGLE MODE!
     else:
         ####### parallelize statistical tests #########
         # pool = Pool(processes=mp.cpu_count())
@@ -60,9 +63,14 @@ def correct_to_minimizer(m, partition, unique_seq_to_acc):
     if len(partition) > 1:
         # all strings has not converged
         alignment_matrix, PFM = create_position_probability_matrix(m, partition) 
-
+        print("minimizer errors:",  math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)  )
+        # minimizer_errors = math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)
         for s in partition:
+            # if minimizer_errors < partition[s][0]:
+            #     nr_pos_to_correct = int( partition[s][0] - minimizer_errors ) #decide how many errors we should correct here
+            # else:
             nr_pos_to_correct = int(math.ceil(partition[s][0] / 2.0)) #decide how many errors we should correct here
+
             # print("positions to correct for sequence s:", nr_pos_to_correct, s ==m)
             if nr_pos_to_correct  == 0:
                 continue
@@ -78,7 +86,21 @@ def correct_to_minimizer(m, partition, unique_seq_to_acc):
                 #     sys.exit()
 
             pos_freqs_for_s.sort(key=lambda x: x[1]) # sort with respect to smallest frequencies                    
-            J = [j for j, prob in pos_freqs_for_s[:nr_pos_to_correct]] # J is the set of the nr_pos_to_correct smallest position probabilities
+            pos, highest_freq_of_error_to_correct = pos_freqs_for_s[ nr_pos_to_correct - 1 ]
+            end_position_in_list = nr_pos_to_correct
+            for pp in range(nr_pos_to_correct, len(pos_freqs_for_s)):
+                # print(pos_freqs_for_s[pp][1], highest_freq_of_error_to_correct)
+                if pos_freqs_for_s[pp][1] > highest_freq_of_error_to_correct:
+                    break
+                else:
+                    end_position_in_list += 1
+
+            J = [j for j, freq in random.sample(pos_freqs_for_s[:end_position_in_list], nr_pos_to_correct)]
+            # J = [j for j, prob in pos_freqs_for_s[:nr_pos_to_correct]] # J is the set of the nr_pos_to_correct smallest position probabilities
+            # print(nr_pos_to_correct, end_position_in_list)
+            # print(pos_freqs_for_s[:end_position_in_list])
+            # print(J)
+
             s_new = alignment_matrix[s]
             for j in J:
                 old_nucl = s_new[j]
