@@ -171,7 +171,7 @@ if __name__ == '__main__':
     # create the top-level parser
     parent_parser = argparse.ArgumentParser("Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads.")
     # parent_parser.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
-    parent_parser.add_argument('--version', action='version', version='%(prog)s 0.1.3')
+    parent_parser.add_argument('--version', action='version', version='%(prog)s 0.1.4')
 
     subparsers = parent_parser.add_subparsers(help='help for subcommand')
 

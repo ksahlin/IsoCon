@@ -14,7 +14,7 @@ from modules.edlib_alignment_module import edlib_align_sequences_keeping_accessi
 from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, get_invariant_adjustment, adjust_probability_of_read_to_alignment_invariant, adjust_probability_of_candidate_to_alignment_invariant
 
 
-def do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = False):
+def do_statistical_tests(minimizer_graph_transposed, C, X, partition_of_X, single_core = False):
     p_values = {}
     actual_tests = 0
     
@@ -23,14 +23,14 @@ def do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = Fa
     X_for_minmizer = {}
     C_for_minmizer = {}
     candidates_to = {}
-    for t_acc in minimizer_graph:
-        candidates_to[t_acc] = minimizer_graph[t_acc]
-        partition_of_X_for_minmizer[t_acc] = {c_acc : set([x_acc for x_acc in partition_of_X[c_acc]]) for c_acc in list(minimizer_graph[t_acc].keys()) + [t_acc]}
-        C_for_minmizer[t_acc] = { c_acc : C[c_acc] for c_acc in list(minimizer_graph[t_acc].keys()) + [t_acc] }
+    for t_acc in minimizer_graph_transposed:
+        candidates_to[t_acc] = minimizer_graph_transposed[t_acc]
+        partition_of_X_for_minmizer[t_acc] = {c_acc : set([x_acc for x_acc in partition_of_X[c_acc]]) for c_acc in list(minimizer_graph_transposed[t_acc].keys()) + [t_acc]}
+        C_for_minmizer[t_acc] = { c_acc : C[c_acc] for c_acc in list(minimizer_graph_transposed[t_acc].keys()) + [t_acc] }
         X_for_minmizer[t_acc] = { x_acc : X[x_acc] for c_acc in partition_of_X_for_minmizer[t_acc] for x_acc in partition_of_X_for_minmizer[t_acc][c_acc]}
 
     if single_core:
-        for t_acc in minimizer_graph:
+        for t_acc in minimizer_graph_transposed:
             p_vals = statistical_test(t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc])
             for c_acc, (corrected_p_value, k, N_t, delta_size) in p_vals.items():
                 if corrected_p_value ==  "not_tested":
@@ -53,7 +53,7 @@ def do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = Fa
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
         try:
-            res = pool.map_async(statistical_test_helper, [ ( (t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc]), {}) for t_acc in minimizer_graph  ] )
+            res = pool.map_async(statistical_test_helper, [ ( (t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc]), {}) for t_acc in minimizer_graph_transposed  ] )
             statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")

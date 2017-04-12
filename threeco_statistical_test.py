@@ -51,7 +51,7 @@ def vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C):
     plt.savefig(fig_file, format="PNG")
     plt.clf()
 
-def get_minimizer_graph(candidate_transcripts):
+def get_minimizer_graph_transposed(candidate_transcripts):
     best_edit_distances = {}
     isolated_nodes = set()
     for i, (c1, seq1) in enumerate(candidate_transcripts.items()):
@@ -82,27 +82,12 @@ def get_minimizer_graph(candidate_transcripts):
             isolated_nodes.add(c1)
 
  
-    minimizer_graph = transpose(best_edit_distances)
+    minimizer_graph_transposed = transpose(best_edit_distances)
     for c_isolated in isolated_nodes:
-        minimizer_graph[c_isolated] = {}
-    # seen_in_test = set()
-    # for m in minimizer_graph:
-        # print(best_edit_distances[c1])
-        # print("NEW", m, "size:", len(minimizer_graph[m]))
-        # if len(best_edit_distances[c1]) > 1:
-        #     print("Minimizer to multiple candidates:", m, len(minimizer_graph[m]))
-        # for c in minimizer_graph[m]:
-        #     ed = minimizer_graph[m][c]
-            # if c in seen_in_test:
-            #     print("Seen:", c)
-            # seen_in_test.add(c)
-            # print("ED:",ed, c )
-                # print("Multiple best:", c1, len(c2), best_cigars[c1][c2])
-                # print(c2)
-                # print()
-        # print()
+        minimizer_graph_transposed[c_isolated] = {}
 
-    return minimizer_graph
+    assert len(best_edit_distances) == len(candidate_transcripts)
+    return minimizer_graph_transposed
 
 def check_exon_diffs(alignments_of_x_to_c, params):
     #################################################################
@@ -207,20 +192,28 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, params):
         # check_exon_diffs(alignments_of_x_to_c, params)
 
         ############# GET THE CLOSES HIGHEST SUPPORTED REFERENCE TO TEST AGAINST FOR EACH CANDIDATE ############
-        minimizer_graph = get_minimizer_graph(C)
+        minimizer_graph_transposed = get_minimizer_graph_transposed(C)
+
+        # minimizer_graph2, converged = graphs.construct_exact_minimizer_graph(C, params)
+        # tot_ed1 = sum([minimizer_graph[acc1][acc2] for acc1 in minimizer_graph for acc2 in minimizer_graph[acc1]  ])
+        # tot_ed2 = sum([minimizer_graph2[acc1][acc2] for acc1 in minimizer_graph2 for acc2 in minimizer_graph2[acc1]  ])
+        # tot_edges1 = sum([1 for acc1 in minimizer_graph for acc2 in minimizer_graph[acc1] ])
+        # tot_edges2 = sum([1 for acc1 in minimizer_graph2 for acc2 in minimizer_graph2[acc1] ])
+        # print(tot_ed1, tot_ed2, tot_edges1, tot_edges2 )
+        # assert tot_edges1 == tot_edges2
 
         ## save time if the minimizer and all cantidates in a component has identical reads assignmed to them as previous step
         # Since indata is the same, the test is guaranteed to give same siginficance values as previous step
 
         previous_significance_values = {}
-        for t_acc in list(minimizer_graph.keys()):
-            accessions_in_component_to_test = set([c_acc for c_acc in minimizer_graph[t_acc].keys()] + [t_acc])
+        for t_acc in list(minimizer_graph_transposed.keys()):
+            accessions_in_component_to_test = set([c_acc for c_acc in minimizer_graph_transposed[t_acc].keys()] + [t_acc])
             # print(accessions_in_component_to_test)
             if (accessions_in_component_to_test == previous_components[t_acc]) and all([ len(previous_partition_of_X[acc]) == len(partition_of_X[acc]) for acc in accessions_in_component_to_test]):
                 print("TEST IDENTICAL TO PREVIOUS STEP, SKIPPING FOR", t_acc)
                 for acc in accessions_in_component_to_test:
                     previous_significance_values[acc] = significance_values[acc]
-                del minimizer_graph[t_acc]
+                del minimizer_graph_transposed[t_acc]
             else: 
                 # print("Modified")
                 previous_components[t_acc] = accessions_in_component_to_test
@@ -231,10 +224,10 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, params):
         # get all candidats that serve as null-hypothesis references and have neighbors subject to testing
         # these are all candidates that are minimizers to some other, isolated nodes are not tested
         # candidatate in G_star_C
-        nr_of_tests_this_round = len(minimizer_graph)
+        nr_of_tests_this_round = len(minimizer_graph_transposed)
         print("NUMBER OF CANDIDATES LEFT:", len(C))
 
-        new_significance_values = statistical_test_v2.do_statistical_tests(minimizer_graph, C, X, partition_of_X, single_core = params.single_core )
+        new_significance_values = statistical_test_v2.do_statistical_tests(minimizer_graph_transposed, C, X, partition_of_X, single_core = True) #params.single_core )
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}
         for c_acc, (corrected_p_value, k, N_t, delta_size) in list(new_significance_values.items()):
