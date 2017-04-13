@@ -227,7 +227,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, params):
         nr_of_tests_this_round = len(minimizer_graph_transposed)
         print("NUMBER OF CANDIDATES LEFT:", len(C))
 
-        new_significance_values = statistical_test_v2.do_statistical_tests(minimizer_graph_transposed, C, X, partition_of_X, single_core = True) #params.single_core )
+        new_significance_values = statistical_test_v2.do_statistical_tests(minimizer_graph_transposed, C, X, partition_of_X, single_core = params.single_core )
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}
         for c_acc, (corrected_p_value, k, N_t, delta_size) in list(new_significance_values.items()):

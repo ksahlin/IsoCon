@@ -21,7 +21,7 @@ def correct_strings(partition_alignments, unique_seq_to_acc, single_core = False
 
     if single_core:
         for m, partition in partition_alignments.items():
-            S_prime_partition = correct_to_minimizer(m, partition, unique_seq_to_acc)
+            S_prime_partition = correct_to_minimizer(m, partition, partition_unique_seq_to_acc[m])
         for acc, s in S_prime_partition.items():
             S_prime[acc] = s
 
@@ -64,11 +64,14 @@ def correct_to_minimizer(m, partition, unique_seq_to_acc):
         # all strings has not converged
         alignment_matrix, PFM = create_position_probability_matrix(m, partition) 
         print("minimizer errors:",  math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)  )
+        minimizer_errors = min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ])
         # minimizer_errors = math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)
         for s in partition:
             # if minimizer_errors < partition[s][0]:
             #     nr_pos_to_correct = int( partition[s][0] - minimizer_errors ) #decide how many errors we should correct here
             # else:
+            #     nr_pos_to_correct = int(math.ceil(partition[s][0] / 2.0)) #decide how many errors we should correct here
+            # nr_pos_to_correct = max(int( partition[s][0] - minimizer_errors ), int(math.ceil(partition[s][0] / 2.0)))
             nr_pos_to_correct = int(math.ceil(partition[s][0] / 2.0)) #decide how many errors we should correct here
 
             # print("positions to correct for sequence s:", nr_pos_to_correct, s ==m)
