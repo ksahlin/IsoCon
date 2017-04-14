@@ -42,7 +42,7 @@ def get_exact_minimizer_graph(seq_to_acc_list_sorted, single_core = False):
         original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
-        chunk_size = max(int(len(seq_to_acc_list_sorted) / (10*mp.cpu_count())), 30 )
+        chunk_size = max(int(len(seq_to_acc_list_sorted) / (10*mp.cpu_count())), 20 )
         chunks = [(i, seq_to_acc_list_sorted[i:i + chunk_size]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size)] 
         print([i for i in range(0, len(seq_to_acc_list_sorted), chunk_size)])
         print([len(ch) for i,ch in chunks])
@@ -294,7 +294,7 @@ def get_exact_minimizer_graph_2set(seq_to_acc_list_sorted_all, target_accessions
         original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
-        chunk_size = int(len(seq_to_acc_list_sorted_all) / (10*mp.cpu_count())) 
+        chunk_size = max(int(len(seq_to_acc_list_sorted) / (10*mp.cpu_count())), 20 )
         chunks = [(i, seq_to_acc_list_sorted_all[i:i + chunk_size]) for i in range(0, len(seq_to_acc_list_sorted_all), chunk_size)] 
         print([i for i in range(0, len(seq_to_acc_list_sorted_all), chunk_size)])
         print([len(ch) for i,ch in chunks])
