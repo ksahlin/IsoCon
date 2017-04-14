@@ -92,41 +92,44 @@ def correct_to_minimizer(m, partition, unique_seq_to_acc):
             s_alignment_in_matrix = alignment_matrix[s]
             # find the position probabilities of the alignment of s in PFM
 
-            # pos_freqs_for_s = []
-            # for j in range(len(PFM)):
-            #     pos_freqs_for_s.append( (j, PFM[j][s_alignment_in_matrix[j]]) )
-
-            # pos_freqs_for_s.sort(key=lambda x: x[1]) # sort with respect to smallest frequencies                    
-            # pos, highest_freq_of_error_to_correct = pos_freqs_for_s[ nr_pos_to_correct - 1 ]
-            # end_position_in_list = nr_pos_to_correct
-            # for pp in range(nr_pos_to_correct, len(pos_freqs_for_s)):
-            #     # print(pos_freqs_for_s[pp][1], highest_freq_of_error_to_correct)
-            #     if pos_freqs_for_s[pp][1] > highest_freq_of_error_to_correct:
-            #         break
-            #     else:
-            #         end_position_in_list += 1
-
-            # J = [j for j, freq in random.sample(pos_freqs_for_s[:end_position_in_list], nr_pos_to_correct)]
-
-
-
-            # ####### TEST ################
-            # ####### TEST ################
-            pos_freqs_for_s_mod = []
+            pos_freqs_for_s = []
             for j in range(len(PFM)):
-                v_j = s_alignment_in_matrix[j]
-                pos_freqs_for_s_mod.append( (j, PFM[j][v_j] / float(max(c[v_j], 1) ) ))
-            pos_freqs_for_s_mod.sort(key=lambda x: x[1]) # sort with respect to smallest frequencies                    
-            pos, highest_freq_of_error_to_correct = pos_freqs_for_s_mod[ nr_pos_to_correct - 1 ]
+                pos_freqs_for_s.append( (j, PFM[j][s_alignment_in_matrix[j]]) )
+
+            pos_freqs_for_s.sort(key=lambda x: x[1]) # sort with respect to smallest frequencies                    
+            pos, highest_freq_of_error_to_correct = pos_freqs_for_s[ nr_pos_to_correct - 1 ]
             end_position_in_list = nr_pos_to_correct
-            for pp in range(nr_pos_to_correct, len(pos_freqs_for_s_mod)):
-                # print(pos_freqs_for_s_mod[pp][1], highest_freq_of_error_to_correct)
-                if pos_freqs_for_s_mod[pp][1] > highest_freq_of_error_to_correct:
+            for pp in range(nr_pos_to_correct, len(pos_freqs_for_s)):
+                # print(pos_freqs_for_s[pp][1], highest_freq_of_error_to_correct)
+                if pos_freqs_for_s[pp][1] > highest_freq_of_error_to_correct:
                     break
                 else:
                     end_position_in_list += 1
-            J = [j for j, freq in random.sample(pos_freqs_for_s_mod[:end_position_in_list], nr_pos_to_correct)]
 
+            J = [j for j, freq in random.sample(pos_freqs_for_s[:end_position_in_list], nr_pos_to_correct)]
+
+
+
+
+            ########### TEST WEIGHTING EACH MINORITY POSITION BY IT'S OBSERVED FREQUENCY THROUGHOUT THE ALIGNMENTS TO THE MINIMIZER ################
+            # pos_freqs_for_s_mod = []
+            # for j in range(len(PFM)):
+            #     v_j = s_alignment_in_matrix[j]
+            #     pos_freqs_for_s_mod.append( (j, PFM[j][v_j] / float(max(c[v_j], 1) ) ))
+            # pos_freqs_for_s_mod.sort(key=lambda x: x[1]) # sort with respect to smallest frequencies                    
+            # pos, highest_freq_of_error_to_correct = pos_freqs_for_s_mod[ nr_pos_to_correct - 1 ]
+            # end_position_in_list = nr_pos_to_correct
+            # for pp in range(nr_pos_to_correct, len(pos_freqs_for_s_mod)):
+            #     # print(pos_freqs_for_s_mod[pp][1], highest_freq_of_error_to_correct)
+            #     if pos_freqs_for_s_mod[pp][1] > highest_freq_of_error_to_correct:
+            #         break
+            #     else:
+            #         end_position_in_list += 1
+            # J = [j for j, freq in random.sample(pos_freqs_for_s_mod[:end_position_in_list], nr_pos_to_correct)]
+            #############################################
+
+
+            # ####### TEST CHOOSING RANDOM SUBSET OUT OF ALL MINORITY POSITONS IN THE READ ################
             # minority_positions_for_s = []
             # for j in range(len(PFM)):
             #     count_v_j = PFM[j][s_alignment_in_matrix[j]]
@@ -139,8 +142,7 @@ def correct_to_minimizer(m, partition, unique_seq_to_acc):
             #     print("OMFG!!", len(minority_positions_for_s), nr_pos_to_correct)
             #     nr_pos_to_correct = len(minority_positions_for_s)
             # J = random.sample(minority_positions_for_s, nr_pos_to_correct)
-            # ###################
-            # ###################
+            ##############################################
 
 
             # J = [j for j, prob in pos_freqs_for_s[:nr_pos_to_correct]] # J is the set of the nr_pos_to_correct smallest position probabilities

@@ -7,6 +7,9 @@ import os
 import unittest
 import copy
 import math 
+from collections import defaultdict
+from itertools import combinations
+
 
 from scipy.stats import poisson
 from time import time
@@ -50,6 +53,46 @@ def vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C):
     fig_file = os.path.join(params.plotfolder, "Graph_bip_1000_step_" + str(step) + ".png")
     plt.savefig(fig_file, format="PNG")
     plt.clf()
+
+def transform(read):
+    transformed_seq = []
+    prev_nucl = ""
+    for nucl in read:
+        if nucl != prev_nucl:
+            transformed_seq.append(nucl)
+        prev_nucl = nucl
+
+    return "".join(transformed_seq)
+
+def get_homopolymer_invariants(candidate_transcripts):
+    seq_to_acc = { seq : acc for (acc, seq) in  candidate_transcripts.items() }
+    print("Unique before compression: ", len(seq_to_acc) )
+
+    candidate_transcripts_transformed = {}
+    clusters = defaultdict(list)
+    for acc in candidate_transcripts:
+        seq_transformed = transform(candidate_transcripts[acc])
+        candidate_transcripts_transformed[acc] = seq_transformed
+        clusters[seq_transformed].append(acc)
+
+    seq_to_acc_transformed = { seq : acc for (acc, seq) in candidate_transcripts_transformed.items()}
+    edges = {}
+    for seq in clusters:
+        if len(clusters[seq]) > 1:
+            print(clusters[seq])
+            for acc in clusters[seq]:
+                edges[acc] = {}
+            for acc1, acc2 in combinations(clusters[seq], 2):
+                edges[acc1][acc2] = 1
+                edges[acc2][acc1] = 1
+
+                # result =  edlib.align( candidate_transcripts[acc1], consensus_transcripts[acc2], task="path")
+                # ed = result["editDistance"]
+                # cigar = result["cigar"]
+                # if ed <= 1 or acc1 == "read_3959_support_275_521_0.0_955_1" or acc2 == "read_3959_support_275_521_0.0_955_1":
+                #     print("ED:", ed, cigar, acc1,acc2 )
+
+    return edges
 
 def get_minimizer_graph_transposed(candidate_transcripts):
     best_edit_distances = {}
@@ -193,6 +236,18 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, params):
 
         ############# GET THE CLOSES HIGHEST SUPPORTED REFERENCE TO TEST AGAINST FOR EACH CANDIDATE ############
         minimizer_graph_transposed = get_minimizer_graph_transposed(C)
+
+        extra_edges_from_collapsed_homopolymers = get_homopolymer_invariants(C)
+        for acc1 in extra_edges_from_collapsed_homopolymers:
+            for acc2 in extra_edges_from_collapsed_homopolymers[acc1]:
+                if acc1 in minimizer_graph_transposed:
+                    if acc2 not in minimizer_graph_transposed[acc1]:
+                        minimizer_graph_transposed[acc1][acc2] = "homopolymer_identical"
+                else:
+                    minimizer_graph_transposed[acc1] = {}
+                    minimizer_graph_transposed[acc1][acc2] = "homopolymer_identical"
+
+
 
         # minimizer_graph2, converged = graphs.construct_exact_minimizer_graph(C, params)
         # tot_ed1 = sum([minimizer_graph[acc1][acc2] for acc1 in minimizer_graph for acc2 in minimizer_graph[acc1]  ])
