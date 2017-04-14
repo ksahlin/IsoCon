@@ -63,18 +63,19 @@ def correct_to_minimizer(m, partition, unique_seq_to_acc):
     if len(partition) > 1:
         # all strings has not converged
         alignment_matrix, PFM = create_position_probability_matrix(m, partition) 
-        print("minimizer errors:",  math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)  )
+        
+        # print("minimizer errors:",  math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)  )
         # minimizer_errors = min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ])
         # minimizer_errors = math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)
 
         ### TEST LOG ERROR TYPES #######
-        c = Counter()
-        for j in range(len(PFM)):
-            max_v_j = max(PFM[j], key = lambda x: PFM[j][x] )
-            for v in PFM[j]:
-                if v != max_v_j:
-                   c[v] += PFM[j][v]
-        print("Error types:", c, "depth:", len(partition) )
+        # c = Counter()
+        # for j in range(len(PFM)):
+        #     max_v_j = max(PFM[j], key = lambda x: PFM[j][x] )
+        #     for v in PFM[j]:
+        #         if v != max_v_j:
+        #            c[v] += PFM[j][v]
+        # print("Error types:", c, "depth:", len(partition) )
         #############################
 
         for s in partition:

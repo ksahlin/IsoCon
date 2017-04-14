@@ -198,16 +198,16 @@ def find_candidate_transcripts(read_file, params):
             print("Minimizer did not pass threshold support of {0} reads.".format(C[m]))
             del C[m]
 
-    # edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers)
-    # alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m)
+    edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers)
+    alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m)
     m_to_acc = {}
     for i, (m, support) in enumerate(list(C.items())):
         m_acc = "read_" + str(i) + "_support_" + str(support)
         m_to_acc[m] = m_acc
-    # alignments_of_x_to_m_filtered, m_to_acc = filter_candidates(alignments_of_x_to_m, C, params)
+    alignments_of_x_to_m_filtered, m_to_acc, C_filtered = filter_candidates(alignments_of_x_to_m, C, params)
     candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
     # alignments_file_name = os.path.join(params.outfolder, "candidate_alignments.tsv")
-    write_output.print_candidates_from_minimizers(candidates_file_name, C, m_to_acc, params)
+    write_output.print_candidates_from_minimizers(candidates_file_name, C_filtered, m_to_acc, params)
 
     return candidates_file_name
 
@@ -220,36 +220,42 @@ def filter_candidates(alignments_of_x_to_c, C, params):
         m_acc = "read_" + str(i) + "_support_" + str(support)
         m_to_acc[m] = m_acc
         
-        # #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
-        # # add extra constraint that the candidate has to have majority on _each_ position in c here otherwise most likely error
-        # if support >= params.min_candidate_support:
-        #     # print("needs to be consensus over each base pair")
-        #     partition_alignments_c = {m : (0, m, m, 1)}  # format: (edit_dist, aln_c, aln_x, 1)
-        #     for x_acc in alignments_of_x_to_c_transposed[m]:
-        #         aln_x, aln_m, (matches, mismatches, indels) = alignments_of_x_to_c_transposed[m][x_acc]
-        #         ed = mismatches + indels
-        #         partition_alignments_c[x_acc] = (ed, aln_m, aln_x, 1) 
-        #         # print(ed, aln_x, aln_m)
+        #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
+        # add extra constraint that the candidate has to have majority on _each_ position in c here otherwise most likely error
+        if support >= params.min_candidate_support:
+            # print("needs to be consensus over each base pair")
+            partition_alignments_c = {m : (0, m, m, 1)}  # format: (edit_dist, aln_c, aln_x, 1)
+            for x_acc in alignments_of_x_to_c_transposed[m]:
+                aln_x, aln_m, (matches, mismatches, indels) = alignments_of_x_to_c_transposed[m][x_acc]
+                ed = mismatches + indels
+                partition_alignments_c[x_acc] = (ed, aln_m, aln_x, 1) 
+                # print(ed, aln_x, aln_m)
 
-        #     alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(m, partition_alignments_c)
-        #     c_alignment = alignment_matrix_to_c[m]
-        #     is_consensus = True
-        #     for j in range(len(PFM_to_c)):
-        #         c_v =  c_alignment[j]
-        #         candidate_count = PFM_to_c[j][c_v]
-        #         for v in PFM_to_c[j]:
-        #             if v != c_v and candidate_count <= PFM_to_c[j][v]: # needs to have at least one more in support than the second best as we have added c itself to the multialignment
-        #                 # print("not consensus at:", j)
-        #                 is_consensus = False
+            alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(m, partition_alignments_c)
+            c_alignment = alignment_matrix_to_c[m]
+            is_consensus = True
+            for j in range(len(PFM_to_c)):
+                c_v =  c_alignment[j]
+                candidate_count = PFM_to_c[j][c_v]
+                max_v_j = max(PFM_to_c[j], key = lambda x: PFM_to_c[j][x] )
+                max_count = PFM_to_c[j][max_v_j]
+                if candidate_count < max_count:
+                    print("not consensus at:", j)
+                    is_consensus = False                    
 
-        #     if not is_consensus:
-        #         print("Read with support {0} were not consensus".format(str(support)))
-        #         del alignments_of_x_to_c_transposed[m]
-        #         del C[m]
-        # else:
-        #     print("deleting:")
-        #     del alignments_of_x_to_c_transposed[m]
-        #     del C[m]
+                # for v in PFM_to_c[j]:
+                #     if v != c_v and candidate_count <= PFM_to_c[j][v]: # needs to have at least one more in support than the second best as we have added c itself to the multialignment
+                #         print("not consensus at:", j)
+                #         is_consensus = False
+
+            if not is_consensus:
+                print("Read with support {0} were not consensus".format(str(support)))
+                del alignments_of_x_to_c_transposed[m]
+                del C[m]
+        else:
+            print("deleting:")
+            del alignments_of_x_to_c_transposed[m]
+            del C[m]
 
 
     # we now have an accession of minimizer, change to this accession insetad of storing sequence
@@ -262,7 +268,7 @@ def filter_candidates(alignments_of_x_to_c, C, params):
             ed =  mismatches + indels
             alignments_of_x_to_m_filtered[x_acc][m_acc] = (ed, aln_x, aln_m)
 
-    return alignments_of_x_to_m_filtered, m_to_acc
+    return alignments_of_x_to_m_filtered, m_to_acc, C
 
 
 
