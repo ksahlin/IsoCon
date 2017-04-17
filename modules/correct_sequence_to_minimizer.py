@@ -104,20 +104,10 @@ def correct_to_minimizer(m, partition, unique_seq_to_acc):
             pos, highest_freq_of_error_to_correct = pos_freqs_for_s[ nr_pos_to_correct - 1 ]
             end_position_in_list = nr_pos_to_correct
 
-            end_position_in_list_while = nr_pos_to_correct
             pp = nr_pos_to_correct
             while pos_freqs_for_s[pp][1] == highest_freq_of_error_to_correct:
-                end_position_in_list_while += 1
+                end_position_in_list += 1
                 pp += 1
-
-            for pp in range(nr_pos_to_correct, len(pos_freqs_for_s)):
-                # print(pos_freqs_for_s[pp][1], highest_freq_of_error_to_correct)
-                if pos_freqs_for_s[pp][1] > highest_freq_of_error_to_correct:
-                    break
-                else:
-                    end_position_in_list += 1
-
-            assert end_position_in_list == end_position_in_list_while
 
             J = [j for j, freq in random.sample(pos_freqs_for_s[:end_position_in_list], nr_pos_to_correct)]
 
