@@ -111,7 +111,8 @@ def run_stat_filter(params):
     original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.fl_reads, 'r'))}
     filtered_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
     G_star, partition_of_X =  partitions.partition_strings_2set(original_reads, filtered_candidates, params.fl_reads, params.candidates, params)
-    threeco_statistical_test.stat_filter_candidates(params.fl_reads, params.candidates, partition_of_X, params)
+    to_realign = {}
+    threeco_statistical_test.stat_filter_candidates(params.fl_reads, params.candidates, partition_of_X, to_realign, params)
     total_elapsed = time() - total_start
     if params.cleanup:
         clean_dir(params)
@@ -145,7 +146,7 @@ def run_pipeline(params):
         params.read_file = filtered_file
 
     minimizer_start = time() 
-    candidate_file = threeco_get_candidates.find_candidate_transcripts(params.read_file, params)
+    candidate_file, partition_of_X, to_realign = threeco_get_candidates.find_candidate_transcripts(params.read_file, params)
     # for x_acc in alignments_of_reads_to_candidates:
     #     assert len(alignments_of_reads_to_candidates[x_acc]) == 1
     minimizer_elapsed = time() - minimizer_start
@@ -154,9 +155,9 @@ def run_pipeline(params):
     stats_start = time()
     original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.fl_reads, 'r'))}
     candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
-    G_star, partition_of_X = partitions.partition_strings_2set(original_reads, candidates, params.read_file, candidate_file, params)
+    # G_star, partition_of_X = partitions.partition_strings_2set(original_reads, candidates, params.read_file, candidate_file, params)
 
-    threeco_statistical_test.stat_filter_candidates(params.read_file, candidate_file, partition_of_X, params)
+    threeco_statistical_test.stat_filter_candidates(params.read_file, candidate_file, partition_of_X, to_realign, params)
     stats_elapsed = time() - stats_start
     write_output.logger('TIME ELAPSED FOR STATISTICAL TEST OF CANDIDATES:{0}'.format(str(stats_elapsed)), params.logfile)
 

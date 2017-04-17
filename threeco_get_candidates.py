@@ -100,11 +100,7 @@ def find_candidate_transcripts(read_file, params):
         ###### temp check for isoform collapse###########
         import re
         pattern = r"[-]{8,}"
-        # big_edit_distances = [ partition_alignments[s1][s2] for s1 in partition_alignments for s2 in partition_alignments[s1] if re.search(pattern, partition_alignments[s1][s2][1]) or  re.search(pattern, partition_alignments[s1][s2][2]) ] 
-        # for tup in big_edit_distances:
-        #     print("{0}\n{1}\n{2}\n\n".format(tup[0], tup[1], tup[2]))
         cccntr = 0
-        print("Barcodes:", params.barcodes )
         out_file = open(os.path.join(params.outfolder, "exon_difs.fa"), "w")
         if params.barcodes:
             for s1, s1_dict in list(partition_alignments.items()): 
@@ -182,6 +178,7 @@ def find_candidate_transcripts(read_file, params):
         N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
         C[m] = N_t   
 
+
     original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
     reads_to_minimizers = {}
     # [for m, partition in partition_alignments.items() for s in partition]
@@ -204,12 +201,18 @@ def find_candidate_transcripts(read_file, params):
     for i, (m, support) in enumerate(list(C.items())):
         m_acc = "read_" + str(i) + "_support_" + str(support)
         m_to_acc[m] = m_acc
-    alignments_of_x_to_m_filtered, m_to_acc, C_filtered = filter_candidates(alignments_of_x_to_m, C, params)
+    alignments_of_x_to_m_filtered, m_to_acc, C_filtered, partition_of_X = filter_candidates(alignments_of_x_to_m, C, params)
     candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
-    # alignments_file_name = os.path.join(params.outfolder, "candidate_alignments.tsv")
     write_output.print_candidates_from_minimizers(candidates_file_name, C_filtered, m_to_acc, params)
 
-    return candidates_file_name
+    to_realign = set(original_reads.values()).difference(set(alignments_of_x_to_m_filtered.keys()))
+
+    to_realign = {}
+    for acc, seq in original_reads.items():
+        if acc not in alignments_of_x_to_m_filtered:
+            to_realign[acc] = seq
+
+    return candidates_file_name, partition_of_X, to_realign 
 
 def filter_candidates(alignments_of_x_to_c, C, params):
     alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)   
@@ -257,6 +260,7 @@ def filter_candidates(alignments_of_x_to_c, C, params):
             del alignments_of_x_to_c_transposed[m]
             del C[m]
 
+    partition_of_X = { m_to_acc[c] : set(alignments_of_x_to_c_transposed[c].keys()) for c in  alignments_of_x_to_c_transposed}
 
     # we now have an accession of minimizer, change to this accession insetad of storing sequence
     alignments_of_x_to_m_filtered = transpose(alignments_of_x_to_c_transposed)
@@ -268,7 +272,7 @@ def filter_candidates(alignments_of_x_to_c, C, params):
             ed =  mismatches + indels
             alignments_of_x_to_m_filtered[x_acc][m_acc] = (ed, aln_x, aln_m)
 
-    return alignments_of_x_to_m_filtered, m_to_acc, C
+    return alignments_of_x_to_m_filtered, m_to_acc, C, partition_of_X
 
 
 

@@ -76,6 +76,8 @@ def get_homopolymer_invariants(candidate_transcripts):
         clusters[seq_transformed].append(acc)
 
     seq_to_acc_transformed = { seq : acc for (acc, seq) in candidate_transcripts_transformed.items()}
+    print("Unique after compression: ", len(seq_to_acc_transformed) )
+
     edges = {}
     for seq in clusters:
         if len(clusters[seq]) > 1:
@@ -162,7 +164,7 @@ def check_exon_diffs(alignments_of_x_to_c, params):
     ###################################################################
     ###################################################################
 
-def stat_filter_candidates(read_file, candidate_file, partition_of_X, params):
+def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign, params):
     modified = True
 
     ############ GET READS AND CANDIDATES #################
@@ -170,14 +172,16 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, params):
     C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
 
     ################################################################
-
+    print()
+    print("STARTING STATISTICAL TESTING")
+    print()
+    print("Number of reads to realign:", len(to_realign))
     step = 1
     
     previous_partition_of_X = copy.deepcopy(partition_of_X) #{ c_acc : set() for c_acc in C.keys()}
     previous_components = { c_acc : set() for c_acc in C.keys()}
     significance_values = {}   
     realignment_to_avoid_local_max = 0
-    to_realign = {}
     remaining_to_align_read_file = os.path.join(params.outfolder, "remaining_to_align.fa")
 
 
@@ -238,16 +242,19 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, params):
         minimizer_graph_transposed = get_minimizer_graph_transposed(C)
 
         extra_edges_from_collapsed_homopolymers = get_homopolymer_invariants(C)
+        homopol_extra_added = 0
         for acc1 in extra_edges_from_collapsed_homopolymers:
             for acc2 in extra_edges_from_collapsed_homopolymers[acc1]:
                 if acc1 in minimizer_graph_transposed:
                     if acc2 not in minimizer_graph_transposed[acc1]:
                         minimizer_graph_transposed[acc1][acc2] = "homopolymer_identical"
+                        homopol_extra_added += 1
                 else:
                     minimizer_graph_transposed[acc1] = {}
                     minimizer_graph_transposed[acc1][acc2] = "homopolymer_identical"
+                    homopol_extra_added += 1
 
-
+        print("EXTRA EDGES FROM HOMOPOLYMER IDENTICAL:", homopol_extra_added)
 
         # minimizer_graph2, converged = graphs.construct_exact_minimizer_graph(C, params)
         # tot_ed1 = sum([minimizer_graph[acc1][acc2] for acc1 in minimizer_graph for acc2 in minimizer_graph[acc1]  ])

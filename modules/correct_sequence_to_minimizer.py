@@ -59,8 +59,11 @@ def correct_to_minimizer(m, partition, unique_seq_to_acc):
     S_prime_partition = {}
 
     N_t = sum([container_tuple[3] for s, container_tuple in partition.items()]) # total number of sequences in partition
+    
+    if N_t == 2:
+        print("Partition has size", N_t, "no meaningful correction can be done")
 
-    if len(partition) > 1:
+    if len(partition) > 1 and N_t > 2:
         # all strings has not converged
         alignment_matrix, PFM = create_position_probability_matrix(m, partition) 
         
@@ -100,12 +103,21 @@ def correct_to_minimizer(m, partition, unique_seq_to_acc):
             pos_freqs_for_s.sort(key=lambda x: x[1]) # sort with respect to smallest frequencies                    
             pos, highest_freq_of_error_to_correct = pos_freqs_for_s[ nr_pos_to_correct - 1 ]
             end_position_in_list = nr_pos_to_correct
+
+            end_position_in_list_while = nr_pos_to_correct
+            pp = nr_pos_to_correct
+            while pos_freqs_for_s[pp][1] == highest_freq_of_error_to_correct:
+                end_position_in_list_while += 1
+                pp += 1
+
             for pp in range(nr_pos_to_correct, len(pos_freqs_for_s)):
                 # print(pos_freqs_for_s[pp][1], highest_freq_of_error_to_correct)
                 if pos_freqs_for_s[pp][1] > highest_freq_of_error_to_correct:
                     break
                 else:
                     end_position_in_list += 1
+
+            assert end_position_in_list == end_position_in_list_while
 
             J = [j for j, freq in random.sample(pos_freqs_for_s[:end_position_in_list], nr_pos_to_correct)]
 
@@ -170,4 +182,6 @@ def correct_to_minimizer(m, partition, unique_seq_to_acc):
 
             accession_of_s = unique_seq_to_acc[s] # this is still unique
             S_prime_partition[accession_of_s] = s_modified
+    
     return S_prime_partition
+
