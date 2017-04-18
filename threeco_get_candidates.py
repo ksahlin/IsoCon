@@ -17,6 +17,81 @@ from modules.input_output import fasta_parser, write_output
 from modules import correct_sequence_to_minimizer
 
 
+# def get_homopolymer_invariants(candidate_transcripts):
+#     seq_to_acc = { seq : acc for (acc, seq) in  candidate_transcripts.items() }
+#     print("Unique before compression: ", len(seq_to_acc) )
+
+#     candidate_transcripts_transformed = {}
+#     clusters = defaultdict(list)
+#     for acc in candidate_transcripts:
+#         seq_transformed = transform(candidate_transcripts[acc])
+#         candidate_transcripts_transformed[acc] = seq_transformed
+#         clusters[seq_transformed].append(acc)
+
+#     seq_to_acc_transformed = { seq : acc for (acc, seq) in candidate_transcripts_transformed.items()}
+#     print("Unique after compression: ", len(seq_to_acc_transformed) )
+
+#     edges = {}
+#     for seq in clusters:
+#         if len(clusters[seq]) > 1:
+#             # print(clusters[seq])
+#             for acc in clusters[seq]:
+#                 edges[acc] = {}
+#             for acc1, acc2 in combinations(clusters[seq], 2):
+#                 edges[acc1][acc2] = 1
+#                 edges[acc2][acc1] = 1
+
+#     return edges
+
+
+# #############################################################
+# #############################################################
+# if homopolymer_compression:
+#     # All converged
+#     for acc, s in S.items():
+#         if s not in G_star:
+#             G_star[s] = {}
+#         else:
+#             if s in G_star[s]:
+#                 G_star[s][s] += 1  
+#                 # print(acc)
+#             else:
+#                 G_star[s][s] = 2
+#                 # print(acc)
+
+#     converged = False
+#     print("ENTERING HOMOPOLYMER COMPRESSION MODE")
+#     # create homopolymer equivalence class edges
+#     G_homopolymer_star = {}
+#     weight = {}
+#     for acc, s in S.items():
+#         if s not in G_star:
+#             G_star[s] = {}
+#             weight[s] = 1
+#         else:
+#             weight[s] += 1
+
+#     homopolymer_edges = get_homopolymer_invariants(S)
+#     homopol_extra_added = 0
+#     for acc1 in homopolymer_edges:
+#         s1 = S[acc1]
+#         for acc2 in homopolymer_edges[acc1]:
+#             # Do individual minimizer component graphs of the homopolymenr equivalence classes here!
+#             s2 = S[acc2]
+#             G_star[s1][s2] = 1
+#             G_star[s2][s1] = 1
+#             homopol_extra_added += 2
+
+#     print("EDGES FROM HOMOPOLYMER IDENTICAL:", homopol_extra_added)
+#     unique_strings = {transform(seq) : acc for acc, seq in S.items()}
+#     S_prime_transformed = {acc : seq for seq, acc in unique_strings.items()}
+#     # Send homopolymer components to this function!
+#     # Keep in mind. Isolated nodes are not neccesarily isolated!
+#     all_internode_edges_in_minimizer_graph, isolated_nodes = minimizer_graph.compute_minimizer_graph(S_prime_transformed, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
+
+#     #############################################################
+#     #############################################################
+
 def get_unique_seq_accessions(S):
     seq_to_acc = {}
     for acc, seq in  S.items():
@@ -79,15 +154,11 @@ def find_candidate_transcripts(read_file, params):
     minimizer_elapsed = time() - minimizer_start
     write_output.logger('Time for minimizers and partition, step 1:{0}'.format(str(minimizer_elapsed)), params.logfile)
 
-    # if converged:
-    #     for m in M:
-    #         N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
-    #         C[m] = N_t           
-    #     return C
-
     step = 1
     prev_edit_distances_2steps_ago = [2**28,2**28,2**28] # prevents 2-cycles
     prev_edit_distances = [2**28]
+
+    # homopolymer_mode = False
 
     while not converged:
         correction_start = time() 
@@ -131,18 +202,35 @@ def find_candidate_transcripts(read_file, params):
             # target sequeneces. This is a product of our fast heurustics of defining a minmap score + SSW filtering to choose best alignment
             print("CYCLE!!!")
             assert len(partition_alignments) == len(M)
-            break             
+            break
+            # if homopolymer_mode:
+            #     break
+            # else:
+            #     homopolymer_mode = True
+
         if sum(edit_distances) > sum(prev_edit_distances) and  max(edit_distances) > max(prev_edit_distances) :
             #return here if there is some sequence alternating between best alignments and gets corrected and re-corrected to different candidate sequences
             assert len(partition_alignments) == len(M)
             print("exiting here!")
-            break            
+            break
+            # if homopolymer_mode:
+            #     print("exiting here!")
+            #     break            
+            # else:
+            #     homopolymer_mode = True
+
 
         has_converged = [True if ed == 0 else False for ed in edit_distances] 
         if all(has_converged):
             # we return here if tha data set contain isolated nodes.
             assert len(partition_alignments) == len(M)
+            print("Normal convergence")
             break
+            # if homopolymer_mode:
+            #     print("Normal convergence")
+            #     break
+            # else: 
+            #     homopolymer_mode = True
         #######################################################
 
 
@@ -197,10 +285,10 @@ def find_candidate_transcripts(read_file, params):
 
     edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers)
     alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m)
-    m_to_acc = {}
-    for i, (m, support) in enumerate(list(C.items())):
-        m_acc = "read_" + str(i) + "_support_" + str(support)
-        m_to_acc[m] = m_acc
+    # m_to_acc = {}
+    # for i, (m, support) in enumerate(list(C.items())):
+    #     m_acc = "read_" + str(i) + "_support_" + str(support)
+    #     m_to_acc[m] = m_acc
     alignments_of_x_to_m_filtered, m_to_acc, C_filtered, partition_of_X = filter_candidates(alignments_of_x_to_m, C, params)
     candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
     write_output.print_candidates_from_minimizers(candidates_file_name, C_filtered, m_to_acc, params)

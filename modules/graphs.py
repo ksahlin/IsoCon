@@ -26,33 +26,6 @@ def transform(read):
     return "".join(transformed_seq)
 
 
-def get_homopolymer_invariants(candidate_transcripts):
-    seq_to_acc = { seq : acc for (acc, seq) in  candidate_transcripts.items() }
-    print("Unique before compression: ", len(seq_to_acc) )
-
-    candidate_transcripts_transformed = {}
-    clusters = defaultdict(list)
-    for acc in candidate_transcripts:
-        seq_transformed = transform(candidate_transcripts[acc])
-        candidate_transcripts_transformed[acc] = seq_transformed
-        clusters[seq_transformed].append(acc)
-
-    seq_to_acc_transformed = { seq : acc for (acc, seq) in candidate_transcripts_transformed.items()}
-    print("Unique after compression: ", len(seq_to_acc_transformed) )
-
-    edges = {}
-    for seq in clusters:
-        if len(clusters[seq]) > 1:
-            print(clusters[seq])
-            for acc in clusters[seq]:
-                edges[acc] = {}
-            for acc1, acc2 in combinations(clusters[seq], 2):
-                edges[acc1][acc2] = 1
-                edges[acc2][acc1] = 1
-
-    return edges
-
-
 def construct_exact_minimizer_graph(S, params):
 
     """
@@ -62,7 +35,10 @@ def construct_exact_minimizer_graph(S, params):
                 Note, a node can be isolated! An isolated node will point at itself, effectively having itself as a minimizer.
 
     """
+    
     G_star = {}
+
+
     # adding self edges to strings that has converged
     for acc, s in S.items():
         if s not in G_star:
@@ -90,47 +66,24 @@ def construct_exact_minimizer_graph(S, params):
         return G_star, converged
 
 
-    #############################################################
-    #############################################################
-    # create homopolymer equivalence class edges
-    homopolymer_edges = get_homopolymer_invariants(S)
-    homopol_extra_added = 0
-    for acc1 in homopolymer_edges:
-        s1 = S[acc1]
-        if s1 in G_star[s1]:
-            continue
-        else:
-            for acc2 in homopolymer_edges[acc1]:
-                s2 = S[acc2]
-                if s2 in G_star[s2]:
-                    continue
-                else:
-                    G_star[s1][s2] = 1
-                    G_star[s2][s1] = 1
-                    homopol_extra_added += 2
-
-    print("EXTRA EDGES FROM HOMOPOLYMER IDENTICAL:", homopol_extra_added)
-
-    #############################################################
-    #############################################################
-
     unique_strings = {seq : acc for acc, seq in S.items()}
     S_prime = {acc : seq for seq, acc in unique_strings.items()}
     all_internode_edges_in_minimizer_graph, isolated_nodes = minimizer_graph.compute_minimizer_graph(S_prime, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
-    
+ 
+
     # TODO: implement already_converged to skip redundant calculations, the more important for more comverged stings we have!! 
     # minimizer_graph, isolated_nodes = compute_minimizer_graph(S, already_converged, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
     for s1_acc in all_internode_edges_in_minimizer_graph:
         s1 = S[s1_acc]
         if s1 in G_star[s1]: # the minimizer had already identical minimizer (ed = 0)
             continue
+        # elif len(G_star[s1]) >= 2: # already has identical homopolymer minimizers ( at least 2 for meaningful correction)
+        #     print("Homopolymer partition")
+        #     continue
         else:
             for s2_acc in all_internode_edges_in_minimizer_graph[s1_acc]:
                 s2 = S[s2_acc]
-                if s2 in G_star[s1]: # already a homopolymer minimizer
-                    continue
-                else:
-                    G_star[s1][s2] = 1 
+                G_star[s1][s2] = 1 
 
     for s in isolated_nodes:
         assert s in G_star

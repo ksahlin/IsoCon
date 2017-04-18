@@ -2,7 +2,7 @@
 from modules import graphs
 from modules import functions
 
-def partition_strings_paths(S, params, node_weights = {}, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
+def partition_strings_paths(S, params):
 
     G_star, converged = graphs.construct_exact_minimizer_graph(S, params)
     # G_star, converged = graphs.construct_minimizer_graph_approximate(S, params, edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold)
@@ -40,26 +40,16 @@ def partition_strings_paths(S, params, node_weights = {}, edge_creating_min_tres
         # find node with biggest indegree
         max_indegree = -1
         max_node_weight = -1
+        indegrees = []
         for s in unmarked:
-            if node_weights:
-                indegree = node_weights[s]  # choose the node with the max support of reads, this is found in the node weight if specified
-                if indegree >= max_indegree:
-                    m, max_indegree = s, indegree        
-
-                # for in_nbr, edge_indegree in G_star_transposed[s].items():
-                #     if in_nbr not in marked:
-                #         indegree += node_weights[in_nbr] # the number of reads aligned to a given candidate      
-
-                # if indegree >= max_indegree and node_weights[s] > max_node_weight:
-                #     m, max_indegree = s, indegree        
-                #     max_node_weight = node_weights[s]
-
-            else:
-                indegree = sum([indegree for in_nbr, indegree in G_star_transposed[s].items() if in_nbr not in marked ])
-
-                if indegree > max_indegree:
-                    m, max_indegree = s, indegree
+            indegree = sum([indegree for in_nbr, indegree in G_star_transposed[s].items() if in_nbr not in marked ])
+            indegrees.append(indegree)
+            if indegree > max_indegree:
+                m, max_indegree = s, indegree
+        
         # print(max_indegree, len(unmarked), len(marked))
+        indegrees.sort()
+        print("PARTITION INDEGREES:", indegrees)
 
         # mark all nodes leading to paths to m and remove them from unmarked set
         M[m] = partition_counter
