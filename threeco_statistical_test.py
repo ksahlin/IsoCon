@@ -17,7 +17,7 @@ from time import time
 
 from modules.functions import transpose, create_position_probability_matrix
 from modules import functions
-from modules.partitions import partition_strings_paths, partition_strings_2set
+from modules.partitions import partition_strings_2set
 from modules import graphs
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession, edlib_traceback
@@ -227,6 +227,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
             # add reads to best candidate given new alignments
             for c_acc in partition_of_remaining_X:
                 partition_of_X[c_acc].update(partition_of_remaining_X[c_acc])
+                print(c_acc, "Now has {0} reads assigned to it, after aligning reads that are not assigned.".format(len(partition_of_X[c_acc])))
 
             # add the alignments to alignment structure
             # for x_acc in remaining_alignments_of_x_to_c.keys():

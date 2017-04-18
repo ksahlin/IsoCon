@@ -153,8 +153,8 @@ def run_pipeline(params):
     write_output.logger('TIME ELAPSED FOR FINDING CANDIDATES WITH MINIMIZERS:{0}'.format(str(minimizer_elapsed)), params.logfile)
 
     stats_start = time()
-    original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.fl_reads, 'r'))}
-    candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
+    # original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.fl_reads, 'r'))}
+    # candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
     # G_star, partition_of_X = partitions.partition_strings_2set(original_reads, candidates, params.read_file, candidate_file, params)
 
     threeco_statistical_test.stat_filter_candidates(params.read_file, candidate_file, partition_of_X, to_realign, params)
