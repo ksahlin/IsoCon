@@ -104,7 +104,7 @@ def get_unique_seq_accessions(S):
     unique_seq_to_acc = {seq: acc_list[0] for seq, acc_list in  seq_to_acc.items() if len(acc_list) == 1 } 
     print("Unique seqs left:", len(unique_seq_to_acc))
 
-    return unique_seq_to_acc
+    return seq_to_acc
 
 def get_partition_alignments(graph_partition, M, G_star):
     exact_edit_distances = edlib_align_sequences(graph_partition, single_core = False)    
@@ -145,7 +145,7 @@ def find_candidate_transcripts(read_file, params):
     print("Max transcript length:{0}, Min transcript length:{1}".format(max_len, min_len))
 
     C = {}
-    unique_seq_to_acc = get_unique_seq_accessions(S)
+    seq_to_acc = get_unique_seq_accessions(S)
 
     minimizer_start = time() 
     G_star, graph_partition, M, converged = partition_strings_paths(S, params)
@@ -181,14 +181,14 @@ def find_candidate_transcripts(read_file, params):
                         # print("Deleted:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0])
                         # print(s2)
                         cccntr += 1
-                        out_file.write(">{0}\n{1}\n".format(unique_seq_to_acc[s2],s2))
+                        out_file.write(">{0}\n{1}\n".format(seq_to_acc[s2],s2))
         else:
             for s1, s1_dict in list(partition_alignments.items()): 
                 for s2, alignment_tuple in list(s1_dict.items()):
                     if re.search(pattern, alignment_tuple[1]) or  re.search(pattern, alignment_tuple[2]):
                         # del partition_alignments[s1][s2]
                         cccntr += 1        
-                        out_file.write(">{0}\n{1}\n".format(unique_seq_to_acc[s2],s2))
+                        out_file.write(">{0}\n{1}\n".format(seq_to_acc[s2],s2))
 
         print("Number of alignments containing exon difference in this pass:", cccntr)
         # sys.exit()
@@ -235,13 +235,13 @@ def find_candidate_transcripts(read_file, params):
 
 
         # TODO: Parallelize this part over partitions: sent in the partition and return a dict s_acc : modified string
-        S_prime = correct_sequence_to_minimizer.correct_strings(partition_alignments, unique_seq_to_acc, single_core = params.single_core)
+        S_prime = correct_sequence_to_minimizer.correct_strings(partition_alignments, seq_to_acc, step, single_core = params.single_core)
 
         for acc, s_prime in S_prime.items():
             S[acc] = s_prime
 
         print("Tot seqs:", len(S))
-        unique_seq_to_acc = get_unique_seq_accessions(S)
+        seq_to_acc = get_unique_seq_accessions(S)
         # partition_alignments, partition, M, converged = partition_strings(S)
 
  

@@ -49,7 +49,7 @@ def partition_strings_paths(S, params):
         
         # print(max_indegree, len(unmarked), len(marked))
         indegrees.sort()
-        print("PARTITION INDEGREES:", indegrees)
+        # print("PARTITION INDEGREES:", indegrees)
 
         # mark all nodes leading to paths to m and remove them from unmarked set
         M[m] = partition_counter
