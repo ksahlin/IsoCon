@@ -87,6 +87,26 @@ def correct_to_minimizer(m, partition, seq_to_acc):
         # print("Error types:", c, "depth:", len(partition) )
         #############################
 
+        ## TEST LOG ERROR TYPES #######
+        c_del = 0
+        c_ins = 0
+        c_subs = 0
+        for j in range(len(PFM)):
+            max_v_j = max(PFM[j], key = lambda x: PFM[j][x] )
+            for v in PFM[j]:
+                if max_v_j == "-":
+                    if v != max_v_j:
+                        c_ins += PFM[j][v]
+                else:
+                    if v != max_v_j:
+                        if v == "-":
+                            c_del += PFM[j][v]
+                        else:
+                            c_subs += PFM[j][v]
+
+        print("Error types:", c_del, c_ins, c_subs, "depth:", len(partition) )
+        ############################
+
         for s in partition:
             # if minimizer_errors < partition[s][0]:
             #     nr_pos_to_correct = int( partition[s][0] - minimizer_errors ) #decide how many errors we should correct here
@@ -153,6 +173,31 @@ def correct_to_minimizer(m, partition, seq_to_acc):
             # J = random.sample(minority_positions_for_s, nr_pos_to_correct)
             ##############################################
 
+            ########### TEST WEIGHTING EACH MINORITY POSITION BY IT'S OBSERVED FREQUENCY THROUGHOUT THE ALIGNMENTS TO THE MINIMIZER ################
+            pos_freqs_for_s_mod = []
+            for j in range(len(PFM)):
+                max_v_j = max(PFM[j], key = lambda x: PFM[j][x] )
+                v_j = s_alignment_in_matrix[j]
+                if max_v_j == v_j:
+                    pos_freqs_for_s_mod.append( (j, PFM[j][v_j] / float(1)) )
+                elif max_v_j == "-":
+                    pos_freqs_for_s_mod.append( (j, PFM[j][v_j] / float(max(c_ins, 1) ) ))
+                elif v_j == "-":
+                    pos_freqs_for_s_mod.append( (j, PFM[j][v_j] / float(max(c_del, 1) ) ))
+                else:
+                    pos_freqs_for_s_mod.append( (j, PFM[j][v_j] / float(max(c_subs, 1) ) ))
+
+            pos_freqs_for_s_mod.sort(key=lambda x: x[1]) # sort with respect to smallest frequencies                    
+            pos, highest_freq_of_error_to_correct = pos_freqs_for_s_mod[ nr_pos_to_correct - 1 ]
+            end_position_in_list = nr_pos_to_correct
+            for pp in range(nr_pos_to_correct, len(pos_freqs_for_s_mod)):
+                # print(pos_freqs_for_s_mod[pp][1], highest_freq_of_error_to_correct)
+                if pos_freqs_for_s_mod[pp][1] > highest_freq_of_error_to_correct:
+                    break
+                else:
+                    end_position_in_list += 1
+            J = [j for j, freq in random.sample(pos_freqs_for_s_mod[:end_position_in_list], nr_pos_to_correct)]
+            #############################################
 
             # J = [j for j, prob in pos_freqs_for_s[:nr_pos_to_correct]] # J is the set of the nr_pos_to_correct smallest position probabilities
             # print(nr_pos_to_correct, end_position_in_list)
@@ -201,15 +246,25 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
         # minimizer_errors = min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ])
         # minimizer_errors = math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)
 
-        ### TEST LOG ERROR TYPES #######
-        # c = Counter()
-        # for j in range(len(PFM)):
-        #     max_v_j = max(PFM[j], key = lambda x: PFM[j][x] )
-        #     for v in PFM[j]:
-        #         if v != max_v_j:
-        #            c[v] += PFM[j][v]
-        # print("Error types:", c, "depth:", len(partition) )
-        #############################
+        ## TEST LOG ERROR TYPES #######
+        c_del = 0
+        c_ins = 0
+        c_subs = 0
+        for j in range(len(PFM)):
+            max_v_j = max(PFM[j], key = lambda x: PFM[j][x] )
+            for v in PFM[j]:
+                if max_v_j == "-":
+                    if v != max_v_j:
+                        c_ins += PFM[j][v]
+                else:
+                    if v != max_v_j:
+                        if v == "-":
+                            c_del += PFM[j][v]
+                        else:
+                            c_subs += PFM[j][v]
+
+        print("Error types:", c_del, c_ins, c_subs, "depth:", len(partition) )
+        ############################
 
         for s in partition:
             nr_pos_to_correct2 = int(math.ceil(partition[s][0] / 2.0)) #decide how many errors we should correct here
@@ -223,20 +278,51 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
 
             # find the position probabilities of the alignment of s in PFM
 
-            pos_freqs_for_s = []
+
+            ###################### ORIGINAL CORRECTION ######################################
+            # pos_freqs_for_s = []
+            # for j in range(len(PFM)):
+            #     pos_freqs_for_s.append( (j, PFM[j][s_alignment_in_matrix[j]]) )
+
+            # pos_freqs_for_s.sort(key=lambda x: x[1]) # sort with respect to smallest frequencies                    
+            # pos, highest_freq_of_error_to_correct = pos_freqs_for_s[ nr_pos_to_correct - 1 ]
+            # end_position_in_list = nr_pos_to_correct
+
+            # pp = nr_pos_to_correct
+            # while pos_freqs_for_s[pp][1] == highest_freq_of_error_to_correct:
+            #     end_position_in_list += 1
+            #     pp += 1
+
+            # J = [j for j, freq in random.sample(pos_freqs_for_s[:end_position_in_list], nr_pos_to_correct)]
+
+            ############################################################
+            ############################################################
+
+            ########### TEST WEIGHTING EACH MINORITY POSITION BY IT'S OBSERVED FREQUENCY THROUGHOUT THE ALIGNMENTS TO THE MINIMIZER ################
+            pos_freqs_for_s_mod = []
             for j in range(len(PFM)):
-                pos_freqs_for_s.append( (j, PFM[j][s_alignment_in_matrix[j]]) )
+                max_v_j = max(PFM[j], key = lambda x: PFM[j][x] )
+                v_j = s_alignment_in_matrix[j]
+                if max_v_j == v_j:
+                    pos_freqs_for_s_mod.append( (j, PFM[j][v_j] / float(1)) )
+                elif max_v_j == "-":
+                    pos_freqs_for_s_mod.append( (j, PFM[j][v_j] / float(max(c_ins, 1) ) ))
+                elif v_j == "-":
+                    pos_freqs_for_s_mod.append( (j, PFM[j][v_j] / float(max(c_del, 1) ) ))
+                else:
+                    pos_freqs_for_s_mod.append( (j, PFM[j][v_j] / float(max(c_subs, 1) ) ))
 
-            pos_freqs_for_s.sort(key=lambda x: x[1]) # sort with respect to smallest frequencies                    
-            pos, highest_freq_of_error_to_correct = pos_freqs_for_s[ nr_pos_to_correct - 1 ]
+            pos_freqs_for_s_mod.sort(key=lambda x: x[1]) # sort with respect to smallest frequencies                    
+            pos, highest_freq_of_error_to_correct = pos_freqs_for_s_mod[ nr_pos_to_correct - 1 ]
             end_position_in_list = nr_pos_to_correct
-
-            pp = nr_pos_to_correct
-            while pos_freqs_for_s[pp][1] == highest_freq_of_error_to_correct:
-                end_position_in_list += 1
-                pp += 1
-
-            J = [j for j, freq in random.sample(pos_freqs_for_s[:end_position_in_list], nr_pos_to_correct)]
+            for pp in range(nr_pos_to_correct, len(pos_freqs_for_s_mod)):
+                # print(pos_freqs_for_s_mod[pp][1], highest_freq_of_error_to_correct)
+                if pos_freqs_for_s_mod[pp][1] > highest_freq_of_error_to_correct:
+                    break
+                else:
+                    end_position_in_list += 1
+            J = [j for j, freq in random.sample(pos_freqs_for_s_mod[:end_position_in_list], nr_pos_to_correct)]
+            #############################################
 
             s_new = alignment_matrix[s]
             for j in J:
