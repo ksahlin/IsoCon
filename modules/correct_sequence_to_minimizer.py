@@ -270,7 +270,7 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
             nr_pos_to_correct2 = int(math.ceil(partition[s][0] / 2.0)) #decide how many errors we should correct here
             # print("positions to correct for sequence s:", nr_pos_to_correct, s ==m)
             s_alignment_in_matrix = alignment_matrix[s]
-            nr_pos_to_correct = int(math.ceil( len([1 for j in range(len(consensus_alignment)) if consensus_alignment[j] != s_alignment_in_matrix[j]]) * (step/ float(step +1)) ))
+            nr_pos_to_correct = int(math.ceil( len([1 for j in range(len(consensus_alignment)) if consensus_alignment[j] != s_alignment_in_matrix[j]]) * 0.5)) # (step/ float(step +1)) ))
             # print(nr_pos_to_correct2, nr_pos_to_correct, partition[s][0], [1 for j in range(len(consensus_alignment)) if consensus_alignment[j] != s_alignment_in_matrix[j]] )
 
             if nr_pos_to_correct  == 0:
@@ -344,6 +344,8 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
             accessions_of_s = seq_to_acc[s] 
             for acc in accessions_of_s:
                 S_prime_partition[acc] = s_modified
+    else:
+        print("Partition has converged,", len(partition), N_t)
     
     return S_prime_partition
 

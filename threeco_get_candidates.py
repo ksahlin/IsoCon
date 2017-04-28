@@ -10,7 +10,7 @@ import copy
 from time import time
 
 from modules.functions import transpose,create_position_probability_matrix
-from modules.partitions import partition_strings_paths
+from modules.partitions import highest_reachable_with_edge_degrees
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession
 from modules.input_output import fasta_parser, write_output
@@ -112,9 +112,11 @@ def get_partition_alignments(graph_partition, M, G_star):
 
     partition_alignments = {} 
     for m in M:
-        indegree = 1 if m not in G_star[m] else G_star[m][m]
-        partition_alignments[m] = { m : (0, m, m, indegree) }
+        # selfdegree = 1 if m not in G_star[m] else G_star[m][m]
+        selfdegree = G_star.node[m]["degree"]
+        partition_alignments[m] = { m : (0, m, m, selfdegree) }
         if m not in exact_alignments:
+            print("Minimizer did not have any anlignments, length:", M[m], "self-degree:", selfdegree)
             continue
         else:
             for s in exact_alignments[m]:
@@ -125,7 +127,7 @@ def get_partition_alignments(graph_partition, M, G_star):
                 #     print("Larger than 1!!", indegree)
                 partition_alignments[m][s] = (edit_dist, aln_m, aln_s, 1)
 
-    print("NR candidates:", len(partition_alignments))
+    print("NR candidates :", len(partition_alignments))
     return partition_alignments
 
 
@@ -144,11 +146,10 @@ def find_candidate_transcripts(read_file, params):
     min_len = min(lenghts)
     print("Max transcript length:{0}, Min transcript length:{1}".format(max_len, min_len))
 
-    C = {}
     seq_to_acc = get_unique_seq_accessions(S)
 
     minimizer_start = time() 
-    G_star, graph_partition, M, converged = partition_strings_paths(S, params)
+    G_star, graph_partition, M, converged = highest_reachable_with_edge_degrees(S, params)
     partition_alignments = get_partition_alignments(graph_partition, M, G_star)       
 
     minimizer_elapsed = time() - minimizer_start
@@ -246,7 +247,7 @@ def find_candidate_transcripts(read_file, params):
 
  
 
-        G_star, graph_partition, M, converged = partition_strings_paths(S, params)
+        G_star, graph_partition, M, converged = highest_reachable_with_edge_degrees(S, params)
         partition_alignments = get_partition_alignments(graph_partition, M, G_star)  
         out_file_name = os.path.join(params.outfolder, "candidates_step_" +  str(step) + ".fa")
         out_file = open(out_file_name, "w")
@@ -261,22 +262,29 @@ def find_candidate_transcripts(read_file, params):
         correction_elapsed = time() - correction_start
         write_output.logger('Time for correction, minimizers and partition, step {0}:{1}'.format(step, str(correction_elapsed)), params.logfile)
    
-
+    C = {}
     for m in M:
         N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
         C[m] = N_t   
 
 
     original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
+    original_reads_seq_to_acc = { seq : acc for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
     reads_to_minimizers = {}
     # [for m, partition in partition_alignments.items() for s in partition]
 
+    not_corrected_reads = open(os.path.join(params.outfolder, "not_processed.fa"), "w")
     for read_acc, seq in original_reads.items():
         m = S[read_acc]
         # get the correspoindng minimizer for each read, if read does not belong to an m, its because it did not converge.
         if m not in C:
-            print("Minimizer to read did not converge")
-            continue
+            if m in original_reads_seq_to_acc:
+                print("Read was never corrected") 
+                not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+            else:
+                print("Read was corrected but did not converge") 
+                not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+
         elif C[m] >= params.min_candidate_support:
             reads_to_minimizers[read_acc] = { m : (original_reads[read_acc], m)}
         else:

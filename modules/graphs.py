@@ -9,6 +9,7 @@ import unittest
 from collections import defaultdict
 from itertools import combinations
 
+import networkx as nx
 
 from modules import get_best_alignments
 from modules import minimap_alignment_module
@@ -25,6 +26,53 @@ def transform(read):
 
     return "".join(transformed_seq)
 
+def construct_exact_minimizer_graph_improved(S, params):
+
+    """
+        input: a dict of strings, not necesarily unique
+        output: a directed graph implemented as a dict of dicts. Each edge has a weight assosiated to them.
+                self edges has a weight > 1 (identical sequences) and all other edges has weight 1.
+                Note, a node can be isolated! An isolated node will point at itself, effectively having itself as a minimizer.
+
+    """
+
+    predicted_seq_to_acc = defaultdict(list)
+    for (acc, seq) in S.items():
+        predicted_seq_to_acc[seq].append(acc)
+    
+    converged = True
+    G = nx.DiGraph()
+    for seq, list_acc in predicted_seq_to_acc.items():
+        deg = len(list_acc)
+        G.add_node(seq, degree = deg)
+        if deg == 1:
+            converged = False
+    
+    if converged:
+        return G, converged
+    
+    unique_strings = {seq : acc for acc, seq in S.items()}
+    S_prime = {acc : seq for seq, acc in unique_strings.items()}
+    all_internode_edges_in_minimizer_graph, isolated_nodes = minimizer_graph.compute_minimizer_graph(S_prime, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
+ 
+
+    # TODO: implement already_converged to skip redundant calculations, the more important for more comverged stings we have!! 
+    # minimizer_graph, isolated_nodes = compute_minimizer_graph(S, already_converged, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
+    for s1_acc in all_internode_edges_in_minimizer_graph:
+        s1 = S[s1_acc]
+        if G.node[s1]["degree"] > 1:
+            continue
+        else:
+            for s2_acc in all_internode_edges_in_minimizer_graph[s1_acc]:
+                s2 = S[s2_acc]
+                ed = all_internode_edges_in_minimizer_graph[s1_acc][s2_acc]
+                G.add_edge(s1, s2, edit_distance=ed)
+
+    for s in isolated_nodes:
+        assert s in G
+
+
+    return G, converged  
 
 def construct_exact_minimizer_graph(S, params):
 
@@ -35,10 +83,10 @@ def construct_exact_minimizer_graph(S, params):
                 Note, a node can be isolated! An isolated node will point at itself, effectively having itself as a minimizer.
 
     """
-    
+
+
+
     G_star = {}
-
-
     # adding self edges to strings that has converged
     for acc, s in S.items():
         if s not in G_star:
@@ -46,10 +94,8 @@ def construct_exact_minimizer_graph(S, params):
         else:
             if s in G_star[s]:
                 G_star[s][s] += 1  
-                # print(acc)
             else:
                 G_star[s][s] = 2
-                # print(acc)
 
     # check if converged, that is, if all nodes has self edges here, there will be no other edges added.
     converged = False
