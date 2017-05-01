@@ -116,7 +116,7 @@ def get_partition_alignments(graph_partition, M, G_star):
         selfdegree = G_star.node[m]["degree"]
         partition_alignments[m] = { m : (0, m, m, selfdegree) }
         if m not in exact_alignments:
-            print("Minimizer did not have any anlignments, length:", M[m], "self-degree:", selfdegree)
+            # print("Minimizer did not have any anlignments, length:", M[m], "self-degree:", selfdegree)
             continue
         else:
             for s in exact_alignments[m]:
@@ -176,18 +176,23 @@ def find_candidate_transcripts(read_file, params):
         out_file = open(os.path.join(params.outfolder, "exon_difs.fa"), "w")
         if params.barcodes:
             for s1, s1_dict in list(partition_alignments.items()): 
+                part_size = sum([s1_dict[s_2][3] for s_2 in s1_dict])
                 for s2, alignment_tuple in list(s1_dict.items()):
-                    if re.search(pattern, alignment_tuple[1][20: -20]) or  re.search(pattern, alignment_tuple[2][20: -20]): # [20: -20] --> ignore this if-statement if missing or truncated barcode
+                    if re.search(pattern, alignment_tuple[1][20: -20]) or re.search(pattern, alignment_tuple[2][20: -20]): # [20: -20] --> ignore this if-statement if missing or truncated barcode
                         # del partition_alignments[s1][s2]
-                        # print("Deleted:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0])
+                        print("Deleted:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0])
+                        print("in partition of size:", part_size)
                         # print(s2)
                         cccntr += 1
                         out_file.write(">{0}\n{1}\n".format(seq_to_acc[s2],s2))
         else:
             for s1, s1_dict in list(partition_alignments.items()): 
+                part_size = sum([s1_dict[s_2][3] for s_2 in s1_dict])
                 for s2, alignment_tuple in list(s1_dict.items()):
                     if re.search(pattern, alignment_tuple[1]) or  re.search(pattern, alignment_tuple[2]):
                         # del partition_alignments[s1][s2]
+                        print("Deleted:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0])
+                        print("in partition of size:", part_size)
                         cccntr += 1        
                         out_file.write(">{0}\n{1}\n".format(seq_to_acc[s2],s2))
 
@@ -274,22 +279,24 @@ def find_candidate_transcripts(read_file, params):
     # [for m, partition in partition_alignments.items() for s in partition]
 
     not_corrected_reads = open(os.path.join(params.outfolder, "not_processed.fa"), "w")
+    not_corrected = set()
     for read_acc, seq in original_reads.items():
-        m = S[read_acc]
+        corrected_s = S[read_acc]
         # get the correspoindng minimizer for each read, if read does not belong to an m, its because it did not converge.
-        if m not in C:
-            if m in original_reads_seq_to_acc:
+        if corrected_s not in C:
+            if corrected_s in original_reads_seq_to_acc:
                 print("Read was never corrected") 
                 not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+                not_corrected.add(read_acc)
             else:
                 print("Read was corrected but did not converge") 
                 not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
 
-        elif C[m] >= params.min_candidate_support:
-            reads_to_minimizers[read_acc] = { m : (original_reads[read_acc], m)}
+        elif C[corrected_s] >= params.min_candidate_support:
+            reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
         else:
-            print("Minimizer did not pass threshold support of {0} reads.".format(C[m]))
-            del C[m]
+            print("Minimizer did not pass threshold support of {0} reads.".format(C[corrected_s]))
+            del C[corrected_s]
 
     edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers)
     alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m)
@@ -301,12 +308,11 @@ def find_candidate_transcripts(read_file, params):
     candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
     write_output.print_candidates_from_minimizers(candidates_file_name, C_filtered, m_to_acc, params)
 
-    to_realign = set(original_reads.values()).difference(set(alignments_of_x_to_m_filtered.keys()))
-
     to_realign = {}
     for acc, seq in original_reads.items():
         if acc not in alignments_of_x_to_m_filtered:
-            to_realign[acc] = seq
+            if acc not in not_corrected:
+                to_realign[acc] = seq
 
     return candidates_file_name, partition_of_X, to_realign 
 
