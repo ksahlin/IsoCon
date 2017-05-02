@@ -15,7 +15,7 @@ from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_k
 from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession
 from modules.input_output import fasta_parser, write_output
 from modules import correct_sequence_to_minimizer
-
+from collections import defaultdict
 
 # def get_homopolymer_invariants(candidate_transcripts):
 #     seq_to_acc = { seq : acc for (acc, seq) in  candidate_transcripts.items() }
@@ -171,7 +171,7 @@ def find_candidate_transcripts(read_file, params):
         #################################################
         ###### temp check for isoform collapse###########
         import re
-        pattern = r"[-]{8,}"
+        pattern = r"[-]{20,}"
         cccntr = 0
         out_file = open(os.path.join(params.outfolder, "exon_difs.fa"), "w")
         if params.barcodes:
@@ -180,9 +180,7 @@ def find_candidate_transcripts(read_file, params):
                 for s2, alignment_tuple in list(s1_dict.items()):
                     if re.search(pattern, alignment_tuple[1][20: -20]) or re.search(pattern, alignment_tuple[2][20: -20]): # [20: -20] --> ignore this if-statement if missing or truncated barcode
                         # del partition_alignments[s1][s2]
-                        print("Deleted:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0])
-                        print("in partition of size:", part_size)
-                        # print(s2)
+                        print("Exon diff on >=20bp:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0], "in partition of size:", part_size)
                         cccntr += 1
                         out_file.write(">{0}\n{1}\n".format(seq_to_acc[s2],s2))
         else:
@@ -191,8 +189,7 @@ def find_candidate_transcripts(read_file, params):
                 for s2, alignment_tuple in list(s1_dict.items()):
                     if re.search(pattern, alignment_tuple[1]) or  re.search(pattern, alignment_tuple[2]):
                         # del partition_alignments[s1][s2]
-                        print("Deleted:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0])
-                        print("in partition of size:", part_size)
+                        print("Exon diff on >=20bp:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0], "in partition of size:", part_size)
                         cccntr += 1        
                         out_file.write(">{0}\n{1}\n".format(seq_to_acc[s2],s2))
 
@@ -274,7 +271,10 @@ def find_candidate_transcripts(read_file, params):
 
 
     original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
-    original_reads_seq_to_acc = { seq : acc for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
+    original_reads_seq_to_accs =  defaultdict(list)
+    for (acc, seq) in original_reads.items():
+        original_reads_seq_to_accs[seq].append(acc)
+    # original_reads_seq_to_acc = { seq : acc for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
     reads_to_minimizers = {}
     # [for m, partition in partition_alignments.items() for s in partition]
 
@@ -282,21 +282,54 @@ def find_candidate_transcripts(read_file, params):
     not_corrected = set()
     for read_acc, seq in original_reads.items():
         corrected_s = S[read_acc]
-        # get the correspoindng minimizer for each read, if read does not belong to an m, its because it did not converge.
-        if corrected_s not in C:
-            if corrected_s in original_reads_seq_to_acc:
-                print("Read was never corrected") 
+        if corrected_s in original_reads_seq_to_accs:
+            if len(original_reads_seq_to_accs[corrected_s]) > 1:
+                print(original_reads_seq_to_accs[corrected_s])
+                print("read never corrected, but support larger than one: support", len(original_reads_seq_to_accs[corrected_s]))
+
+            else:
+                print("Never corrected, support:", len(original_reads_seq_to_accs[corrected_s]))
                 not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
                 not_corrected.add(read_acc)
-            else:
-                print("Read was corrected but did not converge") 
-                not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+                if corrected_s in C:
+                    del C[corrected_s]
+                    print("Read neither converged nor corrected. But was in C, and is now deleted.")
 
-        elif C[corrected_s] >= params.min_candidate_support:
+                continue
+        
+        if corrected_s not in C: # corrected string is not in converged   
+            print("Read did not converge, so skipping correction.") 
+            not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+            not_corrected.add(read_acc)
+            print(read_acc)
+            print(seq)
+
+            assert len(original_reads_seq_to_accs[corrected_s]) == 0
+            continue
+        
+        # corrected string are guaranteed to be in C if we end up here
+        if C[corrected_s] >= params.min_candidate_support:
             reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
         else:
             print("Minimizer did not pass threshold support of {0} reads.".format(C[corrected_s]))
             del C[corrected_s]
+
+        # # get the correspoindng minimizer for each read, if read does not belong to an m, its because it did not converge.
+        # if corrected_s not in C:
+        #     if corrected_s in original_reads_seq_to_acc:
+        #         # .... start here, fix which are cororected and not...
+        #         print("Read was never corrected") 
+        #         not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+        #         not_corrected.add(read_acc)
+        #     else:
+        #         print("Read was corrected but did not converge") 
+        #         not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+
+        # elif C[corrected_s] >= params.min_candidate_support:
+        #     reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
+        # else:
+        #     print("Minimizer did not pass threshold support of {0} reads.".format(C[corrected_s]))
+        #     del C[corrected_s]
 
     edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers)
     alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m)

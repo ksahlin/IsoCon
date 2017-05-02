@@ -330,9 +330,10 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
                 highest_prob_character_at_j = max(PFM[j], key=lambda k: PFM[j][k])
 
                 if highest_prob_character_at_j == old_nucl: # choose the other highest on if tie (should happen only when partition consist of two sequences)
-                    pmf_j_minus_variant = copy.deepcopy(PFM[j])
-                    del pmf_j_minus_variant[old_nucl] 
-                    highest_prob_character_at_j = max(pmf_j_minus_variant, key=lambda k: pmf_j_minus_variant[k])
+                    print("Highest count nucl was about to be corrected.")
+                    # pmf_j_minus_variant = copy.deepcopy(PFM[j])
+                    # del pmf_j_minus_variant[old_nucl] 
+                    # highest_prob_character_at_j = max(pmf_j_minus_variant, key=lambda k: pmf_j_minus_variant[k])
 
 
                 # print("correcting", s_new[j], "to", highest_prob_character_at_j )
