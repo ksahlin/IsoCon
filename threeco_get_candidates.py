@@ -266,7 +266,7 @@ def find_candidate_transcripts(read_file, params):
    
     C = {}
     for m in M:
-        N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
+        N_t = partition_alignments[m][m][3] #sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
         C[m] = N_t   
 
 
@@ -282,61 +282,69 @@ def find_candidate_transcripts(read_file, params):
     not_corrected = set()
     for read_acc, seq in original_reads.items():
         corrected_s = S[read_acc]
-        if corrected_s in original_reads_seq_to_accs:
-            if len(original_reads_seq_to_accs[corrected_s]) > 1:
-                print(original_reads_seq_to_accs[corrected_s])
-                print("read never corrected, but support larger than one: support", len(original_reads_seq_to_accs[corrected_s]))
+        if corrected_s in C:
+            if corrected_s in original_reads_seq_to_accs:
+                if C[corrected_s] >= params.min_candidate_support:
+                    reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
+                else:
+                    print("Minimizer did not pass threshold. It had support of {0} reads. And is identical to its starting seq (i.e., not corrected)".format(C[corrected_s]))
+                    del C[corrected_s]
+                    not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+                    not_corrected.add(read_acc)
 
             else:
-                print("Never corrected, support:", len(original_reads_seq_to_accs[corrected_s]))
+                if C[corrected_s] >= params.min_candidate_support:
+                    reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
+                else:
+                    print("Read was partially corrected did not pass threshold. It had support of {0} reads.".format(C[corrected_s]))
+                    del C[corrected_s]
+
+        else:
+            if corrected_s in original_reads_seq_to_accs:
+                print("Read neither converged nor was it corrected")
                 not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
                 not_corrected.add(read_acc)
-                if corrected_s in C:
-                    del C[corrected_s]
-                    print("Read neither converged nor corrected. But was in C, and is now deleted.")
 
-                continue
-        
-        if corrected_s not in C: # corrected string is not in converged   
-            print("Read did not converge, so skipping correction.") 
-            not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
-            not_corrected.add(read_acc)
-            print(read_acc)
-            print(seq)
+            else: # partially corrected but not converged
+                pass
 
-            assert len(original_reads_seq_to_accs[corrected_s]) == 0
-            continue
-        
-        # corrected string are guaranteed to be in C if we end up here
-        if C[corrected_s] >= params.min_candidate_support:
-            reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
-        else:
-            print("Minimizer did not pass threshold support of {0} reads.".format(C[corrected_s]))
-            del C[corrected_s]
 
-        # # get the correspoindng minimizer for each read, if read does not belong to an m, its because it did not converge.
-        # if corrected_s not in C:
-        #     if corrected_s in original_reads_seq_to_acc:
-        #         # .... start here, fix which are cororected and not...
-        #         print("Read was never corrected") 
+        # if corrected_s in original_reads_seq_to_accs:
+        #     if len(original_reads_seq_to_accs[corrected_s]) > 1:
+        #         print(original_reads_seq_to_accs[corrected_s])
+        #         print("read never corrected, but support larger than one: support", len(original_reads_seq_to_accs[corrected_s]))
+
+        #     else:
+        #         print("Never corrected, support:", len(original_reads_seq_to_accs[corrected_s]))
         #         not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
         #         not_corrected.add(read_acc)
-        #     else:
-        #         print("Read was corrected but did not converge") 
-        #         not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+        #         if corrected_s in C:
+        #             del C[corrected_s]
+        #             print("Read neither converged nor corrected. But was in C, and is now deleted.")
 
-        # elif C[corrected_s] >= params.min_candidate_support:
+        #         continue
+        
+        # if corrected_s not in C: # corrected string is not in converged   
+        #     print("Read did not converge, so skipping correction.") 
+        #     not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+        #     not_corrected.add(read_acc)
+        #     print(read_acc)
+        #     print(seq)
+
+        #     assert len(original_reads_seq_to_accs[corrected_s]) == 0
+        #     continue
+        
+        # # corrected string are guaranteed to be in C if we end up here
+        # if C[corrected_s] >= params.min_candidate_support:
         #     reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
         # else:
         #     print("Minimizer did not pass threshold support of {0} reads.".format(C[corrected_s]))
         #     del C[corrected_s]
 
+
     edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers)
     alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m)
-    # m_to_acc = {}
-    # for i, (m, support) in enumerate(list(C.items())):
-    #     m_acc = "read_" + str(i) + "_support_" + str(support)
-    #     m_to_acc[m] = m_acc
+
     alignments_of_x_to_m_filtered, m_to_acc, C_filtered, partition_of_X = filter_candidates(alignments_of_x_to_m, C, params)
     candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
     write_output.print_candidates_from_minimizers(candidates_file_name, C_filtered, m_to_acc, params)
