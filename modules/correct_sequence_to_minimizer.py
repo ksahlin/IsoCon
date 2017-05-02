@@ -322,11 +322,10 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
                 else:
                     end_position_in_list += 1
             J = [j for j, freq in random.sample(pos_freqs_for_s_mod[:end_position_in_list], nr_pos_to_correct)]
-            J_temp = [j for j, freq in pos_freqs_for_s_mod[:end_position_in_list]] 
             #############################################
 
             s_new = alignment_matrix[s]
-            for j in J_temp:
+            for j in J:
                 old_nucl = s_new[j]
                 highest_prob_character_at_j = max(PFM[j], key=lambda k: PFM[j][k])
 
