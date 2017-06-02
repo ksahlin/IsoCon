@@ -18,58 +18,141 @@ def highest_reachable_with_edge_degrees(S, params):
     partition = {}
     print("here")
     for subgraph in sorted(nx.weakly_connected_component_subgraphs(G_transpose), key=len, reverse=True):
-        # print("Subgraph of size", len(subgraph.nodes()), len(subgraph) )
+        print("Subgraph of size", len(subgraph.nodes()), "nr edges:", len(subgraph.edges()), [len(x) for x in subgraph.nodes()] )
         while subgraph:
-            # number_connected_to = {}
             reachable_comp_sizes = []
             reachable_comp_weights = {}
             reachable_comp_nodes = []
-            edit_distances = []
+            edit_distances_to_m = {"none" : 0}
             processed = set()
+
+            biggest_reachable_comp_size = 0
+            biggest_reachable_comp_weight = 0
+            biggest_reachable_comp_nodes = set()
+            biggest_reachable_comp_minimizer = "none"
+
+
             for m in subgraph:
+                # print(len(m))
+                edit_distances_to_m[m] = 0
                 if m in processed:
                     continue
+
                 reachable_comp = set([m])
-                # print("deg m", subgraph.node[m], subgraph[m])
                 reachable_comp_weight = subgraph.node[m]["degree"]
                 processed.add(m)
                 # print("cl size:", len([n for n in nx.dfs_postorder_nodes(subgraph, source=m)]))
-                for reachable_node in nx.dfs_postorder_nodes(subgraph, source=m): # store reachable node as processed here to avoid computation
-                    if reachable_node == m:
+                for n1,n2 in nx.dfs_edges(subgraph, source=m): # store reachable node as processed here to avoid computation
+                    if n2 == m:
+                        # print("OMGGG")
                         continue
-                    
-                    processed.add(reachable_node)
-                    reachable_comp.add(reachable_node)
-                    reachable_comp_weight += subgraph.node[reachable_node]["degree"]
-                    # print(subgraph.node[reachable_node])
-                    if reachable_node in subgraph[m]:
-                        edit_distances.append(subgraph[m][reachable_node]["edit_distance"])
-                    # print(len(G[reachable_node]), len(G_transpose[reachable_node]), reachable_node == m )
-                    assert subgraph.node[reachable_node]["degree"] == 1
+                    processed.add(n2)
+                    reachable_comp.add(n2)
+                    reachable_comp_weight += subgraph.node[n2]["degree"]
+                    edit_distances_to_m[m] +=  subgraph.node[n2]["degree"] * subgraph[n1][n2]["edit_distance"]
+                    assert subgraph.node[n2]["degree"] == 1
+                
+                print("total component weight:", reachable_comp_weight)
+                print("edit distance:",  edit_distances_to_m[m])
+                
+                if reachable_comp_weight >= biggest_reachable_comp_weight:
+                    if reachable_comp_weight > biggest_reachable_comp_weight:
+                        biggest_reachable_comp_weight = reachable_comp_weight
+                        biggest_reachable_comp_nodes = set(reachable_comp)
+                        biggest_reachable_comp_size = len(reachable_comp)
+                        biggest_reachable_comp_minimizer = m
 
-                reachable_comp_sizes.append(len(reachable_comp))
-                reachable_comp_weights[reachable_comp_weight] = (m, reachable_comp)
-                reachable_comp_nodes.append(reachable_comp)
-                # number_connected_to[m] = len(reachable_comp)
+                    elif reachable_comp_weight == biggest_reachable_comp_weight:
+                        if edit_distances_to_m[m] < edit_distances_to_m[biggest_reachable_comp_minimizer]:
+                            print("tie but smaller edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_minimizer])
+                            biggest_reachable_comp_nodes = set(reachable_comp)
+                            biggest_reachable_comp_size = len(reachable_comp)
+                            biggest_reachable_comp_minimizer = m
 
-            sorted_reachable_comp_sizes = sorted(reachable_comp_sizes, reverse=True)
-            sorted_reachable_comp_weights = sorted(reachable_comp_weights.keys(), reverse=True)
-            max_weight = max(sorted_reachable_comp_weights)
-            sorted_reachable_comp_nodes = sorted(reachable_comp_nodes, key = len, reverse=True)
-            biggest_comp = sorted_reachable_comp_nodes[0]
-            minimizer, biggest_weighted_comp = reachable_comp_weights[max_weight]
-            M[minimizer] = max_weight   
-            partition[minimizer] = biggest_weighted_comp.difference(set([minimizer]))
-            subgraph.remove_nodes_from(biggest_weighted_comp)
+                        elif edit_distances_to_m[m] > edit_distances_to_m[biggest_reachable_comp_minimizer]:
+                            print("tie but bigger edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_minimizer])
+                        else:
+                            print("tie both in weighted partition size and total edit distance. Choosing lexographically smaller minimizer")
+                            print(" weighted partition size:", biggest_reachable_comp_weight, " total edit distance:", edit_distances_to_m[m])
+                            if m < biggest_reachable_comp_minimizer:
+                                biggest_reachable_comp_nodes = set(reachable_comp)
+                                biggest_reachable_comp_minimizer = m
+                            else:
+                                pass
 
-            edit_distances.sort() 
+                    else:
+                        print("BUG!")
+
+            if biggest_reachable_comp_weight == 0: # if there were no edges! partition is minimizer itself
+                M[m] = 0 
+                partition[m] = set()
+            else:
+                M[biggest_reachable_comp_minimizer] = biggest_reachable_comp_weight   
+                partition[biggest_reachable_comp_minimizer] = biggest_reachable_comp_nodes.difference(set([biggest_reachable_comp_minimizer]))
+
+            subgraph.remove_nodes_from(biggest_reachable_comp_nodes)
+
+            # ##### CODE 2 ##########
+            # ##### CODE 2 ##########
+                # edit_distances_to_m[m] = 0
+                # reachable_comp = set([m])
+                # reachable_comp_weight = subgraph.node[m]["degree"]
+                # processed.add(m)
+                # prev_reachable_node = ""
+
+                # for reachable_node in nx.dfs_preorder_nodes(subgraph, source=m): # store reachable node as processed here to avoid computation
+                #     if reachable_node == m:
+                #         # print("OMGGG")
+                #         continue
+                #     # print(len(prev_reachable_node), len(reachable_node))
+                #     processed.add(reachable_node)
+                #     reachable_comp.add(reachable_node)
+                #     reachable_comp_weight += subgraph.node[reachable_node]["degree"]
+                #     if subgraph.has_edge(m,reachable_node):
+                #         # print("good")
+                #         edit_distances_to_m[m] +=  reachable_comp_weight * subgraph[m][reachable_node]["edit_distance"]
+                #     elif subgraph.has_edge(prev_reachable_node, reachable_node):
+                #         # print('LOOL')
+                #         edit_distances_to_m[m] +=  reachable_comp_weight * subgraph[prev_reachable_node][reachable_node]["edit_distance"]                        
+                #     else:
+                #         # print("BUG, did not find edge", len(reachable_node) )
+                #         pass
+                #     # if reachable_node in subgraph[m]:
+                #     #     edit_distances.append(subgraph[m][reachable_node]["edit_distance"])
+                #     assert subgraph.node[reachable_node]["degree"] == 1
+                #     prev_reachable_node = reachable_node
+
+                # print("here", reachable_comp_weight)
+
+            #     reachable_comp_sizes.append(len(reachable_comp))
+            #     reachable_comp_weights[reachable_comp_weight] = (m, reachable_comp)
+            #     reachable_comp_nodes.append(reachable_comp)
+
+            # sorted_reachable_comp_sizes = sorted(reachable_comp_sizes, reverse=True)
+            # sorted_reachable_comp_weights = sorted(reachable_comp_weights.keys(), reverse=True)
+            # print(sorted_reachable_comp_weights)
+            # # print(edit_distances)
+
+            # max_weight = max(sorted_reachable_comp_weights)
+            # sorted_reachable_comp_nodes = sorted(reachable_comp_nodes, key = len, reverse=True)
+            # biggest_comp = sorted_reachable_comp_nodes[0]
+            # minimizer, biggest_weighted_comp = reachable_comp_weights[max_weight]
+            # M[minimizer] = max_weight   
+            # partition[minimizer] = biggest_weighted_comp.difference(set([minimizer]))
+            # subgraph.remove_nodes_from(biggest_weighted_comp)
+
+            ########### CODE 2 ##########
+            ########### CODE 2 ##########
+
+
+            # edit_distances.sort() 
             # print("Subgraph after removal size", len(subgraph.nodes()), len(subgraph), edit_distances )
             nr_consensus += 1
 
     print("NR CONSENSUS:", nr_consensus)
     print("NR minimizers:", len(M), len(partition))
-
     print("partition sizes(identical strings counted once): ", sorted([len(partition[p]) +1 for p in  partition], reverse = True))
+    # sys.exit()
 
     total_strings_in_partition = sum([ len(partition[p]) +1 for p in  partition])
     partition_sequences = set()
