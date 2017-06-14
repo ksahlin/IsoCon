@@ -32,19 +32,19 @@ def do_statistical_tests(minimizer_graph_transposed, C, X, partition_of_X, singl
     if single_core:
         for t_acc in minimizer_graph_transposed:
             p_vals = statistical_test(t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc])
-            for c_acc, (corrected_p_value, k, N_t, delta_size) in p_vals.items():
-                if corrected_p_value ==  "not_tested":
+            for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in p_vals.items():
+                if p_value == "not_tested":
                     assert c_acc not in p_values # should only be here once
-                    p_values[c_acc] = (corrected_p_value, k, N_t, delta_size)
+                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
 
                 elif c_acc in p_values: # new most insignificant p_value
                     actual_tests += 1
-                    if corrected_p_value > p_values[c_acc][0]:
-                        p_values[c_acc] = (corrected_p_value, k, N_t, delta_size)
+                    if p_value * mult_factor_inv > p_values[c_acc][0] * p_values[c_acc][1]:
+                        p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
 
                 else: # not tested before
                     actual_tests += 1
-                    p_values[c_acc] = (corrected_p_value, k, N_t, delta_size)
+                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
 
     else:
         ####### parallelize statistical tests #########
@@ -65,18 +65,18 @@ def do_statistical_tests(minimizer_graph_transposed, C, X, partition_of_X, singl
         pool.join()
 
         for all_tests_to_a_given_target in statistical_test_results:
-            for c_acc, (corrected_p_value, k, N_t, delta_size) in list(all_tests_to_a_given_target.items()): 
-                if corrected_p_value ==  "not_tested":
+            for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in list(all_tests_to_a_given_target.items()): 
+                if p_value ==  "not_tested":
                     assert c_acc not in p_values # should only be here once
-                    p_values[c_acc] = (corrected_p_value, k, N_t, delta_size)
+                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
 
                 elif c_acc in p_values: # new most insignificant p_value
                     actual_tests += 1
-                    if corrected_p_value > p_values[c_acc][0]:
-                        p_values[c_acc] = (corrected_p_value, k, N_t, delta_size)
+                    if p_value * mult_factor_inv > p_values[c_acc][0] * p_values[c_acc][1]:
+                        p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
                 else: # not tested before
                     actual_tests += 1
-                    p_values[c_acc] = (corrected_p_value, k, N_t, delta_size)
+                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
 
     print("Total number of tests performed this round:", actual_tests)
 
@@ -88,7 +88,8 @@ def statistical_test_helper(arguments):
     return statistical_test(*args, **kwargs)
 
 
-def stat_test(k, m, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c):
+def stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c):
+    m = len(t_seq)
     n_S, n_D, n_I = 0, 0, 0
     for pos, (state, char) in delta_t[c_acc].items():
         if state == "S":
@@ -98,7 +99,7 @@ def stat_test(k, m, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, 
         if state == "I":
             n_I += 1
 
-    ######### INVARIANTS ##########
+    ######### INVARIANTS FACTORS PER VARIANT ##########
     u_v_factor = 1
     epsilon_invariant_adjusted = {}
     for q_acc in epsilon:
@@ -108,16 +109,61 @@ def stat_test(k, m, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, 
             p_iv = epsilon[q_acc][state]
             p_i *= u_v*p_iv
         epsilon_invariant_adjusted[q_acc] = p_i
+    #################################################
 
-    lambda_po_approx_inv = sum([ epsilon_invariant_adjusted[q_acc] for q_acc in epsilon_invariant_adjusted])
+    pobin_mean = sum([ epsilon_invariant_adjusted[q_acc] for q_acc in epsilon_invariant_adjusted])    
+    p_value = poisson.sf(k - 1, pobin_mean)
+
+
+    ##### CORRECTION FACTOR MULTIPLE TESTING W.R.T. HOMOPOLYMENR LENGHTS ##############
+    homopolymenr_length_numbers = functions.calculate_homopolymenr_lengths(t_seq) # dictionary { homopolymer_length : number of occurances on reference}
+    correction_factor = 1
+    all_variants = {}
+    for pos, (state, char) in delta_t[c_acc].items():
+        u_v = candidate_indiv_invariant_factors[c_acc][pos][(state, char)]
+        # print(u_v, state )
+        if (u_v, state) in all_variants:
+            all_variants[(u_v, state)] +=1
+        else:
+            all_variants[(u_v, state)] = 1
+
+    for (u_v, state), n_v in all_variants.items():
+        nr_hom_lengths = homopolymenr_length_numbers[u_v]
+        if u_v > 1:
+            correction_factor *= functions.choose(nr_hom_lengths, n_v)
+
+        elif state == "I":
+            correction_factor *= functions.choose(4*(nr_hom_lengths + 1), n_v)
+        elif state == "S":
+            correction_factor *= functions.choose(3*nr_hom_lengths, n_v)
+
+        elif state == "D":
+            correction_factor *= functions.choose(nr_hom_lengths, n_v)
+
+        else:
+            print("BUG", state)
+            sys.exit()
+
     mult_factor_inv = ( (4*(m+1))**n_I ) * functions.choose(m, n_D) * functions.choose( 3*(m-n_D), n_S)
-    p_value = poisson.sf(k - 1, lambda_po_approx_inv)
-    corrected_p_value = mult_factor_inv * p_value
-    print("Corrected p value:", corrected_p_value, "k:", k, "Nr mapped to:", original_mapped_to_c)
-    print("lambda inv adjusted", lambda_po_approx_inv, mult_factor_inv, k, len(delta_t[c_acc]), candidate_indiv_invariant_factors[c_acc])
+    #####################################################################################
+
+
+    pobin_var = sum([ epsilon_invariant_adjusted[q_acc] * ( 1 - epsilon_invariant_adjusted[q_acc] ) for q_acc in epsilon_invariant_adjusted])
+    pobin_stddev = math.sqrt(pobin_var)
+    if pobin_mean > 10.0: # implies that mean is at least 3.3 times larger than stddev, this should give fairly symmetrical distribution
+        p_value_norm = norm.sf(float(k-1), loc= pobin_mean, scale= pobin_stddev )
+
+        print(c_acc, "COMPARE P-VALS:", p_value, "norm:", p_value_norm)
+        print("Also correction factors:", correction_factor, mult_factor_inv)
+
+
+    # corrected_p_value =  mult_factor_inv * p_value
+
+    # print("Corrected p value:", corrected_p_value, "k:", k, "Nr mapped to:", original_mapped_to_c)
+    # print("lambda inv adjusted", lambda_po_approx_inv, mult_factor_inv, k, len(delta_t[c_acc]), candidate_indiv_invariant_factors[c_acc])
     #############################
     #################################### 
-    return  corrected_p_value
+    return  p_value, mult_factor_inv
 
 def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C ):
     partition_dict = {t_acc : {}}
@@ -148,7 +194,7 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates):
     significance_values = {}
     t_seq = C[t_acc]
     if len(candidates) == 0:
-        significance_values[t_acc] = ("not_tested", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
+        significance_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
         return significance_values
 
     reads = set([x_acc for c_acc in candidates for x_acc in partition_of_X[c_acc]] )
@@ -173,8 +219,8 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates):
 
     N_t = len(reads)
 
-    print("N_t:", N_t, "reads in partition:", total_read_in_partition, "ref:", t_acc )
-    print("Nr candidates:", len(candidates), candidates)
+    # print("N_t:", N_t, "reads in partition:", total_read_in_partition, "ref:", t_acc )
+    # print("Nr candidates:", len(candidates), candidates)
     assert total_read_in_partition == N_t # each read should be uiquely assinged to a candidate
     reads_and_candidates = reads.union( [c_acc for c_acc in candidates]) 
     reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
@@ -195,9 +241,9 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates):
         original_mapped_to_c = len(partition_of_X[c_acc])
         k = len(candidate_support[c_acc])
         # print("supprot:", k, "diff:", len(delta_t[c_acc]))
-        corrected_p_value = stat_test(k, len(t_seq), epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c)
+        p_value, mult_factor_inv = stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c)
         delta_size = len(delta_t[c_acc])
-        significance_values[c_acc] = (corrected_p_value, k, N_t, delta_size)
+        significance_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
 
         # actual_tests += 1
         # if c_acc in significance_values:

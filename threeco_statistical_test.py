@@ -286,11 +286,11 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         new_significance_values = statistical_test_v2.do_statistical_tests(minimizer_graph_transposed, C, X, partition_of_X, single_core = params.single_core )
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}
-        for c_acc, (corrected_p_value, k, N_t, delta_size) in list(new_significance_values.items()):
-            if corrected_p_value == "not_tested":
+        for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in list(new_significance_values.items()):
+            if p_value == "not_tested":
                 print("Did not test", c_acc)
-            elif corrected_p_value > 0.01/nr_of_tests_this_round:
-                print("removing", c_acc, "p-val:", corrected_p_value, "k", k, "N_t", N_t, "delta_size:", delta_size )
+            elif p_value * mult_factor_inv > 0.01/nr_of_tests_this_round:
+                print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "delta_size:", delta_size )
                 del C[c_acc] 
                 modified = True
                 for x_acc in partition_of_X[c_acc]:

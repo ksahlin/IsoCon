@@ -55,9 +55,9 @@ def print_candidates(out_file_name, C, significance_test_values, partition_of_X,
     out_file = open(out_file_name, "w")
     final_candidate_count = 0
     for c_acc, seq in C.items():
-        p_value, support, N_t, delta_size = significance_test_values[c_acc] 
+        p_value, correction_factor, support, N_t, delta_size = significance_test_values[c_acc] 
         
-        print(c_acc, "Support:", support, "P-value:", p_value, "delta size:", delta_size)
+        print(c_acc, "Support:", support, "P-value:", p_value, "correction factor:", correction_factor, "delta size:", delta_size)
 
         # add extra constraint that if the candidate cannot be statistically tested in a meaningful way (e.g., too divergent from other sequences)
         # the candidate has to have majority on _each_ position in c here otherwise most likely error

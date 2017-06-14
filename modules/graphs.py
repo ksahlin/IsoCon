@@ -30,10 +30,8 @@ def construct_exact_minimizer_graph_improved(S, params):
 
     """
         input: a dict of strings, not necesarily unique
-        output: a directed graph implemented as a dict of dicts. Each edge has a weight assosiated to them.
-                self edges has a weight > 1 (identical sequences) and all other edges has weight 1.
-                Note, a node can be isolated! An isolated node will point at itself, effectively having itself as a minimizer.
-
+        output: a directed graph implemented as a dict of dicts. A node has a weight associated as the number of identical sequences.
+            An edge from a node n1 to a node n2, n1 !+n2 means that n1 has weight 1 and it's minimizer is n2. 
     """
 
     predicted_seq_to_acc = defaultdict(list)

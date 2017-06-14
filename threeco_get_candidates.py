@@ -108,7 +108,17 @@ def get_unique_seq_accessions(S):
 
 def get_partition_alignments(graph_partition, M, G_star):
     exact_edit_distances = edlib_align_sequences(graph_partition, single_core = False)    
+        
+    ed_temp = [ exact_edit_distances[s1][s2] for s1 in exact_edit_distances for s2 in exact_edit_distances[s1]  ] 
+    ed_temp.sort()
+    print("ED from edlib:", ed_temp)
+
     exact_alignments = sw_align_sequences(exact_edit_distances, single_core = False)
+
+    ssw_temp = [ exact_edit_distances[s1][s2] for s1 in exact_edit_distances for s2 in exact_edit_distances[s1]  ] 
+    ssw_temp.sort()
+    print("ED from SSW:", ssw_temp)
+
 
     partition_alignments = {} 
     for m in M:
@@ -166,7 +176,8 @@ def find_candidate_transcripts(read_file, params):
 
         print("candidates:", len(M))
         edit_distances = [ partition_alignments[s1][s2][0] for s1 in partition_alignments for s2 in partition_alignments[s1]  ] 
-        print("edit distances:", edit_distances) 
+        edit_distances.sort()
+        print("edit distances from SSW:", edit_distances) 
 
         #################################################
         ###### temp check for isoform collapse###########
@@ -247,8 +258,6 @@ def find_candidate_transcripts(read_file, params):
         seq_to_acc = get_unique_seq_accessions(S)
         # partition_alignments, partition, M, converged = partition_strings(S)
 
- 
-
         G_star, graph_partition, M, converged = highest_reachable_with_edge_degrees(S, params)
         partition_alignments = get_partition_alignments(graph_partition, M, G_star)  
         out_file_name = os.path.join(params.outfolder, "candidates_step_" +  str(step) + ".fa")
@@ -263,6 +272,8 @@ def find_candidate_transcripts(read_file, params):
 
         correction_elapsed = time() - correction_start
         write_output.logger('Time for correction, minimizers and partition, step {0}:{1}'.format(step, str(correction_elapsed)), params.logfile)
+        
+        # sys.exit()
    
     C = {}
     for m in M:

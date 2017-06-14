@@ -14,6 +14,31 @@
 import unittest
 from collections import defaultdict
 
+
+def calculate_homopolymenr_lengths(t_seq):
+    homopolymenr_length_numbers = {}
+
+    h_len = 1
+    for char1, char2 in zip(t_seq[:-1], t_seq[1:]):
+
+        if char1 != char2:
+            if h_len in homopolymenr_length_numbers:
+                homopolymenr_length_numbers[h_len] += 1
+            else:
+                homopolymenr_length_numbers[h_len] = 1
+            h_len = 1
+
+        else:
+            h_len += 1
+
+    # end case
+    if h_len in homopolymenr_length_numbers:
+        homopolymenr_length_numbers[h_len] += 1
+    else:
+        homopolymenr_length_numbers[h_len] = 1
+
+    return homopolymenr_length_numbers
+
 def choose(n, k):
     """
     A fast way to calculate binomial coefficients by Andrew Dalke (contrib).
