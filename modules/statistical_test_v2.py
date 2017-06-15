@@ -14,7 +14,92 @@ from modules.edlib_alignment_module import edlib_align_sequences_keeping_accessi
 from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, get_invariant_adjustment, adjust_probability_of_read_to_alignment_invariant, adjust_probability_of_candidate_to_alignment_invariant
 
 
-def do_statistical_tests(minimizer_graph_transposed, C, X, partition_of_X, single_core = False):
+def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, single_core = False):
+    p_values = {}
+    actual_tests = 0
+    
+    # separate partition_of_X and X, C here into subsets for each t in minimizer graph to speed up parallelization when lots of reads
+    partition_of_X_per_candidate = {}
+    all_X_in_partition = {}
+    C_for_minmizer = {}
+    candidates_to = {}
+    for t_acc in minimizer_graph_transposed:
+        candidates_to[t_acc] = {}
+        partition_of_X_per_candidate[t_acc] = {}
+        C_for_minmizer[t_acc] = {}
+        all_X_in_partition[t_acc] = {}
+        for c_acc in minimizer_graph_transposed[t_acc]:
+            candidates_to[t_acc][c_acc] = {c_acc : minimizer_graph_transposed[t_acc][c_acc] }
+            partition_of_X_per_candidate[t_acc][c_acc] = {acc : set([x_acc for x_acc in partition_of_X[acc]]) for acc in [c_acc, t_acc]}
+            C_for_minmizer[t_acc][c_acc] = { acc : C[acc] for acc in [c_acc, t_acc] }
+            all_X_in_partition[t_acc][c_acc] = { x_acc : X[x_acc] for acc in [t_acc, c_acc] for x_acc in partition_of_X[acc]}
+
+
+    if single_core:
+        for t_acc in minimizer_graph_transposed:
+            if len(minimizer_graph_transposed[t_acc]) == 0:
+                p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
+                continue
+
+            for c_acc in minimizer_graph_transposed[t_acc]:
+                p_vals = statistical_test(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc])
+
+                for tested_cand_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in p_vals.items():
+                    if p_value == "not_tested":
+                        assert tested_cand_acc not in p_values # should only be here once
+                        p_values[tested_cand_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+
+                    elif tested_cand_acc in p_values: # new most insignificant p_value
+                        actual_tests += 1
+                        if p_value * mult_factor_inv > p_values[tested_cand_acc][0] * p_values[tested_cand_acc][1]:
+                            p_values[tested_cand_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+
+                    else: # not tested before
+                        actual_tests += 1
+                        p_values[tested_cand_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+
+    else:
+        ####### parallelize statistical tests #########
+        # pool = Pool(processes=mp.cpu_count())
+        original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGINT, original_sigint_handler)
+        pool = Pool(processes=mp.cpu_count())
+        try:
+            res = pool.map_async(statistical_test_helper, [ ( (t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc]), {}) for t_acc in minimizer_graph_transposed for c_acc in minimizer_graph_transposed[t_acc]  ] )
+            statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
+        except KeyboardInterrupt:
+            print("Caught KeyboardInterrupt, terminating workers")
+            pool.terminate()
+            sys.exit()
+        else:
+            print("Normal termination")
+            pool.close()
+        pool.join()
+
+        for all_tests_to_a_given_target in statistical_test_results:
+            for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in list(all_tests_to_a_given_target.items()): 
+                if p_value ==  "not_tested":
+                    assert c_acc not in p_values # should only be here once
+                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+
+                elif c_acc in p_values: # new most insignificant p_value
+                    actual_tests += 1
+                    if p_value * mult_factor_inv > p_values[c_acc][0] * p_values[c_acc][1]:
+                        p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+                else: # not tested before
+                    actual_tests += 1
+                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+
+        for t_acc in minimizer_graph_transposed:
+            if t_acc not in p_values:
+                p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
+
+    print("Total number of tests performed this round:", actual_tests)
+
+    return p_values
+
+
+def do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, single_core = False):
     p_values = {}
     actual_tests = 0
     
@@ -245,13 +330,7 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates):
         p_value, mult_factor_inv = stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c)
         delta_size = len(delta_t[c_acc])
         significance_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
-
-        # actual_tests += 1
-        # if c_acc in significance_values:
-        #     if corrected_p_value > significance_values[c_acc][0]:
-        #         significance_values[c_acc] = (corrected_p_value, k, N_t)
-        # else:
-        #     significance_values[c_acc] = (corrected_p_value, k, N_t)
+        print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, mult_factor_inv, p_value * mult_factor_inv,  k, N_t, delta_size) )
 
     return significance_values
 
