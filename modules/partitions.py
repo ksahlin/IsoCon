@@ -30,7 +30,7 @@ def highest_reachable_with_edge_degrees(S, params):
     partition = {}
     print("here")
     for subgraph in sorted(nx.weakly_connected_component_subgraphs(G_transpose), key=len, reverse=True):
-        print("Subgraph of size", len(subgraph.nodes()), "nr edges:", len(subgraph.edges()), [len(x) for x in subgraph.nodes()] )
+        # print("Subgraph of size", len(subgraph.nodes()), "nr edges:", len(subgraph.edges()), [len(x) for x in subgraph.nodes()] )
         while subgraph:
             reachable_comp_sizes = []
             reachable_comp_weights = {}
@@ -115,13 +115,13 @@ def highest_reachable_with_edge_degrees(S, params):
                     print( [ subgraph.node[nbr]["degree"] for nbr in subgraph.neighbors(n)])
                     assert all( [ subgraph.node[nbr]["degree"] == 1 for nbr in subgraph.neighbors(n)] )
 
-                    print("direct weight:", direct_weight)
+                    # print("direct weight:", direct_weight)
                     if direct_weight > max_direct_weight:
                         max_direct_weight = direct_weight
                         minimizer = n
                     elif direct_weight == max_direct_weight:
                         minimizer = min(minimizer, n)
-                print("minimizer direct weight:", max_direct_weight, "nodes in reachable:", len(biggest_reachable_comp_nodes))
+                # print("minimizer direct weight:", max_direct_weight, "nodes in reachable:", len(biggest_reachable_comp_nodes))
                 M[minimizer] = biggest_reachable_comp_weight   
                 partition[minimizer] = biggest_reachable_comp_nodes.difference(set([minimizer]))
                 assert minimizer in biggest_reachable_comp_nodes
