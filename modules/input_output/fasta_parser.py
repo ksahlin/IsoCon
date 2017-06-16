@@ -14,4 +14,6 @@ def read_fasta(fasta_file):
             accession = line[1:].strip().split()[0]
         else:
             temp += line.strip()
-    yield accession, temp
+
+    if accession != '':
+        yield accession, temp

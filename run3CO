@@ -86,7 +86,6 @@ def run_stat_filter(params):
     initialize_logger(params)
     all_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
     # candidate_alignments =  alignment_file_parser.get_alignments(open(params.candidate_alignments, 'r'))
-
     print("nr initial candidates:", len(all_candidates))
     preprocessed_candidates_file = open(os.path.join(params.outfolder, "preprocessed_candidates.fa"), "w")
     counter = 0
@@ -107,6 +106,11 @@ def run_stat_filter(params):
     params.candidates = preprocessed_candidates_file.name
     print("After preprocessed:", counter)
 
+    if os.stat(params.candidates).st_size == 0:
+        out_file_name = os.path.join(params.outfolder, "final_candidates.fa")
+        write_output.print_candidates(out_file_name, {}, {}, {}, {}, final = True)
+        print("Candidate file is empty!")
+        sys.exit(0)
 
     original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.fl_reads, 'r'))}
     filtered_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}

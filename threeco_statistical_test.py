@@ -111,7 +111,7 @@ def get_minimizer_graph_transposed(candidate_transcripts):
             elif math.fabs(len(seq1) - len(seq2)) > best_ed:
                 continue
             # TODO: remove task = "path" to speed up
-            edit_distance, locations, cigar = edlib_traceback(seq1, seq2, mode="NW", task="path", k=min(15, best_ed))
+            edit_distance, locations, cigar = edlib_traceback(seq1, seq2, mode="NW", task="path", k=min(10, best_ed))
 
             if 0 <= edit_distance < best_ed:
                 best_ed = edit_distance
@@ -169,7 +169,13 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
 
     ############ GET READS AND CANDIDATES #################
     X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
-    C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
+    if os.stat(candidate_file).st_size == 0:
+        out_file_name = os.path.join(params.outfolder, "final_candidates.fa")
+        write_output.print_candidates(out_file_name, {}, {}, {}, {}, final = True)
+        print("Candidate file is empty!")
+        sys.exit(0)
+    else:
+        C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
 
     ################################################################
     print()
@@ -304,8 +310,12 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         print("nr candidates left:", len(C))
         candidate_file = os.path.join(params.outfolder, "candidates_after_step_{0}.fa".format(step))
         step += 1
+
         significance_values = previous_significance_values.copy()
         significance_values.update(new_significance_values) # which returns None since it mutates z
+        
+        if len(C) == 0: # no candidates were significant!
+            break
 
         print("LEN SIGN:", len(significance_values), len(C))
         write_output.print_candidates(candidate_file, C, significance_values, partition_of_X, X)
