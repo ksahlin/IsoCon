@@ -4,6 +4,7 @@
     partition as keys and the alignment of s_i with respectt to the alignment matix.
 """
 import os
+import sys
 import unittest
 import copy
 import math 
