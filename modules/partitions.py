@@ -82,17 +82,19 @@ def highest_reachable_with_edge_degrees(S, params):
 
                     elif reachable_comp_weight == biggest_reachable_comp_weight:
                         if edit_distances_to_m[m] < edit_distances_to_m[biggest_reachable_comp_minimizer]:
-                            print("tie but smaller edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_minimizer])
+                            # print("tie but smaller edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_minimizer])
                             biggest_reachable_comp_nodes = set(reachable_comp)
                             biggest_reachable_comp_size = len(reachable_comp)
                             biggest_reachable_comp_minimizer = m
 
                         elif edit_distances_to_m[m] > edit_distances_to_m[biggest_reachable_comp_minimizer]:
-                            print("tie but bigger edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_minimizer])
+                            # print("tie but bigger edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_minimizer])
+                            pass
                         else:
                             if biggest_reachable_comp_weight > 1:
-                                print("tie both in weighted partition size and total edit distance. Choosing lexographically smaller minimizer")
-                                print(" weighted partition size:", biggest_reachable_comp_weight, " total edit distance:", edit_distances_to_m[m])
+                                # print("tie both in weighted partition size and total edit distance. Choosing lexographically smaller minimizer")
+                                # print(" weighted partition size:", biggest_reachable_comp_weight, " total edit distance:", edit_distances_to_m[m])
+                                pass
                             
                             if m < biggest_reachable_comp_minimizer:
                                 biggest_reachable_comp_nodes = set(reachable_comp)
@@ -112,7 +114,7 @@ def highest_reachable_with_edge_degrees(S, params):
                 for n in biggest_reachable_comp_nodes:
                     direct_weight = subgraph.node[n]["degree"]                    
                     direct_weight += len(subgraph.neighbors(n))
-                    print( [ subgraph.node[nbr]["degree"] for nbr in subgraph.neighbors(n)])
+                    # print( [ subgraph.node[nbr]["degree"] for nbr in subgraph.neighbors(n)])
                     assert all( [ subgraph.node[nbr]["degree"] == 1 for nbr in subgraph.neighbors(n)] )
 
                     # print("direct weight:", direct_weight)

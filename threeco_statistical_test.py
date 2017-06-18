@@ -287,11 +287,13 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         # get all candidats that serve as null-hypothesis references and have neighbors subject to testing
         # these are all candidates that are minimizers to some other, isolated nodes are not tested
         # candidatate in G_star_C
-        nr_of_tests_this_round = len(minimizer_graph_transposed)
-        print("NUMBER OF CANDIDATES LEFT:", len(C))
+        nr_of_tests_this_round = len([ 1 for t_acc in minimizer_graph_transposed for c_acc in minimizer_graph_transposed[t_acc] ] )
+        print("NUMBER OF CANDIDATES LEFT:", len(C), "Number of performed statistical tests in this round:", nr_of_tests_this_round)
 
-        # new_significance_values = statistical_test_v2.do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, single_core = params.single_core )
-        new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, single_core = params.single_core )
+        if realignment_to_avoid_local_max == 1:
+            new_significance_values = statistical_test_v2.do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, single_core = params.single_core )
+        else:
+            new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, single_core = params.single_core )
 
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}

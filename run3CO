@@ -192,6 +192,7 @@ if __name__ == '__main__':
     pipeline.add_argument('--minimap_bin_size', type=int, default=400, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
     pipeline.add_argument('--statistical_test_editdist', type=int, default=0, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
     pipeline.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
+    pipeline.add_argument('--prefilter_candidates', action='store_true', help='Filter candidates if they are not consensus over at least on base pair, this can reduce runting without significant or any loss in true candidates.')
     pipeline.set_defaults(which='pipeline')
 
 
@@ -213,6 +214,7 @@ if __name__ == '__main__':
     get_candidates.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     get_candidates.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
     get_candidates.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
+    get_candidates.add_argument('--prefilter_candidates', action='store_true', help='Filter candidates if they are not consensus over at least on base pair, this can reduce runting without significant or any loss in true candidates.')
     get_candidates.set_defaults(which='get_candidates')
 
 
