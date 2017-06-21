@@ -243,7 +243,7 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
         alignment_matrix, PFM = create_position_probability_matrix(m, partition) 
         # consensus_alignment = [ max(PFM[j], key=lambda k: PFM[j][k]) for j in range(len(PFM))]
         # print("minimizer errors:",  math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)  )
-
+        # frozen_positions = get_frozen_positions(alignment_matrix[m])
         ## TEST LOG ERROR TYPES #######
         c_del = 0
         c_ins = 0
@@ -353,6 +353,10 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
 
             s_new = alignment_matrix[s]
             for j in J_temp:
+                # if j in frozen_positions:
+                #     # print("tried to correct in frozen positions")
+                #     continue
+
                 old_nucl = s_new[j]
                 highest_prob_character_at_j = majority_vector[j]
                 assert len(majority_vector[j]) == 1
@@ -379,3 +383,23 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
     
     return S_prime_partition
 
+# def get_frozen_positions(m_in_alignment_matrix):
+#     """
+#         positions in Multialingment matrix where there are insels longer than 2 bp w.r.t. minimizer, these regions are prone to errors in alingments and
+#         we wait to correct these in another partition where they are hopefully split into several true partitions.
+#     """
+#     frozen_pos = set()
+#     ins_count = 0
+#     ins_pos = set()
+#     for j in range(len(m_in_alignment_matrix)):
+#         if m_in_alignment_matrix[j] == "-":
+#             ins_count += 1
+#             ins_pos.add(j)
+#         else:
+#             if ins_count > 4:  # always padded, so indel of length 2 be will be of length 4 in  alignment matrixx -
+#                 for k in ins_pos:
+#                     frozen_pos.add(k)
+#             ins_count = 0
+#             ins_pos = set()
+#     print("frozen:", len(frozen_pos), "tot:", len(m_in_alignment_matrix) )
+#     return frozen_pos

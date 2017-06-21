@@ -10,7 +10,7 @@ import copy
 from time import time
 
 from modules.functions import transpose,create_position_probability_matrix
-from modules.partitions import highest_reachable_with_edge_degrees
+from modules.partitions import highest_reachable_with_edge_degrees_NEW
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession
 from modules.input_output import fasta_parser, write_output
@@ -159,7 +159,7 @@ def find_candidate_transcripts(read_file, params):
     seq_to_acc = get_unique_seq_accessions(S)
 
     minimizer_start = time() 
-    G_star, graph_partition, M, converged = highest_reachable_with_edge_degrees(S, params)
+    G_star, graph_partition, M, converged = highest_reachable_with_edge_degrees_NEW(S, params)
     partition_alignments = get_partition_alignments(graph_partition, M, G_star)       
 
     minimizer_elapsed = time() - minimizer_start
@@ -258,7 +258,7 @@ def find_candidate_transcripts(read_file, params):
         seq_to_acc = get_unique_seq_accessions(S)
         # partition_alignments, partition, M, converged = partition_strings(S)
 
-        G_star, graph_partition, M, converged = highest_reachable_with_edge_degrees(S, params)
+        G_star, graph_partition, M, converged = highest_reachable_with_edge_degrees_NEW(S, params)
         partition_alignments = get_partition_alignments(graph_partition, M, G_star)  
         out_file_name = os.path.join(params.outfolder, "candidates_step_" +  str(step) + ".fa")
         out_file = open(out_file_name, "w")
