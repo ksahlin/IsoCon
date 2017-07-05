@@ -208,7 +208,7 @@ def construct_exact_2set_minimizer_bipartite_graph(X, C, X_file, C_file, params)
 
     best_exact_matches = minimizer_graph.compute_2set_minimizer_graph(X, C, params)
     read_layer =  best_exact_matches.keys()
-    candidate_layer = [cand for read in best_exact_matches for cand in best_exact_matches[read]]
+    candidate_layer = set([cand for read in best_exact_matches for cand in best_exact_matches[read]])
     # G_star = {}
     G = nx.DiGraph()
     G.add_nodes_from(read_layer, bipartite=0)
