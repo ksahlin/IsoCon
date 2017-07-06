@@ -207,6 +207,7 @@ def stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_a
     correction_factor = 1
     all_variants = {}
     for pos, (state, char) in delta_t[c_acc].items():
+        print(state, char)
         u_v = candidate_indiv_invariant_factors[c_acc][pos][(state, char)]
         # print(u_v, state )
         if (u_v, state) in all_variants:
@@ -215,7 +216,16 @@ def stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_a
             all_variants[(u_v, state)] = 1
 
     for (u_v, state), n_v in all_variants.items():
-        nr_hom_lengths = homopolymenr_length_numbers[u_v]
+        if state == "I":
+            u_v = max(u_v - 1, 1)
+
+        if u_v not in homopolymenr_length_numbers:
+            index, u_v = min(enumerate(homopolymenr_length_numbers.keys()), key=lambda x: abs(x[1] - u_v))
+            nr_hom_lengths = homopolymenr_length_numbers[u_v]
+        else:
+            nr_hom_lengths = homopolymenr_length_numbers[u_v]
+
+
         if u_v > 1:
             correction_factor *= functions.choose(nr_hom_lengths, n_v)
 

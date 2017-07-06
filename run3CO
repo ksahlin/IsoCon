@@ -49,7 +49,7 @@ from modules import partitions
 from modules import identify_barcodes
 
 def clean_dir(params):
-    keep_files = set(["logfile.txt", "candidates_converged.fa", "final_candidates.fa"])
+    keep_files = set(["logfile.txt", "candidates_converged.fa", "final_candidates.fa", "not_processed.fa"])
     for the_file in os.listdir(params.outfolder):
         if the_file in keep_files:
             continue
