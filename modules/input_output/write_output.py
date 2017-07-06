@@ -63,26 +63,26 @@ def print_candidates(out_file_name, C, significance_test_values, partition_of_X,
         # the candidate has to have majority on _each_ position in c here otherwise most likely error
         
 
-        if p_value == "not_tested":
-            is_consensus = check_if_consensus(c_acc, C, X, partition_of_X)
-            if is_consensus:
-                if final:
-                    if support > 2: # need at least 3 reads for meaningful consensus
-                        out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) + "_" + str(delta_size) , seq))
-                        final_candidate_count += 1
-                    else:
-                        print("consensus had support: {0} and were not reported to output despite being consensus.".format(support) )
-                else:
-                    out_file.write(">{0}\n{1}\n".format(c_acc, seq))
-                    final_candidate_count += 1
+        # if p_value == "not_tested":
+        #     is_consensus = check_if_consensus(c_acc, C, X, partition_of_X)
+        #     if is_consensus:
+        #         if final:
+        #             if support > 2: # need at least 3 reads for meaningful consensus
+        #                 out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) + "_" + str(delta_size) , seq))
+        #                 final_candidate_count += 1
+        #             else:
+        #                 print("consensus had support: {0} and were not reported to output despite being consensus.".format(support) )
+        #         else:
+        #             out_file.write(">{0}\n{1}\n".format(c_acc, seq))
+        #             final_candidate_count += 1
 
+        # else:
+        if final:
+            out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) + "_" + str(delta_size) , seq))
+            final_candidate_count += 1
         else:
-            if final:
-                out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) + "_" + str(delta_size) , seq))
-                final_candidate_count += 1
-            else:
-                out_file.write(">{0}\n{1}\n".format(c_acc, seq))
-                final_candidate_count += 1
+            out_file.write(">{0}\n{1}\n".format(c_acc, seq))
+            final_candidate_count += 1
         # else:
         #     print("Not printing candidate to file:", c_acc, "support:", support, "pval:", p_value, "tot reads in partition:", N_t  )
     print("Candidates written to file: ", final_candidate_count)
