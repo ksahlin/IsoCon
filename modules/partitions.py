@@ -397,7 +397,12 @@ def partition_strings_2set(X, C, X_file, C_file, params):
     # G_star, alignment_graph = graphs.construct_2set_minimizer_bipartite_graph(X, C, X_file, C_file)
     G_star_transposed = nx.reverse(G_star) #functions.transpose(G_star)
     partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
-    candidate_nodes, read_nodes = bipartite.sets(G_star_transposed)
+    
+    # candidate_nodes, read_nodes = bipartite.sets(G_star_transposed)
+    
+    read_nodes = set(n for n,d in G_star_transposed.nodes(data=True) if d['bipartite']==0)
+    candidate_nodes = set(G_star_transposed) - read_nodes
+    
     read_deg, cand_deg = bipartite.degrees(G_star_transposed, candidate_nodes)
     # print(len(read_nodes), len(candidate_nodes))
     # print(read_deg)
@@ -413,7 +418,10 @@ def partition_strings_2set(X, C, X_file, C_file, params):
         partition[m] = set(reads_supporting_m)
         G_star_transposed.remove_node(m)
         G_star_transposed.remove_nodes_from(reads_supporting_m)
-        candidate_nodes, read_nodes = bipartite.sets(G_star_transposed)
+        
+        read_nodes = set(n for n,d in G_star_transposed.nodes(data=True) if d['bipartite']==0)
+        candidate_nodes = set(G_star_transposed) - read_nodes
+        # candidate_nodes, read_nodes = bipartite.sets(G_star_transposed)
 
         print("total nodes left after removal:", len(G_star_transposed.nodes()), "tot candidate nodes left:", candidate_nodes)
         print(read_nodes, [G_star[node] for node in read_nodes])
