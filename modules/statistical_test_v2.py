@@ -200,39 +200,41 @@ def stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_a
     p_value = poisson.sf(k - 1, pobin_mean)
 
 
-    ##### CORRECTION FACTOR MULTIPLE TESTING W.R.T. HOMOPOLYMENR LENGHTS ##############
+    #### CORRECTION FACTOR MULTIPLE TESTING W.R.T. HOMOPOLYMENR LENGHTS ##############
     # gives keyerror!!
-    # homopolymenr_length_numbers = functions.calculate_homopolymenr_lengths(t_seq) # dictionary { homopolymer_length : number of occurances on reference}
-    # correction_factor = 1
-    # all_variants = {}
-    # for pos, (state, char) in delta_t[c_acc].items():
-    #     u_v = candidate_indiv_invariant_factors[c_acc][pos][(state, char)]
-    #     # print(u_v, state )
-    #     if (u_v, state) in all_variants:
-    #         all_variants[(u_v, state)] +=1
-    #     else:
-    #         all_variants[(u_v, state)] = 1
+    homopolymenr_length_numbers = functions.calculate_homopolymenr_lengths(t_seq) # dictionary { homopolymer_length : number of occurances on reference}
+    print(homopolymenr_length_numbers)
+    correction_factor = 1
+    all_variants = {}
+    for pos, (state, char) in delta_t[c_acc].items():
+        u_v = candidate_indiv_invariant_factors[c_acc][pos][(state, char)]
+        # print(u_v, state )
+        if (u_v, state) in all_variants:
+            all_variants[(u_v, state)] +=1
+        else:
+            all_variants[(u_v, state)] = 1
 
-    # for (u_v, state), n_v in all_variants.items():
-    #     nr_hom_lengths = homopolymenr_length_numbers[u_v]
-    #     if u_v > 1:
-    #         correction_factor *= functions.choose(nr_hom_lengths, n_v)
+    for (u_v, state), n_v in all_variants.items():
+        nr_hom_lengths = homopolymenr_length_numbers[u_v]
+        if u_v > 1:
+            correction_factor *= functions.choose(nr_hom_lengths, n_v)
 
-    #     elif state == "I":
-    #         correction_factor *= functions.choose(4*(nr_hom_lengths + 1), n_v)
-    #     elif state == "S":
-    #         correction_factor *= functions.choose(3*nr_hom_lengths, n_v)
+        elif state == "I":
+            correction_factor *= functions.choose(4*(nr_hom_lengths + 1), n_v)
+        elif state == "S":
+            correction_factor *= functions.choose(3*nr_hom_lengths, n_v)
 
-    #     elif state == "D":
-    #         correction_factor *= functions.choose(nr_hom_lengths, n_v)
+        elif state == "D":
+            correction_factor *= functions.choose(nr_hom_lengths, n_v)
 
-    #     else:
-    #         print("BUG", state)
-    #         sys.exit()
-
-    mult_factor_inv = ( (4*(m+1))**n_I ) * functions.choose(m, n_D) * functions.choose( 3*(m-n_D), n_S)
+        else:
+            print("BUG", state)
+            sys.exit()
+    print(correction_factor)
     #####################################################################################
 
+    mult_factor_inv = ( (4*(m+1))**n_I ) * functions.choose(m, n_D) * functions.choose( 3*(m-n_D), n_S)
+    print(correction_factor, mult_factor_inv)
 
     pobin_var = sum([ epsilon_invariant_adjusted[q_acc] * ( 1 - epsilon_invariant_adjusted[q_acc] ) for q_acc in epsilon_invariant_adjusted])
     pobin_stddev = math.sqrt(pobin_var)
@@ -249,7 +251,7 @@ def stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_a
     # print("lambda inv adjusted", lambda_po_approx_inv, mult_factor_inv, k, len(delta_t[c_acc]), candidate_indiv_invariant_factors[c_acc])
     #############################
     #################################### 
-    return  p_value, mult_factor_inv
+    return  p_value, correction_factor
 
 def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C ):
     partition_dict = {t_acc : {}}

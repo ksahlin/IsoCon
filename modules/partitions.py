@@ -411,8 +411,8 @@ def partition_strings_2set(X, C, X_file, C_file, params):
     ######################
     while len(candidate_nodes) > 0:
         read_deg, cand_deg = bipartite.degrees(G_star_transposed, candidate_nodes)
-        print("reads left:", len(read_deg))
-        print("cands left:", len(cand_deg))
+        # print("reads left:", len(read_deg))
+        # print("cands left:", len(cand_deg))
         m = max(cand_deg, key=lambda key: cand_deg[key])
         reads_supporting_m = G_star_transposed.neighbors(m)
         partition[m] = set(reads_supporting_m)
@@ -423,8 +423,8 @@ def partition_strings_2set(X, C, X_file, C_file, params):
         candidate_nodes = set(G_star_transposed) - read_nodes
         # candidate_nodes, read_nodes = bipartite.sets(G_star_transposed)
 
-        print("total nodes left after removal:", len(G_star_transposed.nodes()), "tot candidate nodes left:", candidate_nodes)
-        print(read_nodes, [G_star[node] for node in read_nodes])
+        # print("total nodes left after removal:", len(G_star_transposed.nodes()), "tot candidate nodes left:", candidate_nodes)
+        # print(read_nodes, [G_star[node] for node in read_nodes])
         # print(len(reads_supporting_m) , len(G_star_transposed.nodes()), G_star_transposed.nodes() )
 
 
