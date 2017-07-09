@@ -4,6 +4,7 @@
     partition as keys and the alignment of s_i with respectt to the alignment matix.
 """
 import os
+import sys
 import unittest
 import copy
 import math 
@@ -111,7 +112,7 @@ def get_minimizer_graph_transposed(candidate_transcripts):
             elif math.fabs(len(seq1) - len(seq2)) > best_ed:
                 continue
             # TODO: remove task = "path" to speed up
-            edit_distance, locations, cigar = edlib_traceback(seq1, seq2, mode="NW", task="path", k=min(15, best_ed))
+            edit_distance, locations, cigar = edlib_traceback(seq1, seq2, mode="NW", task="path", k=min(10, best_ed))
 
             if 0 <= edit_distance < best_ed:
                 best_ed = edit_distance
@@ -169,7 +170,13 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
 
     ############ GET READS AND CANDIDATES #################
     X = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
-    C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
+    if os.stat(candidate_file).st_size == 0:
+        out_file_name = os.path.join(params.outfolder, "final_candidates.fa")
+        write_output.print_candidates(out_file_name, {}, {}, {}, {}, final = True)
+        print("Candidate file is empty!")
+        sys.exit(0)
+    else:
+        C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
 
     ################################################################
     print()
@@ -280,17 +287,21 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         # get all candidats that serve as null-hypothesis references and have neighbors subject to testing
         # these are all candidates that are minimizers to some other, isolated nodes are not tested
         # candidatate in G_star_C
-        nr_of_tests_this_round = len(minimizer_graph_transposed)
-        print("NUMBER OF CANDIDATES LEFT:", len(C))
+        nr_of_tests_this_round = len([ 1 for t_acc in minimizer_graph_transposed for c_acc in minimizer_graph_transposed[t_acc] ] )
+        print("NUMBER OF CANDIDATES LEFT:", len(C), "Number of performed statistical tests in this round:", nr_of_tests_this_round)
 
-        new_significance_values = statistical_test_v2.do_statistical_tests(minimizer_graph_transposed, C, X, partition_of_X, single_core = params.single_core )
+        if realignment_to_avoid_local_max == 1:
+            new_significance_values = statistical_test_v2.do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, single_core = params.single_core )
+        else:
+            new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, single_core = params.single_core )
+
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}
-        for c_acc, (corrected_p_value, k, N_t, delta_size) in list(new_significance_values.items()):
-            if corrected_p_value == "not_tested":
+        for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in list(new_significance_values.items()):
+            if p_value == "not_tested":
                 print("Did not test", c_acc)
-            elif corrected_p_value > 0.01/nr_of_tests_this_round:
-                print("removing", c_acc, "p-val:", corrected_p_value, "k", k, "N_t", N_t, "delta_size:", delta_size )
+            elif p_value * mult_factor_inv > 0.01/nr_of_tests_this_round:
+                print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "delta_size:", delta_size )
                 del C[c_acc] 
                 modified = True
                 for x_acc in partition_of_X[c_acc]:
@@ -302,8 +313,12 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         print("nr candidates left:", len(C))
         candidate_file = os.path.join(params.outfolder, "candidates_after_step_{0}.fa".format(step))
         step += 1
+
         significance_values = previous_significance_values.copy()
         significance_values.update(new_significance_values) # which returns None since it mutates z
+        
+        if len(C) == 0: # no candidates were significant!
+            break
 
         print("LEN SIGN:", len(significance_values), len(C))
         write_output.print_candidates(candidate_file, C, significance_values, partition_of_X, X)

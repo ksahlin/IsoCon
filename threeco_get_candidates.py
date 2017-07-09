@@ -108,7 +108,17 @@ def get_unique_seq_accessions(S):
 
 def get_partition_alignments(graph_partition, M, G_star):
     exact_edit_distances = edlib_align_sequences(graph_partition, single_core = False)    
+        
+    ed_temp = [ exact_edit_distances[s1][s2] for s1 in exact_edit_distances for s2 in exact_edit_distances[s1]  ] 
+    ed_temp.sort()
+    print("ED from edlib:", ed_temp)
+
     exact_alignments = sw_align_sequences(exact_edit_distances, single_core = False)
+
+    ssw_temp = [ exact_edit_distances[s1][s2] for s1 in exact_edit_distances for s2 in exact_edit_distances[s1]  ] 
+    ssw_temp.sort()
+    print("ED from SSW:", ssw_temp)
+
 
     partition_alignments = {} 
     for m in M:
@@ -166,7 +176,8 @@ def find_candidate_transcripts(read_file, params):
 
         print("candidates:", len(M))
         edit_distances = [ partition_alignments[s1][s2][0] for s1 in partition_alignments for s2 in partition_alignments[s1]  ] 
-        print("edit distances:", edit_distances) 
+        edit_distances.sort()
+        print("edit distances from SSW:", edit_distances) 
 
         #################################################
         ###### temp check for isoform collapse###########
@@ -247,8 +258,6 @@ def find_candidate_transcripts(read_file, params):
         seq_to_acc = get_unique_seq_accessions(S)
         # partition_alignments, partition, M, converged = partition_strings(S)
 
- 
-
         G_star, graph_partition, M, converged = highest_reachable_with_edge_degrees(S, params)
         partition_alignments = get_partition_alignments(graph_partition, M, G_star)  
         out_file_name = os.path.join(params.outfolder, "candidates_step_" +  str(step) + ".fa")
@@ -263,6 +272,8 @@ def find_candidate_transcripts(read_file, params):
 
         correction_elapsed = time() - correction_start
         write_output.logger('Time for correction, minimizers and partition, step {0}:{1}'.format(step, str(correction_elapsed)), params.logfile)
+        
+        # sys.exit()
    
     C = {}
     for m in M:
@@ -369,35 +380,36 @@ def filter_candidates(alignments_of_x_to_c, C, params):
         #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
         # add extra constraint that the candidate has to have majority on _each_ position in c here otherwise most likely error
         if support >= params.min_candidate_support:
-            # print("needs to be consensus over each base pair")
-            partition_alignments_c = {m : (0, m, m, 1)}  # format: (edit_dist, aln_c, aln_x, 1)
-            for x_acc in alignments_of_x_to_c_transposed[m]:
-                aln_x, aln_m, (matches, mismatches, indels) = alignments_of_x_to_c_transposed[m][x_acc]
-                ed = mismatches + indels
-                partition_alignments_c[x_acc] = (ed, aln_m, aln_x, 1) 
-                # print(ed, aln_x, aln_m)
+            if params.prefilter_candidates:
+                # print("needs to be consensus over each base pair")
+                partition_alignments_c = {m : (0, m, m, 1)}  # format: (edit_dist, aln_c, aln_x, 1)
+                for x_acc in alignments_of_x_to_c_transposed[m]:
+                    aln_x, aln_m, (matches, mismatches, indels) = alignments_of_x_to_c_transposed[m][x_acc]
+                    ed = mismatches + indels
+                    partition_alignments_c[x_acc] = (ed, aln_m, aln_x, 1) 
+                    # print(ed, aln_x, aln_m)
 
-            alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(m, partition_alignments_c)
-            c_alignment = alignment_matrix_to_c[m]
-            is_consensus = True
-            for j in range(len(PFM_to_c)):
-                c_v =  c_alignment[j]
-                candidate_count = PFM_to_c[j][c_v]
-                max_v_j = max(PFM_to_c[j], key = lambda x: PFM_to_c[j][x] )
-                max_count = PFM_to_c[j][max_v_j]
-                if candidate_count < max_count:
-                    print("not consensus at:", j)
-                    is_consensus = False                    
+                alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(m, partition_alignments_c)
+                c_alignment = alignment_matrix_to_c[m]
+                is_consensus = True
+                for j in range(len(PFM_to_c)):
+                    c_v =  c_alignment[j]
+                    candidate_count = PFM_to_c[j][c_v]
+                    max_v_j = max(PFM_to_c[j], key = lambda x: PFM_to_c[j][x] )
+                    max_count = PFM_to_c[j][max_v_j]
+                    if candidate_count < max_count:
+                        print("not consensus at:", j)
+                        is_consensus = False                    
 
-                # for v in PFM_to_c[j]:
-                #     if v != c_v and candidate_count <= PFM_to_c[j][v]: # needs to have at least one more in support than the second best as we have added c itself to the multialignment
-                #         print("not consensus at:", j)
-                #         is_consensus = False
+                    # for v in PFM_to_c[j]:
+                    #     if v != c_v and candidate_count <= PFM_to_c[j][v]: # needs to have at least one more in support than the second best as we have added c itself to the multialignment
+                    #         print("not consensus at:", j)
+                    #         is_consensus = False
 
-            if not is_consensus:
-                print("Read with support {0} were not consensus".format(str(support)))
-                del alignments_of_x_to_c_transposed[m]
-                del C[m]
+                if not is_consensus:
+                    print("Read with support {0} were not consensus".format(str(support)))
+                    del alignments_of_x_to_c_transposed[m]
+                    del C[m]
         else:
             print("deleting:")
             del alignments_of_x_to_c_transposed[m]

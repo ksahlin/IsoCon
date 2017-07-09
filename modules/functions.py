@@ -14,6 +14,31 @@
 import unittest
 from collections import defaultdict
 
+
+def calculate_homopolymenr_lengths(t_seq):
+    homopolymenr_length_numbers = {}
+
+    h_len = 1
+    for char1, char2 in zip(t_seq[:-1], t_seq[1:]):
+
+        if char1 != char2:
+            if h_len in homopolymenr_length_numbers:
+                homopolymenr_length_numbers[h_len] += 1
+            else:
+                homopolymenr_length_numbers[h_len] = 1
+            h_len = 1
+
+        else:
+            h_len += 1
+
+    # end case
+    if h_len in homopolymenr_length_numbers:
+        homopolymenr_length_numbers[h_len] += 1
+    else:
+        homopolymenr_length_numbers[h_len] = 1
+
+    return homopolymenr_length_numbers
+
 def choose(n, k):
     """
     A fast way to calculate binomial coefficients by Andrew Dalke (contrib).
@@ -374,7 +399,7 @@ def create_position_probability_matrix(m, partition):
         assert target_vector_end_position + 1 == 2*len(m) + 1 # vector positions are 0-indexed
         query_to_target_positioned_dict[q] = (s_positioned, target_vector_start_position, target_vector_end_position)
 
-    alignment_matrix = create_multialignment_format(query_to_target_positioned_dict, 0, 2*len(m))
+    alignment_matrix = create_multialignment_format_OLD_fixed(query_to_target_positioned_dict, 0, 2*len(m))
 
     # N_t = sum([container_tuple[3] for q, container_tuple in partition.items()]) # total number of sequences in partition
     # print("total seq multiset:", N_t, "total seqs in set:", len(partition))
@@ -503,7 +528,7 @@ def get_non_overlapping_intervals(ranges):
     return(non_overlapping_parts)
 
 
-def create_multialignment_format(query_to_target_positioned_dict, start, stop):
+def create_multialignment_format_OLD(query_to_target_positioned_dict, start, stop):
     """
         only create multialignment format of the query sequences that cover the region [start,stop] start stop is the vector 
         coordinates where vector is of size 2*len(target) + 1
@@ -627,7 +652,248 @@ def create_multialignment_format(query_to_target_positioned_dict, start, stop):
     # print(alignment_matrix)
     return alignment_matrix
 
+def create_multialignment_format_OLD_fixed(query_to_target_positioned_dict, start, stop):
+    """
+        only create multialignment format of the query sequences that cover the region [start,stop] start stop is the vector 
+        coordinates where vector is of size 2*len(target) + 1
+    """
+    assert len(query_to_target_positioned_dict) > 0
+    target_vector_length = len( list(query_to_target_positioned_dict.values())[0][0])
+    assert stop < target_vector_length # vector coordinates are 0-indexed
 
+    # get allreads alignments covering interesting segment
+    # row_accessions = []
+    segments = {}
+    for q_acc, (q_to_t_pos, t_vector_start, t_vector_end) in query_to_target_positioned_dict.items():
+        if t_vector_start <= start and t_vector_end >= stop: # read cover region
+            segment = q_to_t_pos[start - t_vector_start : stop - t_vector_start +1 ]
+            # row_accessions.append(q_acc)
+            segments[q_acc] = segment
+
+
+    # create alignment matrix of segment
+    alignment_matrix = {}
+    for q_acc in segments:
+        alignment_matrix[q_acc] = []
+
+    for j in range(0, stop - start + 1):
+        if (start + j) % 2 == 0:  # we are between a target base pairs (need to check the longest one)
+            insertions = [(segments[q_acc][j], q_acc) for q_acc in segments]
+            max_insertion, q_acc_max_ins = max(insertions, key= lambda x : len(x[0]))
+            
+            max_ins_len = len(max_insertion)
+            all_max_ins = set([ins for (ins, acc) in insertions if len(ins) == max_ins_len])
+            if len(all_max_ins) > 1 and max_ins_len > 1:
+                print(all_max_ins, max_insertion)
+            # if len(all_max_ins) > 1 and max_ins_len == 2:
+            #     print("pos", j, all_max_ins)
+            max_insertion = sorted(all_max_ins)[0] 
+            max_insertion = "-" + max_insertion + "-"  # pad the max insertion
+
+            for q_acc in segments:
+                # check if identical substring in biggest insertion first:
+                q_ins = segments[q_acc][j]
+                q_insertion_modified = ""
+
+                if q_ins == "-":
+                    # print("LOOL")
+                    q_insertion_modified = "-"*len(max_insertion)
+
+                if not q_insertion_modified:
+                    pos = max_insertion.find(q_ins) 
+                    q_insertion_modified = ""
+                    if pos >=0:
+                        if pos >= 1:
+                            pass
+                            # print("here perfect new!! q: {0} max: {1}, new q_ins:{2}".format(q_ins, max_insertion,  "-"*pos + max_insertion[ pos : pos + len(q_ins) ] + "-"* len(max_insertion[ pos + len(q_ins) : ])))
+                        
+                        q_insertion_modified = "-"*pos + max_insertion[ pos : pos + len(q_ins) ] + "-"* len(max_insertion[ pos + len(q_ins) : ])
+
+
+                if not q_insertion_modified:
+                    # else, check is smaller deletion can be aligned from left to write, e.g. say max deletion is GACG
+                    # then an insertion AG may be aligned as -A-G. Take this alignment instead
+                    q_insertion_modified = thread_to_max_ins(max_insertion, q_ins)
+                
+                # if not q_insertion_modified:
+                #     # else, check is smaller deletion can be aligned from left to write, e.g. say max deletion is GACG
+                #     # then an insertion AG may be aligned as -A-G. Take this alignment instead
+                #     can_be_threaded = True
+                #     prev_pos = -1
+                #     match_pos = set()
+                #     for q_nucl in q_ins:
+                #         pos = max_insertion.find(q_nucl) 
+                #         match_pos.add(pos)
+                #         if pos <= prev_pos:
+                #             can_be_threaded = False
+                #             break
+                #         prev_pos = pos
+
+                #     if can_be_threaded:
+                #         q_insertion_modified = ""
+                #         for p in range(len(max_insertion)):
+                #             if p in match_pos:
+                #                 nucl = max_insertion[p]
+                #             else:
+                #                 nucl = "-"
+                #             q_insertion_modified = q_insertion_modified + nucl
+                #         # print("NEW can be threaded: q:{0}, max: {1}, new thread: {2}".format(q_ins, max_insertion, q_insertion_modified))
+
+                if not q_insertion_modified:
+                    # otherwise just shift left
+                    # print("Not solved: q:{0}, max: {1}".format(q_ins, max_insertion))
+                    # check if there is at least one matching character we could align to
+                    max_p = 0
+                    max_matches = 0
+                    for p in range(0, len(max_insertion) - len(q_ins) + 1 ):
+                        nr_matches = len([1 for c1, c2 in zip(q_ins, max_insertion[p: p + len(q_ins) ] ) if c1 == c2])
+                        if nr_matches > max_matches:
+                            max_p = p
+                            max_matches = nr_matches
+
+                    if max_p > 0:
+                        q_insertion_modified = "-"*max_p + q_ins + "-"*len(max_insertion[max_p + len(q_ins) : ])
+                        # print("specially solved: q:{0} max:{1} ".format(q_insertion_modified, max_insertion) )
+
+                if not q_insertion_modified:
+                    q_insertion_modified = []
+                    for p in range(len(max_insertion)):
+                        # all shorter insertions are left shifted -- identical indels are guaranteed to be aligned
+                        # however, no multialignment is performed among the indels
+                        if p < len(q_ins):
+                            q_insertion_modified.append(q_ins[p])
+                        else:
+                            q_insertion_modified.append("-")
+
+                #### finally add to alignment matrix
+                if len(q_insertion_modified) != len(max_insertion):
+                    print(q_insertion_modified, max_insertion, q_ins)
+                assert len(q_insertion_modified) == len(max_insertion)
+                for p in range(len(max_insertion)):
+                    alignment_matrix[q_acc].append(q_insertion_modified[p])
+
+        else: # we are on a target base pair -- all varinats must be exactly A,C,G,T, - i.e., length 1
+            for q_acc in segments:
+                alignment_matrix[q_acc].append(segments[q_acc][j])
+    # print(alignment_matrix)
+    return alignment_matrix
+
+
+def create_multialignment_format(query_to_target_positioned_dict, start, stop):
+    """
+        only create multialignment format of the query sequences that cover the region [start,stop] start stop is the vector 
+        coordinates where vector is of size 2*len(target) + 1
+    """
+    assert len(query_to_target_positioned_dict) > 0
+    target_vector_length = len( list(query_to_target_positioned_dict.values())[0][0])
+    assert stop < target_vector_length # vector coordinates are 0-indexed
+
+    # get allreads alignments covering interesting segment
+    # row_accessions = []
+    segments = {}
+    for q_acc, (q_to_t_pos, t_vector_start, t_vector_end) in query_to_target_positioned_dict.items():
+        if t_vector_start <= start and t_vector_end >= stop: # read cover region
+            segment = q_to_t_pos[start - t_vector_start : stop - t_vector_start +1 ]
+            # row_accessions.append(q_acc)
+            segments[q_acc] = segment
+
+
+    # create alignment matrix of segment
+    alignment_matrix = {}
+    for q_acc in segments:
+        alignment_matrix[q_acc] = []
+
+    for j in range(0, stop - start + 1):
+        if (start + j) % 2 == 0:  # we are between a target base pairs (need to check the longest one)
+            insertions = [(segments[q_acc][j], q_acc) for q_acc in segments]
+            # TODO: HERE IS STOCHASTICITY! Lets just do edlib(path=True) here all the time and take leftmost best alignment if several!, that would simplify code, right?! 
+            max_insertion, q_acc_max_ins = max(insertions, key= lambda x : len(x[0]))
+            max_ins_len = len(max_insertion)
+            all_max_ins = set(["-" + ins + "-" for (ins, acc) in insertions if len(ins) == max_ins_len])
+            # if len(all_max_ins) > 1 and max_ins_len == 2:
+            #     print("pos", j, all_max_ins)
+            max_insertion = "-" + max_insertion + "-"  # pad the max insertion
+            padded_max_ins_len = len(max_insertion)
+
+            for q_acc in segments:
+                # check if identical substring in biggest insertion first:
+                q_ins = segments[q_acc][j]
+                q_insertion_modified = ""
+
+                if q_ins == "-":
+                    # print("LOOL")
+                    q_insertion_modified = "-"*padded_max_ins_len
+
+
+                can_be_threaded = False
+                if not q_insertion_modified:
+                    # else, check is smaller deletion can be aligned from left to write, e.g. say max deletion is GACG
+                    # then an insertion AG may be aligned as -A-G. Take this alignment instead
+                    for max_ins in sorted(all_max_ins):
+                        # print("max ins", max_ins)
+                        q_insertion_modified = thread_to_max_ins(max_ins, q_ins)
+                        if q_insertion_modified:
+                            can_be_threaded = True
+                            # print("mod", q_insertion_modified)
+                            break
+
+
+                if not q_insertion_modified:
+                    q_insertion_modified = []
+                    for p in range(padded_max_ins_len):
+                        # all shorter insertions are left shifted -- identical indels are guaranteed to be aligned
+                        # however, no multialignment is performed among the indels
+                        if p < len(q_ins):
+                            q_insertion_modified.append(q_ins[p])
+                        else:
+                            q_insertion_modified.append("-")
+
+                #### finally add to alignment matrix
+                if len(q_insertion_modified) != padded_max_ins_len:
+                    print(q_insertion_modified, max_insertion, q_ins)
+                assert len(q_insertion_modified) == padded_max_ins_len
+
+                # if len(all_max_ins) > 1 and padded_max_ins_len == 4 and q_ins != "-":
+                #     print(j, q_ins, "threaded:", can_be_threaded , q_insertion_modified)
+
+                for p in range(padded_max_ins_len):
+                    alignment_matrix[q_acc].append(q_insertion_modified[p])
+
+        else: # we are on a target base pair -- all varinats must be exactly A,C,G,T, - i.e., length 1
+            for q_acc in segments:
+                alignment_matrix[q_acc].append(segments[q_acc][j])
+    # print(alignment_matrix)
+    return alignment_matrix
+
+
+def thread_to_max_ins(max_insertion, q_ins):
+    # else, check if smaller variant can be aligned from left to right, e.g. say max deletion is GACG
+    # then an insertion AG may be aligned as -A-G. Take this alignment instead
+    can_be_threaded = True
+    prev_pos = -1
+    match_pos = set()
+    for q_nucl in q_ins:  # TODO: WHAT IF INSERTION AGA HERE WITH MAX_INSTERTION TAGA? match_pos will be {1,2,1} and can_be_threaded False, this is incorrect!!
+        pos = max_insertion[(prev_pos+1):].find(q_nucl) 
+        if pos < 0:
+            can_be_threaded = False
+            break
+        else:
+            match_pos.add( (pos + (prev_pos+1)) ) 
+        prev_pos = pos
+
+    if can_be_threaded:
+        q_insertion_modified = ""
+        for p in range(len(max_insertion)):
+            if p in match_pos:
+                nucl = max_insertion[p]
+            else:
+                nucl = "-"
+            q_insertion_modified = q_insertion_modified + nucl
+        # print("NEW can be threaded: q:{0}, max: {1}, new thread: {2}".format(q_ins, max_insertion, q_insertion_modified))
+        return q_insertion_modified
+    else:
+        return ""
+ 
 
 class TestFunctions(unittest.TestCase):
 

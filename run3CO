@@ -49,7 +49,7 @@ from modules import partitions
 from modules import identify_barcodes
 
 def clean_dir(params):
-    keep_files = set(["logfile.txt", "candidates_converged.fa", "final_candidates.fa"])
+    keep_files = set(["logfile.txt", "candidates_converged.fa", "final_candidates.fa", "not_processed.fa"])
     for the_file in os.listdir(params.outfolder):
         if the_file in keep_files:
             continue
@@ -86,7 +86,6 @@ def run_stat_filter(params):
     initialize_logger(params)
     all_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
     # candidate_alignments =  alignment_file_parser.get_alignments(open(params.candidate_alignments, 'r'))
-
     print("nr initial candidates:", len(all_candidates))
     preprocessed_candidates_file = open(os.path.join(params.outfolder, "preprocessed_candidates.fa"), "w")
     counter = 0
@@ -107,6 +106,11 @@ def run_stat_filter(params):
     params.candidates = preprocessed_candidates_file.name
     print("After preprocessed:", counter)
 
+    if os.stat(params.candidates).st_size == 0:
+        out_file_name = os.path.join(params.outfolder, "final_candidates.fa")
+        write_output.print_candidates(out_file_name, {}, {}, {}, {}, final = True)
+        print("Candidate file is empty!")
+        sys.exit(0)
 
     original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.fl_reads, 'r'))}
     filtered_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
@@ -172,7 +176,7 @@ if __name__ == '__main__':
     # create the top-level parser
     parent_parser = argparse.ArgumentParser("Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads.")
     # parent_parser.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
-    parent_parser.add_argument('--version', action='version', version='%(prog)s 0.2.0')
+    parent_parser.add_argument('--version', action='version', version='%(prog)s 0.2.3')
 
     subparsers = parent_parser.add_subparsers(help='help for subcommand')
 
@@ -188,6 +192,7 @@ if __name__ == '__main__':
     pipeline.add_argument('--minimap_bin_size', type=int, default=400, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
     pipeline.add_argument('--statistical_test_editdist', type=int, default=0, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
     pipeline.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
+    pipeline.add_argument('--prefilter_candidates', action='store_true', help='Filter candidates if they are not consensus over at least on base pair, this can reduce runting without significant or any loss in true candidates.')
     pipeline.set_defaults(which='pipeline')
 
 
@@ -209,6 +214,7 @@ if __name__ == '__main__':
     get_candidates.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     get_candidates.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
     get_candidates.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
+    get_candidates.add_argument('--prefilter_candidates', action='store_true', help='Filter candidates if they are not consensus over at least on base pair, this can reduce runting without significant or any loss in true candidates.')
     get_candidates.set_defaults(which='get_candidates')
 
 
