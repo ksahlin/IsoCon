@@ -29,10 +29,10 @@ def get_minimizers_helper(arguments):
     args, kwargs = arguments
     return get_minimizers(*args, **kwargs)
 
-def get_exact_minimizer_graph(seq_to_acc_list_sorted, single_core = False):
+def get_exact_minimizer_graph(seq_to_acc_list_sorted, has_converged, params):
 
-    if single_core:
-        best_edit_distances = get_minimizers(seq_to_acc_list_sorted, 0, seq_to_acc_list_sorted)
+    if params.single_core:
+        best_edit_distances = get_minimizers(seq_to_acc_list_sorted, 0, seq_to_acc_list_sorted, has_converged, params.minimizer_search_depth)
 
         # implement check here to se that all seqs got a minimizer, if not, print which noes that did not get a minimizer computed.!
 
@@ -47,7 +47,7 @@ def get_exact_minimizer_graph(seq_to_acc_list_sorted, single_core = False):
         print([i for i in range(0, len(seq_to_acc_list_sorted), chunk_size)])
         print([len(ch) for i,ch in chunks])
         try:
-            res = pool.map_async(get_minimizers_helper, [ ((chunk, i , seq_to_acc_list_sorted), {}) for i,chunk in chunks] )
+            res = pool.map_async(get_minimizers_helper, [ ((chunk, i , seq_to_acc_list_sorted, has_converged, params.minimizer_search_depth), {}) for i,chunk in chunks] )
             best_edit_distances_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -120,7 +120,7 @@ def edlib_traceback(x, y, mode="NW", task="path", k=1):
     return ed, locations, cigar
 
 
-def get_minimizers(batch_of_queries, start_index, seq_to_acc_list_sorted):
+def get_minimizers(batch_of_queries, start_index, seq_to_acc_list_sorted, has_converged, minimizer_search_depth):
     best_edit_distances = {}
     lower_target_edit_distances = {}
     # error_types = {"D":0, "S": 0, "I": 0}
@@ -131,6 +131,9 @@ def get_minimizers(batch_of_queries, start_index, seq_to_acc_list_sorted):
         seq1 = seq_to_acc_list_sorted[i][0]
         acc1 = seq_to_acc_list_sorted[i][1]
         best_edit_distances[acc1] = {}
+        if seq1 in has_converged:
+            # print("ctd here")
+            continue
 
         if acc1 in lower_target_edit_distances:
             best_ed = lower_target_edit_distances[acc1] 
@@ -140,7 +143,9 @@ def get_minimizers(batch_of_queries, start_index, seq_to_acc_list_sorted):
 
         stop_up = False
         stop_down = False
-        for j in range(1,len(seq_to_acc_list_sorted)):
+        j = 1
+        while True:
+        # for j in range(1,len(seq_to_acc_list_sorted)):
             if i - j < 0:
                 stop_down = True
             if i + j >= len(seq_to_acc_list_sorted):
@@ -191,9 +196,13 @@ def get_minimizers(batch_of_queries, start_index, seq_to_acc_list_sorted):
                 else:
                     if 0 < edit_distance:                 
                         lower_target_edit_distances[acc3] = edit_distance 
- 
+            
             if stop_down and stop_up:
                 break
+
+            if j >= minimizer_search_depth:
+                break
+            j += 1
 
         # print("best ed:", best_ed)
         # if best_ed > 100:
@@ -209,7 +218,7 @@ def compute_2set_minimizer_graph(X, C, params):
     
     seq_to_acc_list_sorted_all = sorted(seq_to_acc_queries + seq_to_acc_targets, key= lambda x: len(x[0]))
 
-    minimizer_graph_x_to_c = get_exact_minimizer_graph_2set(seq_to_acc_list_sorted_all, set(C.keys()), single_core = params.single_core)
+    minimizer_graph_x_to_c = get_exact_minimizer_graph_2set(seq_to_acc_list_sorted_all, set(C.keys()), params)
 
     # TAKE CARE OF UNALIGNED READS HERE?
 
@@ -235,7 +244,7 @@ def compute_2set_minimizer_graph(X, C, params):
     return minimizer_graph_x_to_c
 
 
-def compute_minimizer_graph(S, params):
+def compute_minimizer_graph(S, has_converged, params):
     """
         strings S are all unique here.
     """
@@ -247,7 +256,7 @@ def compute_minimizer_graph(S, params):
     seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
     collapsed_consensus_transcripts =  { acc : seq for (seq, acc) in  seq_to_acc.items() }
     print("Number of collapsed consensus:", len(collapsed_consensus_transcripts))
-    minimizer_graph = get_exact_minimizer_graph(seq_to_acc_list_sorted, single_core = params.single_core)
+    minimizer_graph = get_exact_minimizer_graph(seq_to_acc_list_sorted, has_converged, params)
 
     s1 = set()
     for acc1 in minimizer_graph:
@@ -281,10 +290,10 @@ def compute_minimizer_graph(S, params):
 
 
 
-def get_exact_minimizer_graph_2set(seq_to_acc_list_sorted_all, target_accessions, single_core = False):
+def get_exact_minimizer_graph_2set(seq_to_acc_list_sorted_all, target_accessions, params):
 
-    if single_core:
-        best_edit_distances = get_minimizers_2set(seq_to_acc_list_sorted_all, 0, seq_to_acc_list_sorted_all, target_accessions)
+    if params.single_core:
+        best_edit_distances = get_minimizers_2set(seq_to_acc_list_sorted_all, 0, seq_to_acc_list_sorted_all, target_accessions, params.minimizer_search_depth)
 
         # implement check here to se that all seqs got a minimizer, if not, print which noes that did not get a minimizer computed.!
 
@@ -299,7 +308,7 @@ def get_exact_minimizer_graph_2set(seq_to_acc_list_sorted_all, target_accessions
         print([i for i in range(0, len(seq_to_acc_list_sorted_all), chunk_size)])
         print([len(ch) for i,ch in chunks])
         try:
-            res = pool.map_async(get_minimizers_2set_helper, [ ((chunk, i , seq_to_acc_list_sorted_all, target_accessions), {}) for i,chunk in chunks] )
+            res = pool.map_async(get_minimizers_2set_helper, [ ((chunk, i , seq_to_acc_list_sorted_all, target_accessions, params.minimizer_search_depth), {}) for i,chunk in chunks] )
             best_edit_distances_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -322,7 +331,7 @@ def get_minimizers_2set_helper(arguments):
     args, kwargs = arguments
     return get_minimizers_2set(*args, **kwargs)
 
-def get_minimizers_2set(batch, start_index, seq_to_acc_list_sorted, target_accessions):
+def get_minimizers_2set(batch, start_index, seq_to_acc_list_sorted, target_accessions, minimizer_search_depth):
     best_edit_distances = {}
     error_types = {"D":0, "S": 0, "I": 0}
     for i in range(start_index, start_index + len(batch)):
@@ -341,7 +350,10 @@ def get_minimizers_2set(batch, start_index, seq_to_acc_list_sorted, target_acces
 
         stop_up = False
         stop_down = False
-        for j in range(1,len(seq_to_acc_list_sorted)):
+
+        j = 1
+        while True:
+        # for j in range(1,len(seq_to_acc_list_sorted)):
             if i - j < 0:
                 stop_down = True
             if i + j >= len(seq_to_acc_list_sorted):
@@ -391,6 +403,10 @@ def get_minimizers_2set(batch, start_index, seq_to_acc_list_sorted, target_acces
             if stop_down and stop_up:
                 break
 
+            if j >= minimizer_search_depth:
+                break
+
+            j += 1
         # print("best ed:", best_ed)
         # if best_ed > 100:
         #     print(best_ed, "for seq with length", len(seq1), seq1)
@@ -408,7 +424,7 @@ def main(args):
     seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
     collapsed_consensus_transcripts =  { acc : seq for (seq, acc) in  seq_to_acc.items() }
     print("Number of collapsed consensus:", len(collapsed_consensus_transcripts))
-    minimizer_graph = get_exact_minimizer_graph(seq_to_acc_list_sorted, single_core = args.single_core)
+    minimizer_graph = get_exact_minimizer_graph(seq_to_acc_list_sorted, params)
 
     s1 = set( [ collapsed_consensus_transcripts[acc2] for acc1 in minimizer_graph for acc2 in minimizer_graph[acc1] ])
     s2 = set([seq for seq in seq_to_acc] )

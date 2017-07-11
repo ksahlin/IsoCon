@@ -40,9 +40,13 @@ def construct_exact_minimizer_graph_improved(S, params):
     
     converged = True
     G = nx.DiGraph()
+    has_converged = set()
     for seq, list_acc in predicted_seq_to_acc.items():
         deg = len(list_acc)
         G.add_node(seq, degree = deg)
+        if deg > 1:
+            has_converged.add(seq)
+
         if deg == 1:
             converged = False
     
@@ -51,7 +55,7 @@ def construct_exact_minimizer_graph_improved(S, params):
     
     unique_strings = {seq : acc for acc, seq in S.items()}
     S_prime = {acc : seq for seq, acc in unique_strings.items()}
-    all_internode_edges_in_minimizer_graph, isolated_nodes = minimizer_graph.compute_minimizer_graph(S_prime, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
+    all_internode_edges_in_minimizer_graph, isolated_nodes = minimizer_graph.compute_minimizer_graph(S_prime, has_converged, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
  
 
     # TODO: implement already_converged to skip redundant calculations, the more important for more comverged stings we have!! 
