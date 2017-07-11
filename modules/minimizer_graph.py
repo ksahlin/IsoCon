@@ -42,12 +42,33 @@ def get_exact_minimizer_graph(seq_to_acc_list_sorted, has_converged, params):
         original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
+
+        # here we split the input into chunks
         chunk_size = max(int(len(seq_to_acc_list_sorted) / (10*mp.cpu_count())), 20 )
+        ref_seq_chunks = [ ( max(0, i - params.minimizer_search_depth -1), seq_to_acc_list_sorted[max(0, i - params.minimizer_search_depth -1) : i + chunk_size + params.minimizer_search_depth +1 ]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size) ]
+        print([j for j, ch in ref_seq_chunks])
+        print("reference chunks:", [len(ch) for j,ch in ref_seq_chunks])
+
         chunks = [(i, seq_to_acc_list_sorted[i:i + chunk_size]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size)] 
-        print([i for i in range(0, len(seq_to_acc_list_sorted), chunk_size)])
-        print([len(ch) for i,ch in chunks])
+        print([i for i,ch in chunks])
+        print("query chunks:", [len(ch) for i,ch in chunks])
+        # sys.exit()
+        already_converged_chunks = []
+        for i, chunk in chunks:
+            already_converged_chunk = set()
+            for seq, acc in chunk:
+                if seq in has_converged:
+                    already_converged_chunk.add(seq)
+            already_converged_chunks.append(already_converged_chunk)
+        print("already converged chunks:", [len(ch) for ch in already_converged_chunks])
+
+        # get minimizers takes thre sub containers: 
+        #  chunk - a container with (sequences, accesions)-tuples to be aligned (queries)
+        #  ref_seq_chunks - a container with (sequences, accesions)-tuples to be aligned to (references)
+        #  already_converged_chunks - a set of query sequences that has already converged 
+
         try:
-            res = pool.map_async(get_minimizers_helper, [ ((chunk, i , seq_to_acc_list_sorted, has_converged, params.minimizer_search_depth), {}) for i,chunk in chunks] )
+            res = pool.map_async(get_minimizers_helper, [ ((chunks[i][1],  chunks[i][0], chunks[i][0] - ref_seq_chunks[i][0], ref_seq_chunks[i][1], already_converged_chunks[i], params.minimizer_search_depth), {}) for i in range(len(chunks))] )
             best_edit_distances_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -120,14 +141,14 @@ def edlib_traceback(x, y, mode="NW", task="path", k=1):
     return ed, locations, cigar
 
 
-def get_minimizers(batch_of_queries, start_index, seq_to_acc_list_sorted, has_converged, minimizer_search_depth):
+def get_minimizers(batch_of_queries, global_index_in_matrix, start_index, seq_to_acc_list_sorted, has_converged, minimizer_search_depth):
     best_edit_distances = {}
     lower_target_edit_distances = {}
+    print("Processing global index:" , global_index_in_matrix)
     # error_types = {"D":0, "S": 0, "I": 0}
     for i in range(start_index, start_index + len(batch_of_queries)):
-        if i % 50 == 0:
-            print("processing ", i)
-
+        # if i % 100 == 0:
+        #     print("processing ", i)
         seq1 = seq_to_acc_list_sorted[i][0]
         acc1 = seq_to_acc_list_sorted[i][1]
         best_edit_distances[acc1] = {}
