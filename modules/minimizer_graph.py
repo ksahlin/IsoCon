@@ -30,9 +30,8 @@ def get_minimizers_helper(arguments):
     return get_minimizers(*args, **kwargs)
 
 def get_exact_minimizer_graph(seq_to_acc_list_sorted, has_converged, params):
-
     if params.single_core:
-        best_edit_distances = get_minimizers(seq_to_acc_list_sorted, 0, seq_to_acc_list_sorted, has_converged, params.minimizer_search_depth)
+        best_edit_distances = get_minimizers(seq_to_acc_list_sorted, 0, 0, seq_to_acc_list_sorted, has_converged, params.minimizer_search_depth)
 
         # implement check here to se that all seqs got a minimizer, if not, print which noes that did not get a minimizer computed.!
 
@@ -147,8 +146,8 @@ def get_minimizers(batch_of_queries, global_index_in_matrix, start_index, seq_to
     print("Processing global index:" , global_index_in_matrix)
     # error_types = {"D":0, "S": 0, "I": 0}
     for i in range(start_index, start_index + len(batch_of_queries)):
-        # if i % 100 == 0:
-        #     print("processing ", i)
+        if i % 500 == 0:
+            print("processing ", i)
         seq1 = seq_to_acc_list_sorted[i][0]
         acc1 = seq_to_acc_list_sorted[i][1]
         best_edit_distances[acc1] = {}
