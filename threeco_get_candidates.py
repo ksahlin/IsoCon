@@ -307,7 +307,9 @@ def find_candidate_transcripts(read_file, params):
                 if C[corrected_s] >= params.min_candidate_support:
                     reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
                 else:
-                    print("Read was partially corrected did not pass threshold. It had support of {0} reads.".format(C[corrected_s]))
+                    print("Read was corrected but did not pass threshold. It had support of {0} reads.".format(C[corrected_s]))
+                    not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+                    not_corrected.add(read_acc)
                     del C[corrected_s]
 
         else:
@@ -317,7 +319,8 @@ def find_candidate_transcripts(read_file, params):
                 not_corrected.add(read_acc)
 
             else: # partially corrected but not converged
-                pass
+                not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+                not_corrected.add(read_acc)
 
 
         # if corrected_s in original_reads_seq_to_accs:
