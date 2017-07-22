@@ -245,7 +245,9 @@ def stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_a
 
     mult_factor_inv = ( (4*(m+1))**n_I ) * functions.choose(m, n_D) * functions.choose( 3*(m-n_D), n_S)
     print(correction_factor, mult_factor_inv)
-
+    for q_acc in epsilon_invariant_adjusted:
+        if epsilon_invariant_adjusted[q_acc] > 0.5:
+            print(epsilon_invariant_adjusted[q_acc], q_acc)
     pobin_var = sum([ epsilon_invariant_adjusted[q_acc] * ( 1 - epsilon_invariant_adjusted[q_acc] ) for q_acc in epsilon_invariant_adjusted])
     pobin_stddev = math.sqrt(pobin_var)
     if pobin_mean > 5.0: # implies that mean is at least 2.2 times larger than stddev, this should give fairly symmetrical distribution

@@ -683,8 +683,8 @@ def create_multialignment_format_OLD_fixed(query_to_target_positioned_dict, star
             
             max_ins_len = len(max_insertion)
             all_max_ins = set([ins for (ins, acc) in insertions if len(ins) == max_ins_len])
-            if len(all_max_ins) > 1 and max_ins_len > 1:
-                print(all_max_ins, max_insertion)
+            # if len(all_max_ins) > 1 and max_ins_len > 1:
+            #     print(all_max_ins, max_insertion)
             # if len(all_max_ins) > 1 and max_ins_len == 2:
             #     print("pos", j, all_max_ins)
             max_insertion = sorted(all_max_ins)[0] 
@@ -766,8 +766,8 @@ def create_multialignment_format_OLD_fixed(query_to_target_positioned_dict, star
                             q_insertion_modified.append("-")
 
                 #### finally add to alignment matrix
-                if len(q_insertion_modified) != len(max_insertion):
-                    print(q_insertion_modified, max_insertion, q_ins)
+                # if len(q_insertion_modified) != len(max_insertion):
+                #     print(q_insertion_modified, max_insertion, q_ins)
                 assert len(q_insertion_modified) == len(max_insertion)
                 for p in range(len(max_insertion)):
                     alignment_matrix[q_acc].append(q_insertion_modified[p])
