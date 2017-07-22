@@ -235,8 +235,10 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
     S_prime_partition = {}
     N_t = sum([container_tuple[3] for s, container_tuple in partition.items()]) # total number of sequences in partition
     
-    if N_t == 2:
-        print("Partition has size", N_t, "no meaningful correction can be done")
+    # if N_t == 2:
+    #     print("Partition has size", N_t, "no meaningful correction can be done")
+    #     for s, container_tuple in partition.items():
+    #         print(seq_to_acc[s])
 
     if len(partition) > 1 and N_t > 2:
         # all strings has not converged
@@ -378,8 +380,11 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
             accessions_of_s = seq_to_acc[s] 
             for acc in accessions_of_s:
                 S_prime_partition[acc] = s_modified
+    elif len(partition) > 1:
+        print("Partition could not be corrected: Partition size(unique strings):{0}, partition support: {1}.".format(len(partition), N_t))
     else:
-        print("Partition has converged,", len(partition), N_t)
+        print("Partition converged: Partition size(unique strings):{0}, partition support: {1}.".format(len(partition), N_t))
+
     
     return S_prime_partition
 

@@ -29,10 +29,11 @@ def highest_reachable_with_edge_degrees(S, params):
     nr_consensus = 0
     G_transpose = nx.reverse(G_star)
     print("len G_star_transposed (minimizers):", len(G_transpose))
+
     print(sorted([len(G_transpose.neighbors(n)) for n in G_transpose], reverse=True))
     M = {}
     partition = {}
-    print("here")
+    # print("here")
     for subgraph in sorted(nx.weakly_connected_component_subgraphs(G_transpose), key=len, reverse=True):
         print("Subgraph of size", len(subgraph.nodes()), "nr edges:", len(subgraph.edges()), [len(x) for x in subgraph.nodes()] )
         while subgraph:
@@ -125,7 +126,7 @@ def highest_reachable_with_edge_degrees(S, params):
             else:
                 minimizer = biggest_reachable_comp_minimizer # "XXXXXX" #biggest_reachable_comp_minimizer #
                 max_direct_weight = 0
-                print("total nodes searched in this pass:", len(biggest_reachable_comp_nodes))
+                # print("total nodes searched in this pass:", len(biggest_reachable_comp_nodes))
                 for n in biggest_reachable_comp_nodes:
                     direct_weight = subgraph.node[n]["degree"]                    
                     direct_weight += len(subgraph.neighbors(n))
@@ -138,7 +139,7 @@ def highest_reachable_with_edge_degrees(S, params):
                         minimizer = n
                     elif direct_weight == max_direct_weight:
                         minimizer = min(minimizer, n)
-                print("minimizer direct weight:", max_direct_weight, "nodes in reachable:", len(biggest_reachable_comp_nodes))
+                # print("minimizer direct weight:", max_direct_weight, "nodes in reachable:", len(biggest_reachable_comp_nodes))
                 M[minimizer] = biggest_reachable_comp_weight   
                 partition[minimizer] = biggest_reachable_comp_nodes.difference(set([minimizer]))
                 assert minimizer in biggest_reachable_comp_nodes
@@ -161,7 +162,6 @@ def highest_reachable_with_edge_degrees(S, params):
     print("NR CONSENSUS:", nr_consensus)
     print("NR minimizers:", len(M), len(partition))
     print("partition sizes(identical strings counted once): ", sorted([len(partition[p]) +1 for p in  partition], reverse = True))
-    # sys.exit()
 
     total_strings_in_partition = sum([ len(partition[p]) +1 for p in  partition])
     partition_sequences = set()
@@ -169,7 +169,7 @@ def highest_reachable_with_edge_degrees(S, params):
         partition_sequences.add(m)
         # print("partition size:", len(partition[m]))
         # print(len(m))
-        for s in  partition[m]:
+        for s in partition[m]:
             partition_sequences.add(s)
             # print(len(s))
     # if the total number of lengths in partition is equal to the original number of strings in s

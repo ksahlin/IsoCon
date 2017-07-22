@@ -8,6 +8,7 @@ import unittest
 
 import copy
 from time import time
+import re
 
 from modules.functions import transpose,create_position_probability_matrix
 from modules.partitions import highest_reachable_with_edge_degrees
@@ -112,12 +113,37 @@ def get_partition_alignments(graph_partition, M, G_star):
     ed_temp = [ exact_edit_distances[s1][s2] for s1 in exact_edit_distances for s2 in exact_edit_distances[s1]  ] 
     ed_temp.sort()
     print("ED from edlib:", ed_temp)
+    print("number of ed calculated:", len(ed_temp))
 
     exact_alignments = sw_align_sequences(exact_edit_distances, single_core = False)
 
-    ssw_temp = [ exact_edit_distances[s1][s2] for s1 in exact_edit_distances for s2 in exact_edit_distances[s1]  ] 
-    ssw_temp.sort()
-    print("ED from SSW:", ssw_temp)
+    ssw_temp = [ exact_alignments[s1][s2] for s1 in exact_alignments for s2 in exact_alignments[s1]  ] 
+    # ssw_temp.sort()
+    print("Number of alignments returned from SSW:", len(ssw_temp))
+    print("Number of alignments that were removed before correction phase -- too many mismatchas in ends (#ED-alignments - # SSW-alignments): {0} ".format(  len(ed_temp) - len(ssw_temp) ))
+
+    pattern = r"[-]{20,}"
+    for s1 in exact_alignments.keys(): 
+        for s2 in exact_alignments[s1].keys():
+            s1_alignment, s2_alignment, (matches, mismatches, indels) = exact_alignments[s1][s2]
+            missing_exon_s1 = re.search(pattern, s1_alignment)
+            missing_exon_s2 = re.search(pattern, s2_alignment)
+            if missing_exon_s1:
+                # print(missing_exon_s1.group(0))
+                # print(s1)
+                # print(s2)
+                # print(len(exact_alignments[s1].keys()))
+                del exact_alignments[s1][s2]
+            elif missing_exon_s2:
+                # print(missing_exon_s2.group(0))
+                # print(s1)
+                # print(s2)
+                # print(len(exact_alignments[s1].keys()))
+                del exact_alignments[s1][s2]
+
+    ssw_after_exon_temp = [ exact_alignments[s1][s2] for s1 in exact_alignments for s2 in exact_alignments[s1]  ] 
+    print("Number of alignments that were removed before correction phase due to exon difference larger than 20bp: {0} ".format(  len(ssw_temp) - len(ssw_after_exon_temp) ))
+    # sys.exit()
 
 
     partition_alignments = {} 
@@ -181,30 +207,30 @@ def find_candidate_transcripts(read_file, params):
 
         #################################################
         ###### temp check for isoform collapse###########
-        import re
-        pattern = r"[-]{20,}"
-        cccntr = 0
-        out_file = open(os.path.join(params.outfolder, "exon_difs.fa"), "w")
-        if params.barcodes:
-            for s1, s1_dict in list(partition_alignments.items()): 
-                part_size = sum([s1_dict[s_2][3] for s_2 in s1_dict])
-                for s2, alignment_tuple in list(s1_dict.items()):
-                    if re.search(pattern, alignment_tuple[1][20: -20]) or re.search(pattern, alignment_tuple[2][20: -20]): # [20: -20] --> ignore this if-statement if missing or truncated barcode
-                        # del partition_alignments[s1][s2]
-                        print("Exon diff on >=20bp:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0], "in partition of size:", part_size)
-                        cccntr += 1
-                        out_file.write(">{0}\n{1}\n".format(seq_to_acc[s2],s2))
-        else:
-            for s1, s1_dict in list(partition_alignments.items()): 
-                part_size = sum([s1_dict[s_2][3] for s_2 in s1_dict])
-                for s2, alignment_tuple in list(s1_dict.items()):
-                    if re.search(pattern, alignment_tuple[1]) or  re.search(pattern, alignment_tuple[2]):
-                        # del partition_alignments[s1][s2]
-                        print("Exon diff on >=20bp:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0], "in partition of size:", part_size)
-                        cccntr += 1        
-                        out_file.write(">{0}\n{1}\n".format(seq_to_acc[s2],s2))
+        # import re
+        # pattern = r"[-]{20,}"
+        # cccntr = 0
+        # out_file = open(os.path.join(params.outfolder, "exon_difs.fa"), "w")
+        # if params.barcodes:
+        #     for s1, s1_dict in list(partition_alignments.items()): 
+        #         part_size = sum([s1_dict[s_2][3] for s_2 in s1_dict])
+        #         for s2, alignment_tuple in list(s1_dict.items()):
+        #             if re.search(pattern, alignment_tuple[1][20: -20]) or re.search(pattern, alignment_tuple[2][20: -20]): # [20: -20] --> ignore this if-statement if missing or truncated barcode
+        #                 # del partition_alignments[s1][s2]
+        #                 print("Exon diff on >=20bp:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0], "in partition of size:", part_size)
+        #                 cccntr += 1
+        #                 out_file.write(">{0}\n{1}\n".format(seq_to_acc[s2],s2))
+        # else:
+        #     for s1, s1_dict in list(partition_alignments.items()): 
+        #         part_size = sum([s1_dict[s_2][3] for s_2 in s1_dict])
+        #         for s2, alignment_tuple in list(s1_dict.items()):
+        #             if re.search(pattern, alignment_tuple[1]) or  re.search(pattern, alignment_tuple[2]):
+        #                 # del partition_alignments[s1][s2]
+        #                 print("Exon diff on >=20bp:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0], "in partition of size:", part_size)
+        #                 cccntr += 1        
+        #                 out_file.write(">{0}\n{1}\n".format(seq_to_acc[s2],s2))
 
-        print("Number of alignments containing exon difference in this pass:", cccntr)
+        # print("Number of alignments containing exon difference in this pass:", cccntr)
         # sys.exit()
         ########################################################
 
@@ -250,6 +276,7 @@ def find_candidate_transcripts(read_file, params):
 
         # TODO: Parallelize this part over partitions: sent in the partition and return a dict s_acc : modified string
         S_prime = correct_sequence_to_minimizer.correct_strings(partition_alignments, seq_to_acc, step, single_core = params.single_core)
+        # sys.exit()
 
         for acc, s_prime in S_prime.items():
             S[acc] = s_prime
@@ -278,7 +305,8 @@ def find_candidate_transcripts(read_file, params):
     C = {}
     for m in M:
         N_t = partition_alignments[m][m][3] #sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
-        C[m] = N_t   
+        if N_t > 1: # has converged to a consensus
+            C[m] = N_t   
 
 
     original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
@@ -289,71 +317,49 @@ def find_candidate_transcripts(read_file, params):
     reads_to_minimizers = {}
     # [for m, partition in partition_alignments.items() for s in partition]
 
-    not_corrected_reads = open(os.path.join(params.outfolder, "not_processed.fa"), "w")
-    not_corrected = set()
+    not_converged_reads = open(os.path.join(params.outfolder, "not_converged.fa"), "w")
+    not_converged = set()
     for read_acc, seq in original_reads.items():
         corrected_s = S[read_acc]
         if corrected_s in C:
-            if corrected_s in original_reads_seq_to_accs:
-                if C[corrected_s] >= params.min_candidate_support:
-                    reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
-                else:
-                    print("Minimizer did not pass threshold. It had support of {0} reads. And is identical to its starting seq (i.e., not corrected)".format(C[corrected_s]))
-                    del C[corrected_s]
-                    not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
-                    not_corrected.add(read_acc)
+            # if corrected_s in original_reads_seq_to_accs:
+            #     if C[corrected_s] >= params.min_candidate_support:
+            #         reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
+            #     else:
+            #         print("Minimizer did not pass threshold. It had support of {0} reads. And is identical to its starting seq (i.e., not corrected)".format(C[corrected_s]))
+            #         print(read_acc)
+            #         del C[corrected_s]
+            #         not_converged_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+            #         not_converged.add(read_acc)
 
+            # else:
+            #     if C[corrected_s] >= params.min_candidate_support:
+            #         reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
+            #     else:
+            #         print("Read was corrected but did not pass threshold. It had support of {0} reads.".format(C[corrected_s]))
+            #         print(read_acc)
+            #         not_converged_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+            #         not_converged.add(read_acc)
+            #         del C[corrected_s]
+            if C[corrected_s] >= params.min_candidate_support:
+                reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
             else:
-                if C[corrected_s] >= params.min_candidate_support:
-                    reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
-                else:
-                    print("Read was corrected but did not pass threshold. It had support of {0} reads.".format(C[corrected_s]))
-                    not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
-                    not_corrected.add(read_acc)
-                    del C[corrected_s]
-
+                print("Minimizer did not pass threshold. It had support of {0} reads.".format(C[corrected_s]))
+                print(read_acc)
+                del C[corrected_s]
         else:
             if corrected_s in original_reads_seq_to_accs:
-                print("Read neither converged nor was it corrected")
-                not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
-                not_corrected.add(read_acc)
+                print("Read neither converged nor was it corrected (local pair r1 <---> r2 minimizer or a isolated alignment with exon difference filtered out before each correction)")
+                print(read_acc)
+                not_converged_reads.write(">{0}_not_corrected_not_converged\n{1}\n".format(read_acc, seq))
+                not_converged.add(read_acc)
 
             else: # partially corrected but not converged
-                not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
-                not_corrected.add(read_acc)
-
-
-        # if corrected_s in original_reads_seq_to_accs:
-        #     if len(original_reads_seq_to_accs[corrected_s]) > 1:
-        #         print(original_reads_seq_to_accs[corrected_s])
-        #         print("read never corrected, but support larger than one: support", len(original_reads_seq_to_accs[corrected_s]))
-
-        #     else:
-        #         print("Never corrected, support:", len(original_reads_seq_to_accs[corrected_s]))
-        #         not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
-        #         not_corrected.add(read_acc)
-        #         if corrected_s in C:
-        #             del C[corrected_s]
-        #             print("Read neither converged nor corrected. But was in C, and is now deleted.")
-
-        #         continue
-        
-        # if corrected_s not in C: # corrected string is not in converged   
-        #     print("Read did not converge, so skipping correction.") 
-        #     not_corrected_reads.write(">{0}\n{1}\n".format(read_acc, seq))
-        #     not_corrected.add(read_acc)
-        #     print(read_acc)
-        #     print(seq)
-
-        #     assert len(original_reads_seq_to_accs[corrected_s]) == 0
-        #     continue
-        
-        # # corrected string are guaranteed to be in C if we end up here
-        # if C[corrected_s] >= params.min_candidate_support:
-        #     reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
-        # else:
-        #     print("Minimizer did not pass threshold support of {0} reads.".format(C[corrected_s]))
-        #     del C[corrected_s]
+                not_converged_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+                not_converged.add(read_acc)
+                print("Read partially corrected but not converged")
+                print(read_acc)
+                not_converged_reads.write(">{0}_corrected_but_not_converged_version\n{1}\n".format(read_acc, corrected_s))
 
 
     edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers)
@@ -366,7 +372,7 @@ def find_candidate_transcripts(read_file, params):
     to_realign = {}
     for acc, seq in original_reads.items():
         if acc not in alignments_of_x_to_m_filtered:
-            if acc not in not_corrected:
+            if acc not in not_converged:
                 to_realign[acc] = seq
 
     return candidates_file_name, partition_of_X, to_realign 
