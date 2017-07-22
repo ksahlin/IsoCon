@@ -188,11 +188,13 @@ def stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_a
     u_v_factor = 1
     epsilon_invariant_adjusted = {}
     for q_acc in epsilon:
-        p_i = 1
+        p_i = 1.0
         for pos, (state, char) in delta_t[c_acc].items():
             u_v = candidate_indiv_invariant_factors[c_acc][pos][(state, char)]
             p_iv = epsilon[q_acc][state]
             p_i *= u_v*p_iv
+        
+        p_i = min(p_i, 1.0) # we cannot have a probability larger than 1, this can happen due to our heuristic degeneracy multiplier "u_v"
         epsilon_invariant_adjusted[q_acc] = p_i
     #################################################
 
@@ -245,9 +247,9 @@ def stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_a
 
     mult_factor_inv = ( (4*(m+1))**n_I ) * functions.choose(m, n_D) * functions.choose( 3*(m-n_D), n_S)
     print(correction_factor, mult_factor_inv)
-    for q_acc in epsilon_invariant_adjusted:
-        if epsilon_invariant_adjusted[q_acc] > 0.5:
-            print(epsilon_invariant_adjusted[q_acc], q_acc)
+    # for q_acc in epsilon_invariant_adjusted:
+    #     if epsilon_invariant_adjusted[q_acc] > 0.5:
+    #         print(epsilon_invariant_adjusted[q_acc], q_acc)
     pobin_var = sum([ epsilon_invariant_adjusted[q_acc] * ( 1 - epsilon_invariant_adjusted[q_acc] ) for q_acc in epsilon_invariant_adjusted])
     pobin_stddev = math.sqrt(pobin_var)
     if pobin_mean > 5.0: # implies that mean is at least 2.2 times larger than stddev, this should give fairly symmetrical distribution
