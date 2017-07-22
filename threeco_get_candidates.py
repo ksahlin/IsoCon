@@ -123,8 +123,8 @@ def get_partition_alignments(graph_partition, M, G_star):
     print("Number of alignments that were removed before correction phase -- too many mismatchas in ends (#ED-alignments - # SSW-alignments): {0} ".format(  len(ed_temp) - len(ssw_temp) ))
 
     pattern = r"[-]{20,}"
-    for s1 in exact_alignments.keys(): 
-        for s2 in exact_alignments[s1].keys():
+    for s1 in list(exact_alignments.keys()): 
+        for s2 in list(exact_alignments[s1].keys()):
             s1_alignment, s2_alignment, (matches, mismatches, indels) = exact_alignments[s1][s2]
             missing_exon_s1 = re.search(pattern, s1_alignment)
             missing_exon_s2 = re.search(pattern, s2_alignment)
