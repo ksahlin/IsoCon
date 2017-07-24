@@ -300,7 +300,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in list(new_significance_values.items()):
             if p_value == "not_tested":
                 print("Did not test", c_acc)
-            elif p_value * mult_factor_inv > 0.01/nr_of_tests_this_round:
+            elif p_value * mult_factor_inv > 0.001:
                 print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "delta_size:", delta_size )
                 del C[c_acc] 
                 modified = True
