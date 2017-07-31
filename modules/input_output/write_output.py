@@ -51,8 +51,15 @@ def check_if_consensus(c_acc, C, X, partition_of_X):
 
     return is_consensus
 
-def print_candidates(out_file_name, C, significance_test_values, partition_of_X, X, final = False):
+def print_candidates(out_file_name, C, significance_test_values, partition_of_X, X, final = False, reads_to_consensus_tsv = "" ):
     out_file = open(out_file_name, "w")
+    if final:
+        reads_to_consensus_tsv_file = open(os.path.join(reads_to_consensus_tsv), "w")
+        for c_acc in partition_of_X:
+            for x_acc in partition_of_X[c_acc]:
+                reads_to_consensus_tsv_file.write("{0}\t{1}\t{2}\t{3}\n".format(x_acc, c_acc, len(X[x_acc]), len(C[c_acc])))
+        reads_to_consensus_tsv_file.close()
+
     final_candidate_count = 0
     for c_acc, seq in C.items():
         p_value, correction_factor, support, N_t, delta_size = significance_test_values[c_acc] 
