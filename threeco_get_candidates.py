@@ -13,7 +13,7 @@ import re
 from modules.functions import transpose,create_position_probability_matrix
 from modules.partitions import highest_reachable_with_edge_degrees
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
-from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession
+from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession, edlib_traceback
 from modules.input_output import fasta_parser, write_output
 from modules import correct_sequence_to_minimizer
 from collections import defaultdict
@@ -365,7 +365,12 @@ def find_candidate_transcripts(read_file, params):
     edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers)
     alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m)
 
+
+    if params.max_end_diff > 0:
+       alignments_of_x_to_m, C  = collapse_contained_sequences(alignments_of_x_to_m, C, params)
+
     alignments_of_x_to_m_filtered, m_to_acc, C_filtered, partition_of_X = filter_candidates(alignments_of_x_to_m, C, params)
+        
     candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
     write_output.print_candidates_from_minimizers(candidates_file_name, C_filtered, m_to_acc, params)
 
@@ -377,13 +382,61 @@ def find_candidate_transcripts(read_file, params):
 
     return candidates_file_name, partition_of_X, to_realign 
 
+
+def collapse_contained_sequences(alignments_of_x_to_m, C, params):
+    print("Number minimizers before collapsing identical super strings of a string:", len(C))
+
+    alignments_of_x_to_m_transposed = transpose(alignments_of_x_to_m)   
+    m_to_acc = {}
+    C_sorted_strings = sorted(C, key=lambda m: len(m))
+    for i, m in enumerate(sorted(C, key=len)):
+        support = C[m]
+        print("length:",len(m))
+        if i == len(C_sorted_strings) - 1:
+            print("last sequence, skipping!") 
+            break
+        if m in C:
+            all_perfect_super_strings = find_all_perfect_superstrings(m, i, C_sorted_strings, params.max_end_diff)
+            if len(all_perfect_super_strings) > 0:
+                print("number of superstrings:", len(all_perfect_super_strings))
+            for ss in all_perfect_super_strings: # remove super string of m and move all reads supporting ss to m
+                reads_to_ss = alignments_of_x_to_m_transposed[ss]
+                alignments_of_x_to_m_transposed[m].update(reads_to_ss)
+                C[m] += len(reads_to_ss)
+                del alignments_of_x_to_m_transposed[ss]
+                del C[ss]
+        else:
+            print("seq was a superstring") 
+
+    alignments_of_x_to_m = transpose(alignments_of_x_to_m_transposed)
+    print("Number minimizers after collapsing identical super strings of a string:", len(C))
+    return alignments_of_x_to_m, C
+
+
+def find_all_perfect_superstrings(m, i, C_sorted_strings, max_end_diff):
+    all_super_strings = set()
+    for j in range(i+1, len(C_sorted_strings)):
+        under_diff = True
+        ss_candidate = C_sorted_strings[j]
+        ed, locations, cigar = edlib_traceback(m, ss_candidate, mode="HW", task="locations", k=0)
+        for start, stop in locations:
+            if start > max_end_diff or len(ss_candidate) - stop - 1  > max_end_diff:
+                print("perfect but larger diff than max_end_diff:", start, len(ss_candidate) - stop - 1 )
+                under_diff = False
+                break
+
+        if ed == 0 and under_diff: # candidate was perfect super string and not too large discrepancy
+            all_super_strings.add(ss_candidate)
+
+    return all_super_strings
+
 def filter_candidates(alignments_of_x_to_c, C, params):
     alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)   
 
     m_to_acc = {}
 
     for i, (m, support) in enumerate(list(C.items())):
-        m_acc = "read_" + str(i) + "_support_" + str(support)
+        m_acc = "transcript_" + str(i) + "_support_" + str(support)
         m_to_acc[m] = m_acc
         
         #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
