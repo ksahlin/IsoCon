@@ -400,11 +400,16 @@ def collapse_contained_sequences(alignments_of_x_to_m, C, params):
             if len(all_perfect_super_strings) > 0:
                 print("number of superstrings:", len(all_perfect_super_strings))
             for ss in all_perfect_super_strings: # remove super string of m and move all reads supporting ss to m
-                reads_to_ss = alignments_of_x_to_m_transposed[ss]
-                alignments_of_x_to_m_transposed[m].update(reads_to_ss)
-                C[m] += len(reads_to_ss)
-                del alignments_of_x_to_m_transposed[ss]
-                del C[ss]
+                if ss in C: # has not already been collapsed from shorter perfect substring
+                    reads_to_ss = alignments_of_x_to_m_transposed[ss]
+                    alignments_of_x_to_m_transposed[m].update(reads_to_ss)
+                    C[m] += len(reads_to_ss)
+                    del alignments_of_x_to_m_transposed[ss]
+                    del C[ss]
+                else:
+                    print("Already collapsed")
+                    assert ss not in alignments_of_x_to_m_transposed
+
         else:
             print("seq was a superstring") 
 
@@ -426,6 +431,7 @@ def find_all_perfect_superstrings(m, i, C_sorted_strings, max_end_diff):
                 break
 
         if ed == 0 and under_diff: # candidate was perfect super string and not too large discrepancy
+            print("perfect ss, start and stop on ss: {0}".format(locations))
             all_super_strings.add(ss_candidate)
 
     return all_super_strings
