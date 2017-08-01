@@ -390,12 +390,12 @@ def collapse_contained_sequences(alignments_of_x_to_m, C, params):
     m_to_acc = {}
     C_sorted_strings = sorted(C, key=lambda m: len(m))
     for i, m in enumerate(sorted(C, key=len)):
-        support = C[m]
         print("length:",len(m))
         if i == len(C_sorted_strings) - 1:
             print("last sequence, skipping!") 
             break
         if m in C:
+            # support = C[m]
             all_perfect_super_strings = find_all_perfect_superstrings(m, i, C_sorted_strings, params.max_end_diff)
             if len(all_perfect_super_strings) > 0:
                 print("number of superstrings:", len(all_perfect_super_strings))
