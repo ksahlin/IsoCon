@@ -265,7 +265,7 @@ def stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_a
     # print("lambda inv adjusted", lambda_po_approx_inv, mult_factor_inv, k, len(delta_t[c_acc]), candidate_indiv_invariant_factors[c_acc])
     #############################
     #################################### 
-    return  p_value, correction_factor
+    return  p_value, mult_factor_inv
 
 def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C ):
     partition_dict = {t_acc : {}}

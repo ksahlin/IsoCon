@@ -16,6 +16,7 @@ from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_k
 from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession, edlib_traceback
 from modules.input_output import fasta_parser, write_output
 from modules import correct_sequence_to_minimizer
+from modules import end_invariant_functions
 from collections import defaultdict
 
 # def get_homopolymer_invariants(candidate_transcripts):
@@ -114,6 +115,13 @@ def get_partition_alignments(graph_partition, M, G_star):
     ed_temp.sort()
     print("ED from edlib:", ed_temp)
     print("number of ed calculated:", len(ed_temp))
+    # for s1 in exact_edit_distances:
+    #     for s2 in exact_edit_distances[s1]:
+    #         print()
+    #         print(exact_edit_distances[s1][s2])
+    #         print(s1)
+    #         print(s2)
+
 
     exact_alignments = sw_align_sequences(exact_edit_distances, single_core = False)
 
@@ -322,25 +330,6 @@ def find_candidate_transcripts(read_file, params):
     for read_acc, seq in original_reads.items():
         corrected_s = S[read_acc]
         if corrected_s in C:
-            # if corrected_s in original_reads_seq_to_accs:
-            #     if C[corrected_s] >= params.min_candidate_support:
-            #         reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
-            #     else:
-            #         print("Minimizer did not pass threshold. It had support of {0} reads. And is identical to its starting seq (i.e., not corrected)".format(C[corrected_s]))
-            #         print(read_acc)
-            #         del C[corrected_s]
-            #         not_converged_reads.write(">{0}\n{1}\n".format(read_acc, seq))
-            #         not_converged.add(read_acc)
-
-            # else:
-            #     if C[corrected_s] >= params.min_candidate_support:
-            #         reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
-            #     else:
-            #         print("Read was corrected but did not pass threshold. It had support of {0} reads.".format(C[corrected_s]))
-            #         print(read_acc)
-            #         not_converged_reads.write(">{0}\n{1}\n".format(read_acc, seq))
-            #         not_converged.add(read_acc)
-            #         del C[corrected_s]
             if C[corrected_s] >= params.min_candidate_support:
                 reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
             else:
@@ -366,8 +355,33 @@ def find_candidate_transcripts(read_file, params):
     alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m)
 
 
-    if params.max_end_diff > 0:
-       alignments_of_x_to_m, C  = collapse_contained_sequences(alignments_of_x_to_m, C, params)
+    if params.ignore_ends_len > 0:
+        C_temp_accession_to_support = {}
+        C_temp_accession_to_seq = {}
+        for i, (seq, support) in enumerate(C.items()):
+            c_acc = "transcript_" + str(i) + "_support_" + str(support)
+            C_temp_accession_to_support[c_acc] = support
+            C_temp_accession_to_seq[c_acc] = seq
+
+        remaining_c_after_invariant = end_invariant_functions.collapse_candidates_under_ends_invariant(C_temp_accession_to_seq, C_temp_accession_to_support, params)
+        alignments_of_x_to_m_transposed = transpose(alignments_of_x_to_m)   
+        for c_acc in remaining_c_after_invariant:
+            c_seq = C_temp_accession_to_seq[ c_acc ] 
+            c_support = C_temp_accession_to_support[ c_acc ]
+
+            for removed_c_acc in remaining_c_after_invariant[c_acc]:
+                c_removed_support = C_temp_accession_to_support[ removed_c_acc ]
+                c_removed_seq = C_temp_accession_to_seq[ removed_c_acc ] 
+                reads_to_removed_cand = alignments_of_x_to_m_transposed[ c_removed_seq ]
+                alignments_of_x_to_m_transposed[c_seq].update(reads_to_removed_cand)
+                
+                C[c_seq] += len(reads_to_removed_cand)
+                del alignments_of_x_to_m_transposed[c_removed_seq]
+                del C[c_removed_seq]
+        
+        alignments_of_x_to_m = transpose(alignments_of_x_to_m_transposed)
+
+        # alignments_of_x_to_m, C  = collapse_contained_sequences(alignments_of_x_to_m, C, params)
 
     alignments_of_x_to_m_filtered, m_to_acc, C_filtered, partition_of_X = filter_candidates(alignments_of_x_to_m, C, params)
         
@@ -383,58 +397,66 @@ def find_candidate_transcripts(read_file, params):
     return candidates_file_name, partition_of_X, to_realign 
 
 
-def collapse_contained_sequences(alignments_of_x_to_m, C, params):
-    print("Number minimizers before collapsing identical super strings of a string:", len(C))
 
-    alignments_of_x_to_m_transposed = transpose(alignments_of_x_to_m)   
-    m_to_acc = {}
-    C_sorted_strings = sorted(C, key=lambda m: len(m))
-    for i, m in enumerate(sorted(C, key=len)):
-        print("length:",len(m))
-        if i == len(C_sorted_strings) - 1:
-            print("last sequence, skipping!") 
-            break
-        if m in C:
-            # support = C[m]
-            all_perfect_super_strings = find_all_perfect_superstrings(m, i, C_sorted_strings, params.max_end_diff)
-            if len(all_perfect_super_strings) > 0:
-                print("number of superstrings:", len(all_perfect_super_strings))
-            for ss in all_perfect_super_strings: # remove super string of m and move all reads supporting ss to m
-                if ss in C: # has not already been collapsed from shorter perfect substring
-                    reads_to_ss = alignments_of_x_to_m_transposed[ss]
-                    alignments_of_x_to_m_transposed[m].update(reads_to_ss)
-                    C[m] += len(reads_to_ss)
-                    del alignments_of_x_to_m_transposed[ss]
-                    del C[ss]
-                else:
-                    print("Already collapsed")
-                    assert ss not in alignments_of_x_to_m_transposed
+# def collapse_contained_sequences(alignments_of_x_to_m, C, params):
+#     print("Number minimizers before collapsing identical super strings of a string:", len(C))
 
-        else:
-            print("seq was a superstring") 
+#     alignments_of_x_to_m_transposed = transpose(alignments_of_x_to_m)   
+#     m_to_acc = {}
+#     C_sorted_strings = sorted(C, key=lambda m: len(m))
+#     for i, m in enumerate(sorted(C, key=len)):
+#         print("length:",len(m))
+#         if i == len(C_sorted_strings) - 1:
+#             print("last sequence, skipping!") 
+#             break
+#         if m in C:
+#             # support = C[m]
+#             all_perfect_super_strings = find_all_perfect_superstrings(m, i, C_sorted_strings, params.ignore_ends_len)
+#             if len(all_perfect_super_strings) > 0:
+#                 print("number of superstrings:", len(all_perfect_super_strings))
+#             for ss in all_perfect_super_strings: # remove super string of m and move all reads supporting ss to m
+#                 if ss in C: # has not already been collapsed from shorter perfect substring
+#                     reads_to_ss = alignments_of_x_to_m_transposed[ss]
+#                     alignments_of_x_to_m_transposed[m].update(reads_to_ss)
+#                     C[m] += len(reads_to_ss)
+#                     del alignments_of_x_to_m_transposed[ss]
+#                     del C[ss]
+#                 else:
+#                     print("Already collapsed")
+#                     assert ss not in alignments_of_x_to_m_transposed
 
-    alignments_of_x_to_m = transpose(alignments_of_x_to_m_transposed)
-    print("Number minimizers after collapsing identical super strings of a string:", len(C))
-    return alignments_of_x_to_m, C
+#         else:
+#             print("seq was a superstring") 
+
+#     alignments_of_x_to_m = transpose(alignments_of_x_to_m_transposed)
+#     print("Number minimizers after collapsing identical super strings of a string:", len(C))
+#     return alignments_of_x_to_m, C
 
 
-def find_all_perfect_superstrings(m, i, C_sorted_strings, max_end_diff):
-    all_super_strings = set()
-    for j in range(i+1, len(C_sorted_strings)):
-        under_diff = True
-        ss_candidate = C_sorted_strings[j]
-        ed, locations, cigar = edlib_traceback(m, ss_candidate, mode="HW", task="locations", k=0)
-        for start, stop in locations:
-            if start > max_end_diff or len(ss_candidate) - stop - 1  > max_end_diff:
-                print("perfect but larger diff than max_end_diff:", start, len(ss_candidate) - stop - 1 )
-                under_diff = False
-                break
+# def find_all_perfect_superstrings(m, i, C_sorted_strings, ignore_ends_len):
+#     all_super_strings = set()
+#     for j in range(i+1, len(C_sorted_strings)):
+#         under_diff = True
+#         ss_candidate = C_sorted_strings[j]
+        
+#         # Stop criterion here if ss_length is longer than m + 2*ignore_ends_len we can stop searching since strings are sorteb by length
+#         if len(ss_candidate) - len(m) > 2*ignore_ends_len:
+#             break
 
-        if ed == 0 and under_diff: # candidate was perfect super string and not too large discrepancy
-            print("perfect ss, start and stop on ss: {0}".format(locations))
-            all_super_strings.add(ss_candidate)
+#         ed, locations, cigar = edlib_traceback(m, ss_candidate, mode="HW", task="locations", k=0)
+#         for start, stop in locations:
+#             if start > ignore_ends_len or len(ss_candidate) - stop - 1  > ignore_ends_len:
+#                 print("perfect but larger diff than ignore_ends_len:", start, len(ss_candidate) - stop - 1 )
+#                 under_diff = False
+#                 break
 
-    return all_super_strings
+#         if ed == 0 and under_diff: # candidate was perfect super string and not too large discrepancy
+#             print("perfect ss, start and stop on ss: {0}".format(locations))
+#             all_super_strings.add(ss_candidate)
+
+#     return all_super_strings
+
+
 
 def filter_candidates(alignments_of_x_to_c, C, params):
     alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)   

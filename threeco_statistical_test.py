@@ -107,13 +107,15 @@ def get_minimizer_graph_transposed(candidate_transcripts):
         # best_cigars[c1] = {}
         best_ed = len(seq1)
         for c2, seq2 in  candidate_transcripts.items() :
+            print("ALIGNING: {0} to {1}".format(c1, c2))
             if c1 == c2:
                 continue
             elif math.fabs(len(seq1) - len(seq2)) > best_ed:
+                print("here")
                 continue
             # TODO: remove task = "path" to speed up
             edit_distance, locations, cigar = edlib_traceback(seq1, seq2, mode="NW", task="path", k=min(10, best_ed))
-
+            print(edit_distance, locations, cigar, "best:", best_ed)
             if 0 <= edit_distance < best_ed:
                 best_ed = edit_distance
                 best_edit_distances[c1] = {}
