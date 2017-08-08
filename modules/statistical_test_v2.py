@@ -42,7 +42,7 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
                 continue
 
             for c_acc in minimizer_graph_transposed[t_acc]:
-                p_vals = statistical_test(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params)
+                p_vals = statistical_test(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len)
 
                 for tested_cand_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in p_vals.items():
                     if p_value == "not_tested":
@@ -65,7 +65,7 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
         try:
-            res = pool.map_async(statistical_test_helper, [ ( (t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params), {}) for t_acc in minimizer_graph_transposed for c_acc in minimizer_graph_transposed[t_acc]  ] )
+            res = pool.map_async(statistical_test_helper, [ ( (t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len), {}) for t_acc in minimizer_graph_transposed for c_acc in minimizer_graph_transposed[t_acc]  ] )
             statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -116,7 +116,7 @@ def do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_
 
     if params.single_core:
         for t_acc in minimizer_graph_transposed:
-            p_vals = statistical_test(t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc], params)
+            p_vals = statistical_test(t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc], params.ignore_ends_len)
             for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in p_vals.items():
                 if p_value == "not_tested":
                     assert c_acc not in p_values # should only be here once
@@ -138,7 +138,7 @@ def do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
         try:
-            res = pool.map_async(statistical_test_helper, [ ( (t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc], params), {}) for t_acc in minimizer_graph_transposed  ] )
+            res = pool.map_async(statistical_test_helper, [ ( (t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc], params.ignore_ends_len), {}) for t_acc in minimizer_graph_transposed  ] )
             statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -292,7 +292,7 @@ def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C ):
 
 
 
-def statistical_test(t_acc, X, C, partition_of_X, candidates, params):
+def statistical_test(t_acc, X, C, partition_of_X, candidates, ignore_ends_len):
     significance_values = {}
     t_seq = C[t_acc]
     if len(candidates) == 0:
@@ -330,10 +330,10 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates, params):
     # get multialignment matrix here
     alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C )
 
-    # cut multialignment matrix first and last params.ignore_ends_len bases in ends of reference in the amignment matrix
+    # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
     # these are bases that we disregard testing varinats in
-    if params.ignore_ends_len > 0:
-        alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, params.ignore_ends_len)
+    if ignore_ends_len > 0:
+        alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, ignore_ends_len)
 
     # get parameter estimates for statistical test
     candidate_accessions = set( [ c_acc for c_acc in candidates] )
