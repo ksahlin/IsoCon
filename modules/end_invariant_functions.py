@@ -18,27 +18,17 @@ def edlib_traceback_allow_ends(x, y, mode="NW", task="path", k=1, end_threshold 
     ed = result["editDistance"]
     locations =  result["locations"]
     cigar =  result["cigar"]
-    # print(cigar, ed)
-    # for aln_type in cigar:
-    #     print(aln_type)
-        # print(aln_type, length)
-    # if ed == 1:
-    #     print(cigar)
-    if cigar: # and len(cigar) < 15:
+
+    if cigar:
         tuples = []
         result = re.split(r'[=DXSMI]+', cigar)
-        # print(result)
-        # print(cigar)
         i = 0
         for length in result[:-1]:
             i += len(length)
             type_ = cigar[i]
             i += 1
             tuples.append((length, type_ ))
-            # print(tuples)
-        # print(result)
-        # print(tuples)
-        # print(ed, cigar)
+
         ed_ignore_ends = ed
         if tuples[0][1] == "D" or  tuples[0][1] == "I":
             begin_snippet = int(tuples[0][0])
@@ -226,7 +216,13 @@ def get_minimizers(batch_of_queries, global_index_in_matrix, start_index, seq_to
                     stop_up = True
 
             if not stop_down:
-                edit_distance, locations, cigar = edlib_traceback_allow_ends(seq1, seq2, mode="NW", task="path", k=best_ed+2*ignore_ends_threshold, end_threshold = ignore_ends_threshold)
+                edit_distance_f, locations, cigar = edlib_traceback_allow_ends(seq1, seq2, mode="NW", task="path", k=best_ed+2*ignore_ends_threshold, end_threshold = ignore_ends_threshold)
+                edit_distance_r, locations, cigar = edlib_traceback_allow_ends(seq1[::-1], seq2[::-1], mode="NW", task="path", k=best_ed+2*ignore_ends_threshold, end_threshold = ignore_ends_threshold)
+                if edit_distance_f >= 0 and edit_distance_r >= 0:
+                    edit_distance = min(edit_distance_f, edit_distance_r)
+                else:
+                    edit_distance = max(edit_distance_f, edit_distance_r)
+
                 if 0 <= edit_distance < best_ed:
                     best_ed = edit_distance
                     best_edit_distances[acc1] = {}
@@ -242,7 +238,13 @@ def get_minimizers(batch_of_queries, global_index_in_matrix, start_index, seq_to
                         lower_target_edit_distances[acc2] = edit_distance 
 
             if not stop_up:
-                edit_distance, locations, cigar = edlib_traceback_allow_ends(seq1, seq3, mode="NW", task="path", k=best_ed+2*ignore_ends_threshold, end_threshold = ignore_ends_threshold)
+                edit_distance_f, locations, cigar = edlib_traceback_allow_ends(seq1, seq3, mode="NW", task="path", k=best_ed+2*ignore_ends_threshold, end_threshold = ignore_ends_threshold)
+                edit_distance_r, locations, cigar = edlib_traceback_allow_ends(seq1[::-1], seq3[::-1], mode="NW", task="path", k=best_ed+2*ignore_ends_threshold, end_threshold = ignore_ends_threshold)
+                if edit_distance_f >= 0 and edit_distance_r >= 0:
+                    edit_distance = min(edit_distance_f, edit_distance_r)
+                else:
+                    edit_distance = max(edit_distance_f, edit_distance_r)
+
                 if 0 <= edit_distance < best_ed:
                     best_ed = edit_distance
                     best_edit_distances[acc1] = {}
