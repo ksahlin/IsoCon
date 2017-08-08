@@ -13,31 +13,66 @@
 
 import unittest
 from collections import defaultdict
+import math
 
-def cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, ignore_ends_len):
+def cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len):
     target_alignment = alignment_matrix_to_t[t_acc]
-    # cut at start position by checking at which position cut_start we see the ignore_ends_len:th nucleotide in t_alignment
-    # we cut at position before cut_start  
-    # cut_start = 0
-    nucl_counter = 0
-    for j, nucl in enumerate(target_alignment):
-        if nucl != "-":
-            nucl_counter += 1
-        if nucl_counter == ignore_ends_len:
+    candidate_alignment = alignment_matrix_to_t[c_acc]
+    cut_start = 0
+    c_count = 0
+    t_count = 0
+    for j, (c_nucl, t_nucl) in enumerate(zip(candidate_alignment, target_alignment)):
+        if c_nucl != "-":
+            c_count += 1
+        if t_nucl != "-":
+            t_count += 1
+
+        if math.fabs(c_count - t_count) > ignore_ends_len: # we only ignore length differences smaller or equal to ignore_ends_len
             break
 
-    cut_start = j - 1  
-
-    # cut at end position by checking at which position cut_end we see the ignore_ends_len:th last nucleotide in t_alignment
-    # we cut at cut_end + 1  
-    nucl_counter = 0
-    for j, nucl in enumerate(reversed(target_alignment)):
-        if nucl != "-":
-            nucl_counter += 1
-        if nucl_counter == ignore_ends_len:
+        if c_count > 0 and t_count > 0: 
+            cut_start = j
             break
 
-    cut_end = len(target_alignment) - j + 1
+    cut_end = 0
+    c_count = 0
+    t_count = 0
+    for j, (c_nucl, t_nucl) in enumerate(zip( reversed(candidate_alignment), reversed(target_alignment))):
+        if c_nucl != "-":
+            c_count += 1
+        if t_nucl != "-":
+            t_count += 1
+
+        if math.fabs(c_count - t_count) > ignore_ends_len: # we only ignore length differences smaller or equal to ignore_ends_len
+            break
+
+        if c_count > 0 and t_count > 0: 
+            cut_end = j
+            break
+    cut_end = len(target_alignment) - cut_end
+
+    # # cut at start position by checking at which position cut_start we see the ignore_ends_len:th nucleotide in t_alignment
+    # # we cut at position before cut_start  
+    # # cut_start = 0
+    # nucl_counter = 0
+    # for j, nucl in enumerate(target_alignment):
+    #     if nucl != "-":
+    #         nucl_counter += 1
+    #     if nucl_counter == ignore_ends_len:
+    #         break
+
+    # cut_start = j - 1  
+
+    # # cut at end position by checking at which position cut_end we see the ignore_ends_len:th last nucleotide in t_alignment
+    # # we cut at cut_end + 1  
+    # nucl_counter = 0
+    # for j, nucl in enumerate(reversed(target_alignment)):
+    #     if nucl != "-":
+    #         nucl_counter += 1
+    #     if nucl_counter == ignore_ends_len:
+    #         break
+    # cut_end = len(target_alignment) - j + 1
+
     print("cutting from", len(target_alignment), "positions to", len(target_alignment[ cut_start : cut_end ]) )
     for acc in alignment_matrix_to_t:
         alignment_matrix_to_t[acc] = alignment_matrix_to_t[acc][ cut_start : cut_end ]

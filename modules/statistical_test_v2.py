@@ -331,18 +331,21 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates, ignore_ends_len):
     alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C )
 
     # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
-    # these are bases that we disregard testing varinats in
+    # these are bases that we disregard when testing varinats
+    # We get individual cut positions depending on which candidate is being tested -- we dont want to include ends spanning over the reference or candidate
+    # we cut at the start position in c or t that comes last, and the end position in c or t that comes first
     if ignore_ends_len > 0:
-        alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, ignore_ends_len)
+        for c_acc in list(candidates):
+            alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
 
-    # get parameter estimates for statistical test
-    candidate_accessions = set( [ c_acc for c_acc in candidates] )
-    delta_t = functions.get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
-    epsilon, lambda_S, lambda_D, lambda_I = functions.get_error_rates_and_lambda(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
-    # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
-    candidate_support = functions.get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
-    # read_indiv_invariant_factors = adjust_probability_of_read_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
-    candidate_indiv_invariant_factors = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
+            # get parameter estimates for statistical test
+            candidate_accessions = set( [ c_acc for c_acc in candidates] )
+            delta_t = functions.get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
+            epsilon, lambda_S, lambda_D, lambda_I = functions.get_error_rates_and_lambda(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
+            # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
+            candidate_support = functions.get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
+            # read_indiv_invariant_factors = adjust_probability_of_read_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
+            candidate_indiv_invariant_factors = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
 
     for c_acc in list(candidates):
         original_mapped_to_c = len(partition_of_X[c_acc])

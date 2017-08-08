@@ -408,13 +408,13 @@ def get_minimizers_graph_transposed_under_ignored_ends(candidate_transcripts, ar
             ed = minimizer_graph[acc1][acc2]
             if ed > 10:
                 del minimizer_graph[acc1][acc2]
-                print("had ed > 10 statistocal test", acc1, acc2)
+                print("had ed > 10 statistical test", acc1, acc2)
 
 
     no_ref_to_test_to = set()
     for acc1 in  minimizer_graph:
         seq1 = candidate_transcripts[acc1]
-        
+
         if len(minimizer_graph[acc1]) == 0: # all isolated nodes in this graph
             no_ref_to_test_to.add(acc1)
 
