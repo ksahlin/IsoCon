@@ -14,7 +14,7 @@ from modules.edlib_alignment_module import edlib_align_sequences_keeping_accessi
 from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, get_invariant_adjustment, adjust_probability_of_read_to_alignment_invariant, adjust_probability_of_candidate_to_alignment_invariant
 
 
-def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, single_core = False):
+def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, params):
     p_values = {}
     actual_tests = 0
     
@@ -35,14 +35,14 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
             all_X_in_partition[t_acc][c_acc] = { x_acc : X[x_acc] for acc in [t_acc, c_acc] for x_acc in partition_of_X[acc]}
 
 
-    if single_core:
+    if params.single_core:
         for t_acc in minimizer_graph_transposed:
             if len(minimizer_graph_transposed[t_acc]) == 0:
                 p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
                 continue
 
             for c_acc in minimizer_graph_transposed[t_acc]:
-                p_vals = statistical_test(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc])
+                p_vals = statistical_test(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params)
 
                 for tested_cand_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in p_vals.items():
                     if p_value == "not_tested":
@@ -65,7 +65,7 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
         try:
-            res = pool.map_async(statistical_test_helper, [ ( (t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc]), {}) for t_acc in minimizer_graph_transposed for c_acc in minimizer_graph_transposed[t_acc]  ] )
+            res = pool.map_async(statistical_test_helper, [ ( (t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params), {}) for t_acc in minimizer_graph_transposed for c_acc in minimizer_graph_transposed[t_acc]  ] )
             statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -99,7 +99,7 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
     return p_values
 
 
-def do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, single_core = False):
+def do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, params):
     p_values = {}
     actual_tests = 0
     
@@ -114,9 +114,9 @@ def do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_
         C_for_minmizer[t_acc] = { c_acc : C[c_acc] for c_acc in list(minimizer_graph_transposed[t_acc].keys()) + [t_acc] }
         X_for_minmizer[t_acc] = { x_acc : X[x_acc] for c_acc in partition_of_X_for_minmizer[t_acc] for x_acc in partition_of_X_for_minmizer[t_acc][c_acc]}
 
-    if single_core:
+    if params.single_core:
         for t_acc in minimizer_graph_transposed:
-            p_vals = statistical_test(t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc])
+            p_vals = statistical_test(t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc], params)
             for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in p_vals.items():
                 if p_value == "not_tested":
                     assert c_acc not in p_values # should only be here once
@@ -138,7 +138,7 @@ def do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
         try:
-            res = pool.map_async(statistical_test_helper, [ ( (t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc]), {}) for t_acc in minimizer_graph_transposed  ] )
+            res = pool.map_async(statistical_test_helper, [ ( (t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc], params), {}) for t_acc in minimizer_graph_transposed  ] )
             statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -292,7 +292,7 @@ def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C ):
 
 
 
-def statistical_test(t_acc, X, C, partition_of_X, candidates):
+def statistical_test(t_acc, X, C, partition_of_X, candidates, params):
     significance_values = {}
     t_seq = C[t_acc]
     if len(candidates) == 0:
@@ -330,6 +330,11 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates):
     # get multialignment matrix here
     alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C )
 
+    # cut multialignment matrix first and last params.ignore_ends_len bases in ends of reference in the amignment matrix
+    # these are bases that we disregard testing varinats in
+    if params.ignore_ends_len > 0:
+        alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, params.ignore_ends_len)
+
     # get parameter estimates for statistical test
     candidate_accessions = set( [ c_acc for c_acc in candidates] )
     delta_t = functions.get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
@@ -343,6 +348,8 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates):
         original_mapped_to_c = len(partition_of_X[c_acc])
         k = len(candidate_support[c_acc])
         # print("supprot:", k, "diff:", len(delta_t[c_acc]))
+        if len(delta_t[c_acc]) == 0:
+            print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
         p_value, mult_factor_inv = stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c)
         delta_size = len(delta_t[c_acc])
         significance_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)

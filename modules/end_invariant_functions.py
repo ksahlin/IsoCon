@@ -12,6 +12,7 @@ import math
 import networkx as nx
 import edlib
 
+from modules import functions
 def edlib_traceback_allow_ends(x, y, mode="NW", task="path", k=1, end_threshold = 0):
     result = edlib.align(x, y, mode=mode, task=task, k=k)
     ed = result["editDistance"]
@@ -396,19 +397,43 @@ def partition_highest_reachable_with_edge_degrees(G_star):
     return G_star, partition, M
 
 
-def get_minimizers_graph_under_ignored_ends(candidate_transcripts, args):
+def get_minimizers_graph_transposed_under_ignored_ends(candidate_transcripts, args):
     seq_to_acc = {seq: acc for (acc, seq) in candidate_transcripts.items()}
     seq_to_acc_list = list(seq_to_acc.items())
     seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
     minimizer_graph = get_minimizers_under_ignored_edge_ends(seq_to_acc_list_sorted, args)
 
+    for acc1 in list(minimizer_graph.keys()):
+        for acc2 in list(minimizer_graph[acc1].keys()):
+            ed = minimizer_graph[acc1][acc2]
+            if ed > 10:
+                del minimizer_graph[acc1][acc2]
+                print("had ed > 10 statistocal test", acc1, acc2)
+
+
+    no_ref_to_test_to = set()
     for acc1 in  minimizer_graph:
         seq1 = candidate_transcripts[acc1]
+        
+        if len(minimizer_graph[acc1]) == 0: # all isolated nodes in this graph
+            no_ref_to_test_to.add(acc1)
+
         for acc2 in minimizer_graph[acc1]:
             seq2 = candidate_transcripts[acc2]
-            if  minimizer_graph[acc1][acc2] > 0:
+            if minimizer_graph[acc1][acc2] > 0:
                 print(acc1, acc2,  minimizer_graph[acc1][acc2])
-    return minimizer_graph
+    
+    minimizer_graph_transposed = functions.transpose(minimizer_graph)
+
+    # isolated_nodes = set(candidate_transcripts.keys()) -  set(minimizer_graph_transposed)
+    # print("isolated:",isolated_nodes )
+    # for c_isolated in isolated_nodes:
+    #     minimizer_graph_transposed[c_isolated] = {}
+    print("isolated:", no_ref_to_test_to)
+    for c_isolated in no_ref_to_test_to:
+        minimizer_graph_transposed[c_isolated] = {}
+
+    return minimizer_graph_transposed
 
 def collapse_candidates_under_ends_invariant(candidate_transcripts, candidate_support, args):
     print("candidates before edge invariants:", len(candidate_transcripts))

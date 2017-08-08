@@ -25,7 +25,7 @@ from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_se
 from modules.input_output import fasta_parser, write_output
 from modules import statistical_test_v2
 from modules import correct_sequence_to_minimizer
-
+from modules import end_invariant_functions
 
 def vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C):
     import networkx as nx
@@ -99,7 +99,7 @@ def get_homopolymer_invariants(candidate_transcripts):
 
 def get_minimizer_graph_transposed(candidate_transcripts):
     best_edit_distances = {}
-    isolated_nodes = set()
+    no_ref_to_test_to = set()
     for i, (c1, seq1) in enumerate(candidate_transcripts.items()):
         if i % 50 == 0:
             print("processing ", i)
@@ -107,15 +107,15 @@ def get_minimizer_graph_transposed(candidate_transcripts):
         # best_cigars[c1] = {}
         best_ed = len(seq1)
         for c2, seq2 in  candidate_transcripts.items() :
-            print("ALIGNING: {0} to {1}".format(c1, c2))
+            # print("ALIGNING: {0} to {1}".format(c1, c2))
             if c1 == c2:
                 continue
             elif math.fabs(len(seq1) - len(seq2)) > best_ed:
-                print("here")
+                # print("here", len(seq1), len(seq2), math.fabs(len(seq1) - len(seq2)), best_ed)
                 continue
             # TODO: remove task = "path" to speed up
             edit_distance, locations, cigar = edlib_traceback(seq1, seq2, mode="NW", task="path", k=min(10, best_ed))
-            print(edit_distance, locations, cigar, "best:", best_ed)
+            # print(edit_distance, locations, cigar, "best:", best_ed)
             if 0 <= edit_distance < best_ed:
                 best_ed = edit_distance
                 best_edit_distances[c1] = {}
@@ -127,12 +127,18 @@ def get_minimizer_graph_transposed(candidate_transcripts):
                 # best_cigars[c1][c2] =  cigar
 
         if len(best_edit_distances[c1]) == 0: # all isolated nodes in this graph
-            isolated_nodes.add(c1)
+            no_ref_to_test_to.add(c1)
 
- 
+    # print(best_edit_distances["transcript_62_support_6"]) 
     minimizer_graph_transposed = transpose(best_edit_distances)
-    for c_isolated in isolated_nodes:
+    print("isolated:", no_ref_to_test_to)
+    for c_isolated in no_ref_to_test_to:
         minimizer_graph_transposed[c_isolated] = {}
+
+    # print(minimizer_graph_transposed["transcript_46_support_430"])
+    # print(minimizer_graph_transposed["transcript_62_support_6"])
+
+    # sys.exit()
 
     assert len(best_edit_distances) == len(candidate_transcripts)
     return minimizer_graph_transposed
@@ -253,7 +259,21 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         # check_exon_diffs(alignments_of_x_to_c, params)
 
         ############# GET THE CLOSES HIGHEST SUPPORTED REFERENCE TO TEST AGAINST FOR EACH CANDIDATE ############
-        minimizer_graph_transposed = get_minimizer_graph_transposed(C)
+
+        # print("NEW")
+        # minimizer_graph_transposed = end_invariant_functions.get_minimizers_graph_transposed_under_ignored_ends(C, params)
+        # for t in minimizer_graph_transposed:
+        #     print(t, "nr candidates:", len(minimizer_graph_transposed[t]), "deltas:", [minimizer_graph_transposed[t][c] for c in minimizer_graph_transposed[t]])
+        # print("OLD")
+        # minimizer_graph_transposed2 = get_minimizer_graph_transposed(C)
+        # for t in minimizer_graph_transposed2:
+        #     print(t, "nr candidates:", len(minimizer_graph_transposed2[t]), "deltas:", [minimizer_graph_transposed2[t][c] for c in minimizer_graph_transposed2[t]])
+        # sys.exit()
+
+        if params.ignore_ends_len > 0:
+            minimizer_graph_transposed = end_invariant_functions.get_minimizers_graph_transposed_under_ignored_ends(C, params)
+        else:
+            minimizer_graph_transposed = get_minimizer_graph_transposed(C)
 
         # extra_edges_from_collapsed_homopolymers = get_homopolymer_invariants(C)
         # homopol_extra_added = 0
@@ -297,9 +317,9 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         print("NUMBER OF CANDIDATES LEFT:", len(C), "Number of performed statistical tests in this round:", nr_of_tests_this_round)
 
         if realignment_to_avoid_local_max == 1:
-            new_significance_values = statistical_test_v2.do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, single_core = params.single_core )
+            new_significance_values = statistical_test_v2.do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, params )
         else:
-            new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, single_core = params.single_core )
+            new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, params )
 
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}

@@ -14,6 +14,34 @@
 import unittest
 from collections import defaultdict
 
+def cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, ignore_ends_len):
+    target_alignment = alignment_matrix_to_t[t_acc]
+    # cut at start position by checking at which position cut_start we see the ignore_ends_len:th nucleotide in t_alignment
+    # we cut at position before cut_start  
+    # cut_start = 0
+    nucl_counter = 0
+    for j, nucl in enumerate(target_alignment):
+        if nucl != "-":
+            nucl_counter += 1
+        if nucl_counter == ignore_ends_len:
+            break
+
+    cut_start = j - 1  
+
+    # cut at end position by checking at which position cut_end we see the ignore_ends_len:th last nucleotide in t_alignment
+    # we cut at cut_end + 1  
+    nucl_counter = 0
+    for j, nucl in enumerate(reversed(target_alignment)):
+        if nucl != "-":
+            nucl_counter += 1
+        if nucl_counter == ignore_ends_len:
+            break
+
+    cut_end = len(target_alignment) - j + 1
+    print("cutting from", len(target_alignment), "positions to", len(target_alignment[ cut_start : cut_end ]) )
+    for acc in alignment_matrix_to_t:
+        alignment_matrix_to_t[acc] = alignment_matrix_to_t[acc][ cut_start : cut_end ]
+    return  alignment_matrix_to_t
 
 def calculate_homopolymenr_lengths(t_seq):
     homopolymenr_length_numbers = {}
