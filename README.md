@@ -1,4 +1,4 @@
-IsoCON
+IsoCon
 ========
 
 Supported on Linux / OSX with python 2.7, and 3 [![Build Status](https://travis-ci.org/ksahlin/BESST.svg?branch=master)](https://travis-ci.org/ksahlin/IsoCon)
@@ -73,7 +73,14 @@ We ran IsoCon on the publicly availabe datasets from pacbio [MCF7](link) and [Al
     IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --minimizer_search_depth 100
 ```
 
-IsoCon predicted X and Y transcripts and had a runtime of X and Y, for MCF7 and Alzheimer datasets respectively, on a 64 core machine with a peak memory usage of Z Gb. The predicted transcripts as well as the reads that could not be clustered or corrected are found [here](link).
+| Dataset | runtime  | peak memory | final_candidates | corr | not_corr | *TOFU* | *nr original CCS* | 
+| ------------- | ------------- | ------------- | ------------- | ------------- | ------------- | ------------- | ------------- |
+| [MCF7](http://www.pacb.com/blog/data-release-human-mcf-7-transcriptome/) | 24h43m  | <1.9Gb  | 2169 | 18458 | 401885 | 518701 | here |
+|[Alzheimer](http://www.pacb.com/blog/data-release-alzheimer-brain-isoform-sequencing-iso-seq-dataset/)| time | Content Cell  | Content Cell  |
+
+IsoCon predicted 2169 and Y transcripts and had a runtime of 24h43m and Y, for MCF7 and Alzheimer datasets respectively, on a 64 core machine with a peak memory usage of Z Gb. IsoCons output are found [here](link).
+
+Manual BLAT of 20 sequences from the "corrected_but_not_converged" predictions to human show an alignment identity increase from 94-98% of the ccs reads up to 99.5-99.9% for the corrected reads.
 
 
 Detailed usage
