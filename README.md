@@ -18,6 +18,19 @@ Please cite [1] when using IsoCon.
 
 1. Kristoffer Sahlin*, Marta Tomaszkiewicz*, Kateryna D. Makova†, Paul Medvedev† (2017) "Title." Journal (bioRxiv for now?)(17), 2215-2222 [Link](here)
 
+Table of Contents
+=================
+  * [INSTALLATION](#installation)
+        * [Using pip (recommended)](#using-pip-recommended)
+        * [Downloading source from GitHub](#downloading-source-from-github)
+           * [Dependencies](#dependencies)
+  * [Usage](#usage)
+  * [IsoCon on general Iso-Seq datasets](#isocon-on-general-iso-seq-datasets)
+  * [Detailed usage](#detailed-usage)
+        * [Commands](#commands)
+
+TOC created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
+
 INSTALLATION
 ----------------
 
@@ -25,18 +38,7 @@ The preferred way to install IsoCon is with pythons package installer pip.
 
 #### Using pip (recommended)
 
-Type in terminal:
-```
-pip install IsoCon
-```
-
-With proper installation of **IsoCon**, you should be able to run:
-
-```
-    IsoCon
-```
-
-to view user instructions. This installation will install the dependencies automatically for you. Customized installation of latest master branch is also easy, see below.
+Type in terminal `pip install IsoCon` . With proper installation of **IsoCon**, you should be able to issue the command ` IsoCon` to view user instructions. This installation will install the dependencies automatically for you. Customized installation of latest master branch is also easy, see below.
 
 #### Downloading source from GitHub
 
@@ -60,28 +62,32 @@ Usage
 
 Running IsoCon end-to-end (preffered)
 ```
-    IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output>
+IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output>
 ```
 
 
-Example datasets
------------------
+IsoCon on general Iso-Seq datasets
+-----------------------------------
 
-We ran IsoCon on the publicly availabe datasets from pacbio [MCF7](link) and [Alzheimer](link) using the following command
+IsoCon has been evaluated on targeted Iso-Seq data [cite], but the algorithm makes no explicit assumptions, or depends on the data being targeted. Therefore it also runs on any general Iso-Seq data. To demonstrate this We ran IsoCon on the publicly availabe datasets from pacbio [MCF7](link) and [Alzheimer](link) using the following command
 
 ```
-    IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --minimizer_search_depth 100
+IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --minimizer_search_depth 100
 ```
 
 | Dataset | runtime  | peak memory | final_candidates | corr | not_corr | *TOFU* | *nr original CCS* | 
 | ------------- | ------------- | ------------- | ------------- | ------------- | ------------- | ------------- | ------------- |
-| [MCF7](http://www.pacb.com/blog/data-release-human-mcf-7-transcriptome/) | 24h43m  | <1.9Gb  | 2169 | 18458 | 401885 | 518701 | here |
+| [MCF7](http://www.pacb.com/blog/data-release-human-mcf-7-transcriptome/) | 24h43m  | <1.9Gb  | 2169 | 18458 | 401885<sup>[1](#myfootnote1)</sup> |  55770 | 518701 |
 |[Alzheimer](http://www.pacb.com/blog/data-release-alzheimer-brain-isoform-sequencing-iso-seq-dataset/)| time | Content Cell  | Content Cell  |
+
+TODO1: Output three separate files: validated_transcripts.fa,  corrected_not_validated.fa, not_converged.fa 
+TODO2: Show set intersection (allowing end differences between final_cand + corr to TOFU transcripts). Also do other analysis.
 
 IsoCon predicted 2169 and Y transcripts and had a runtime of 24h43m and Y, for MCF7 and Alzheimer datasets respectively, on a 64 core machine with a peak memory usage of Z Gb. IsoCons output are found [here](link).
 
 Manual BLAT of 20 sequences from the "corrected_but_not_converged" predictions to human show an alignment identity increase from 94-98% of the ccs reads up to 99.5-99.9% for the corrected reads.
 
+<a name="footnote_not_converged">1</a>: Footnote content goes here
 
 Detailed usage
 ----------------
