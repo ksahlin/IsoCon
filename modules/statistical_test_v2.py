@@ -267,7 +267,7 @@ def stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_a
     #################################### 
     return  p_value, mult_factor_inv
 
-def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C ):
+def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_len):
     partition_dict = {t_acc : {}}
     for seq_acc in reads_and_candidates_and_ref:
         if seq_acc in X:
@@ -276,7 +276,7 @@ def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C ):
             partition_dict[t_acc][seq_acc] = (C[t_acc], C[seq_acc])
 
     exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, single_core = True)    
-    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, single_core = True)
+    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, single_core = True, ignore_ends_len = ignore_ends_len)
     partition_alignments = {} 
 
     assert len(exact_alignments) == 1
@@ -328,7 +328,11 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates, ignore_ends_len):
     reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
 
     # get multialignment matrix here
-    alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C )
+    alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_len)
+    for c_acc in candidates:
+        print(c_acc)
+    print(candidates)
+    print(alignment_matrix_to_t.keys())
 
     # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
     # these are bases that we disregard when testing varinats

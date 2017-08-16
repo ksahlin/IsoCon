@@ -14,11 +14,13 @@ from Bio.SubsMat import MatrixInfo as matlist
 #         result_vector.append(ssw_alignment( (x_acc, y_acc, x, y) ))
 #     return result_vector
 
-def sw_align_sequences(matches, single_core = False, mismatch_penalty = -1):
+def sw_align_sequences(matches, single_core = False, mismatch_penalty = -1, ignore_ends_len = 15):
     """
         Matches should be a 2D matrix implemented as a dict of dict, the value should be the edit distance.
     """
     exact_matches = {}
+    ends_discrepancy_threshold = max(25, ignore_ends_len + 1)
+
     if single_core:
         for j, s1 in enumerate(matches):
             for i, s2 in enumerate(matches[s1]):
@@ -36,7 +38,7 @@ def sw_align_sequences(matches, single_core = False, mismatch_penalty = -1):
                     mismatch_penalty = -4
 
                 # print(s1,s2)
-                s1, s2, stats = ssw_alignment_helper( ((s1, s2, i, j), {"mismatch_penalty" : mismatch_penalty }) )
+                s1, s2, stats = ssw_alignment_helper( ((s1, s2, i, j), {"mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold }) )
                 if stats:
                     if s1 in exact_matches:
                         exact_matches[s1][s2] = stats
@@ -68,7 +70,7 @@ def sw_align_sequences(matches, single_core = False, mismatch_penalty = -1):
                 matches_with_mismatch[s1][s2] = mismatch_penalty
 
         try:
-            res = pool.map_async(ssw_alignment_helper, [ ((s1, s2, i,j), {"mismatch_penalty" : mismatch_penalty}) for j, s1 in enumerate(matches_with_mismatch) for i, (s2, mismatch_penalty) in enumerate(matches_with_mismatch[s1].items()) ] )
+            res = pool.map_async(ssw_alignment_helper, [ ((s1, s2, i,j), {"mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold}) for j, s1 in enumerate(matches_with_mismatch) for i, (s2, mismatch_penalty) in enumerate(matches_with_mismatch[s1].items()) ] )
             alignment_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -91,12 +93,12 @@ def sw_align_sequences(matches, single_core = False, mismatch_penalty = -1):
     return exact_matches
 
 
-def sw_align_sequences_keeping_accession(matches, single_core = False):
+def sw_align_sequences_keeping_accession(matches, single_core = False, ignore_ends_len = 15):
     """
         Matches should be a 2D matrix implemented as a dict of dict, the value should be a tuple (s1,s2, edit_distance) .
     """
     exact_matches = {}
-
+    ends_discrepancy_threshold = max(25, ignore_ends_len + 1)
     if single_core:
         for j, s1_acc in enumerate(matches):
             for i, s2_acc in enumerate(matches[s1_acc]):
@@ -113,7 +115,7 @@ def sw_align_sequences_keeping_accession(matches, single_core = False):
                 else:
                     mismatch_penalty = -4
 
-                s1_acc, s2_acc, stats = ssw_alignment_helper( ((s1, s2, i, j), {"x_acc" : s1_acc, "y_acc" :s2_acc, "mismatch_penalty" : mismatch_penalty}) )
+                s1_acc, s2_acc, stats = ssw_alignment_helper( ((s1, s2, i, j), {"x_acc" : s1_acc, "y_acc" :s2_acc, "mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold}) )
 
                 if stats:
                     if s1_acc in exact_matches:
@@ -150,7 +152,7 @@ def sw_align_sequences_keeping_accession(matches, single_core = False):
         #     for i, s2_acc in enumerate(matches[s1_acc]):
         #         print("lool", matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j, {"x_acc": s1_acc, "y_acc" : s2_acc} ) 
         try:
-            res = pool.map_async(ssw_alignment_helper, [ ((matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j), {"x_acc": s1_acc, "y_acc" : s2_acc, "mismatch_penalty" : mismatch_penalty}) for j, s1_acc in enumerate(matches_with_mismatch) for i, (s2_acc, mismatch_penalty) in enumerate(matches_with_mismatch[s1_acc].items()) ] )
+            res = pool.map_async(ssw_alignment_helper, [ ((matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j), {"x_acc": s1_acc, "y_acc" : s2_acc, "mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold}) for j, s1_acc in enumerate(matches_with_mismatch) for i, (s2_acc, mismatch_penalty) in enumerate(matches_with_mismatch[s1_acc].items()) ] )
             alignment_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
