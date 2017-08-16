@@ -281,6 +281,10 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
             s_alignment_in_matrix = alignment_matrix[s]
             nr_pos_to_correct = int(math.ceil( len([ 1 for j in range(len(majority_vector)) if (len(majority_vector[j]) == 1 and majority_vector[j] != s_alignment_in_matrix[j] ) ]) * 0.5)) # (step/ float(step +1)) ))
             # print("positions to correct:", nr_pos_to_correct)
+
+            if nr_pos_to_correct2 > 0 and nr_pos_to_correct == 0:
+                print("Edit distance: {0}, but after removing ambiguous majority positions 0 to correct.".format(nr_pos_to_correct2))
+
             if nr_pos_to_correct  == 0:
                 continue
 
@@ -381,7 +385,11 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
             for acc in accessions_of_s:
                 S_prime_partition[acc] = s_modified
     elif len(partition) > 1:
-        print("Partition could not be corrected: Partition size(unique strings):{0}, partition support: {1}.".format(len(partition), N_t))
+        ed = 0
+        for s in partition:
+            if  partition[s][0] > ed:
+                ed = partition[s][0]
+        print("Partition could not be corrected: Partition size(unique strings):{0}, partition support: {1}, edit distance:{2}.".format(len(partition), N_t, ed))
     else:
         print("Partition converged: Partition size(unique strings):{0}, partition support: {1}.".format(len(partition), N_t))
 

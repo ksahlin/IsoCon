@@ -20,13 +20,13 @@ Please cite [1] when using IsoCon.
 
 Table of Contents
 =================
-  * [INSTALLATION](#installation)
+    * [INSTALLATION](#installation)
         * [Using pip (recommended)](#using-pip-recommended)
         * [Downloading source from GitHub](#downloading-source-from-github)
-           * [Dependencies](#dependencies)
-  * [Usage](#usage)
-  * [IsoCon on general Iso-Seq datasets](#isocon-on-general-iso-seq-datasets)
-  * [Detailed usage](#detailed-usage)
+            * [Dependencies](#dependencies)
+    * [Usage](#usage)
+    * [IsoCon on general Iso-Seq datasets](#isocon-on-general-iso-seq-datasets)
+    * [Detailed usage](#detailed-usage)
         * [Commands](#commands)
 
 TOC created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
@@ -77,7 +77,7 @@ IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --minimizer_
 
 | Dataset | runtime  | peak memory | final_candidates | corr | not_corr | *TOFU* | *nr original CCS* | 
 | ------------- | ------------- | ------------- | ------------- | ------------- | ------------- | ------------- | ------------- |
-| [MCF7](http://www.pacb.com/blog/data-release-human-mcf-7-transcriptome/) | 24h43m  | <1.9Gb  | 2169 | 18458 | 401885<sup>[1](#myfootnote1)</sup> |  55770 | 518701 |
+| [MCF7](http://www.pacb.com/blog/data-release-human-mcf-7-transcriptome/) | 24h43m  | <1.9Gb  | 2,169 | 18,458 | 401,885<sup>[1](#myfootnote1)</sup> |  55,770 | 518,701 |
 |[Alzheimer](http://www.pacb.com/blog/data-release-alzheimer-brain-isoform-sequencing-iso-seq-dataset/)| time | Content Cell  | Content Cell  |
 
 TODO1: Output three separate files: validated_transcripts.fa,  corrected_not_validated.fa, not_converged.fa 

@@ -33,7 +33,7 @@ def find_best_matches(approximate_matches, edge_creating_min_treshold = -1, edge
                     best_exact_edit_distances[s2][s1] = edit_distance
 
     print("TOTAL EDIT DISTANCE:", tot_ed)
-    print("TOTAL Visists:", cntrr)
+    print("TOTAL Visits:", cntrr)
 
 
 

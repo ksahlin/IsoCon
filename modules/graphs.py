@@ -26,7 +26,7 @@ def transform(read):
 
     return "".join(transformed_seq)
 
-def construct_exact_minimizer_graph_improved(S, params):
+def construct_exact_minimizer_graph(S, params):
 
     """
         input: a dict of strings, not necesarily unique
@@ -58,8 +58,6 @@ def construct_exact_minimizer_graph_improved(S, params):
     all_internode_edges_in_minimizer_graph, isolated_nodes = minimizer_graph.compute_minimizer_graph(S_prime, has_converged, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
  
 
-    # TODO: implement already_converged to skip redundant calculations, the more important for more comverged stings we have!! 
-    # minimizer_graph, isolated_nodes = compute_minimizer_graph(S, already_converged, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
     for s1_acc in all_internode_edges_in_minimizer_graph:
         s1 = S[s1_acc]
         if G.node[s1]["degree"] > 1:
@@ -73,140 +71,7 @@ def construct_exact_minimizer_graph_improved(S, params):
     for s in isolated_nodes:
         assert s in G
 
-
     return G, converged  
-
-# def construct_exact_minimizer_graph(S, params):
-
-#     """
-#         input: a dict of strings, not necesarily unique
-#         output: a directed graph implemented as a dict of dicts. Each edge has a weight assosiated to them.
-#                 self edges has a weight > 1 (identical sequences) and all other edges has weight 1.
-#                 Note, a node can be isolated! An isolated node will point at itself, effectively having itself as a minimizer.
-
-#     """
-
-
-
-#     G_star = {}
-#     # adding self edges to strings that has converged
-#     for acc, s in S.items():
-#         if s not in G_star:
-#             G_star[s] = {}
-#         else:
-#             if s in G_star[s]:
-#                 G_star[s][s] += 1  
-#             else:
-#                 G_star[s][s] = 2
-
-#     # check if converged, that is, if all nodes has self edges here, there will be no other edges added.
-#     converged = False
-#     not_in_clusters = set()
-#     already_converged = set()
-#     for s, nbr_dict in G_star.items():
-#         if len(nbr_dict) == 0:
-#             not_in_clusters.add(s)
-#         else:
-#             already_converged.add(s)
-
-#     if len(not_in_clusters) == 0:
-#         converged = True
-#         return G_star, converged
-
-
-#     unique_strings = {seq : acc for acc, seq in S.items()}
-#     S_prime = {acc : seq for seq, acc in unique_strings.items()}
-#     all_internode_edges_in_minimizer_graph, isolated_nodes = minimizer_graph.compute_minimizer_graph(S_prime, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
- 
-
-#     # TODO: implement already_converged to skip redundant calculations, the more important for more comverged stings we have!! 
-#     # minimizer_graph, isolated_nodes = compute_minimizer_graph(S, already_converged, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
-#     for s1_acc in all_internode_edges_in_minimizer_graph:
-#         s1 = S[s1_acc]
-#         if s1 in G_star[s1]: # the minimizer had already identical minimizer (ed = 0)
-#             continue
-#         # elif len(G_star[s1]) >= 2: # already has identical homopolymer minimizers ( at least 2 for meaningful correction)
-#         #     print("Homopolymer partition")
-#         #     continue
-#         else:
-#             for s2_acc in all_internode_edges_in_minimizer_graph[s1_acc]:
-#                 s2 = S[s2_acc]
-#                 G_star[s1][s2] = 1 
-
-#     for s in isolated_nodes:
-#         assert s in G_star
-#         if s not in G_star[s]:
-#             G_star[s][s] = 1
-
-#     return G_star, converged    
-
-# def construct_minimizer_graph_approximate(S, params, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
-
-#     """
-#         input: a dict of strings, not necesarily unique
-#         output: a directed graph implemented as a dict of dicts. Each edge has a weight assosiated to them.
-#                 self edges has a weight > 1 (identical sequences) and all other edges has weight 1.
-#                 Note, a node can be isolated!
-#     """
-#     G_star = {}
-#     alignment_graph = {}
-#     # adding self edges to strings that has converged
-#     s_to_acc = {s : acc for acc, s in S.items()} 
-#     for acc, s in S.items():
-#         if s not in G_star:
-#             G_star[s] = {}
-#             alignment_graph[s] = {}
-#         else:
-#             if s in G_star[s]:
-#                 G_star[s][s] += 1  
-#             else:
-#                 G_star[s][s] = 2
-#                 alignment_graph[s][s] = (0, s, s)
-
-#     # check if converged, that is, if all nodes has self edges here, there will be no other edges added.
-#     converged = False
-#     not_in_clusters = set()
-#     for s, nbr_dict in G_star.items():
-#         if len(nbr_dict) == 0:
-#             not_in_clusters.add(s)
-
-#     if len(not_in_clusters) == 0:
-#         converged = True
-#         return G_star, converged
-
-#     unique_strings = set(S.values())
-
-#     paf_files, acc_to_strings = minimap_alignment_module.minimap_partition(unique_strings, not_in_clusters, params)
-#     approximate_matches = minimap_alignment_module.paf_to_best_matches(paf_files, acc_to_strings)
-#     best_exact_matches = get_best_alignments.find_best_matches(approximate_matches,  edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold )
-
-#     #add remaining edges to  G_star and alignment_graph
-#     for s1 in best_exact_matches:
-#         # already have weighted self edge, i.e., identical sequence
-#         if s1 in G_star[s1]:
-#             # print("here!", G_star[s1][s1])
-#             continue
-#         for s2 in best_exact_matches[s1]:
-#             assert s2 not in G_star[s1]
-#             G_star[s1][s2] = 1
-#             (edit_distance, s1_alignment, s2_alignment) = best_exact_matches[s1][s2]
-#             alignment_graph[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
-
-#     # finally, nodes here are the one where we didn't find any alignments to another sequence, point these isolated nodes to themself
-#     # with indegree 1
-#     # we also check that theu are not "leaves" in G^* 
-#     # that is, a sequence that has no minimizer but is a minimizer to some other sequence, this should not happen in G^*
-#     G_star_transposed = functions.transpose(G_star)
-
-#     for s in G_star:
-#         if len(G_star[s]) == 0:
-#             assert s not in G_star_transposed
-#             G_star[s][s] = 1
-#             alignment_graph[s][s] = (0, s, s)
-#             # print("ISOLATED")
-
-#     return G_star, converged
-
 
 def construct_exact_2set_minimizer_bipartite_graph(X, C, X_file, C_file, params):
 
@@ -231,7 +96,134 @@ def construct_exact_2set_minimizer_bipartite_graph(X, C, X_file, C_file, params)
     return G
 
 
-# def construct_2set_minimizer_bipartite_graph(X, C, X_file, C_file):
+def construct_approximate_minimizer_graph(S, params, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
+
+    """
+        input: a dict of strings, not necesarily unique
+        output: a directed graph implemented as a networkx graph object. Each edge has a weight assosiated to them.
+                self edges has a weight > 1 (identical sequences) and all other edges has weight 1.
+                Note, a node can be isolated!
+    """
+
+    predicted_seq_to_acc = defaultdict(list)
+    for (acc, seq) in S.items():
+        predicted_seq_to_acc[seq].append(acc)
+    
+    graph_has_converged = True
+    G = nx.DiGraph()
+    has_converged = set()
+    for seq, list_acc in predicted_seq_to_acc.items():
+        deg = len(list_acc)
+        G.add_node(seq, degree = deg)
+        if deg > 1:
+            has_converged.add(seq)
+        if deg == 1:
+            graph_has_converged = False
+    
+    if graph_has_converged:
+        return G, graph_has_converged
+    s_to_acc = {s : acc for acc, s in S.items()}   
+    unique_strings = set(S.values())
+    # print(G.nodes(data=True))
+    not_in_clusters = set([s for s in G.nodes() if G.node[s]["degree"] == 1 ])
+    print("TOTAL UNIQUE STRINGS:", len(G.nodes()))
+    print("TOTAL NON CONVERGED STRINGS:", len(not_in_clusters))
+
+    # unique_strings = {seq : acc for acc, seq in S.items()}
+    # S_prime = {acc : seq for seq, acc in unique_strings.items()}
+    ##################################
+    ##################################
+
+    ############# OLD ################
+    # G_star = {}
+    # # adding self edges to strings that has converged
+    # s_to_acc = {s : acc for acc, s in S.items()} 
+    # for acc, s in S.items():
+    #     if s not in G_star:
+    #         G_star[s] = {}
+    #     else:
+    #         if s in G_star[s]:
+    #             G_star[s][s] += 1  
+    #         else:
+    #             G_star[s][s] = 2
+
+    # # check if converged, that is, if all nodes has self edges here, there will be no other edges added.
+    # converged = False
+    # not_in_clusters = set()
+    # for s, nbr_dict in G_star.items():
+    #     if len(nbr_dict) == 0:
+    #         not_in_clusters.add(s)
+
+    # if len(not_in_clusters) == 0:
+    #     converged = True
+    #     return G_star, converged
+
+    # unique_strings = set(S.values())
+    ##################################
+    ##################################
+
+
+
+    paf_files, acc_to_strings = minimap_alignment_module.minimap_partition(unique_strings, not_in_clusters, params)
+    approximate_matches = minimap_alignment_module.paf_to_best_matches(paf_files, acc_to_strings)
+    best_exact_matches = get_best_alignments.find_best_matches(approximate_matches,  edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold )
+
+
+    ##################################
+    ##################################
+
+    for s1 in best_exact_matches:
+        if G.node[s1]["degree"] > 1:
+            continue
+        else:
+            for s2 in best_exact_matches[s1]:
+                ed = best_exact_matches[s1][s2][0]
+                G.add_edge(s1, s2, edit_distance=ed)
+
+    was_assigned_to_a_minimizer = set([s for s in G.nodes() if len(G.neighbors(s)) > 0 ])
+    strings_converged = set([s for s in G.nodes() if G.node[s]["degree"] > 1 ])
+    isolated_nodes = unique_strings - (was_assigned_to_a_minimizer | strings_converged)
+    print("{0} strings was not converged and did not find a minimizer when aligning.".format(isolated_nodes))
+    for s in isolated_nodes:
+        assert s in G
+
+    ############ OLD #################
+    ##################################
+
+    # #add remaining edges to  G_star and alignment_graph
+    # for s1 in best_exact_matches:
+    #     # already have weighted self edge, i.e., identical sequence
+    #     if s1 in G_star[s1]:
+    #         # print("here!", G_star[s1][s1])
+    #         continue
+    #     for s2 in best_exact_matches[s1]:
+    #         assert s2 not in G_star[s1]
+    #         G_star[s1][s2] = 1
+    #         (edit_distance, s1_alignment, s2_alignment) = best_exact_matches[s1][s2]
+    #         alignment_graph[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
+
+    # # finally, nodes here are the one where we didn't find any alignments to another sequence, point these isolated nodes to themself
+    # # with indegree 1
+    # # we also check that theu are not "leaves" in G^* 
+    # # that is, a sequence that has no minimizer but is a minimizer to some other sequence, this should not happen in G^*
+    # G_star_transposed = functions.transpose(G_star)
+
+    # for s in G_star:
+    #     if len(G_star[s]) == 0:
+    #         assert s not in G_star_transposed
+    #         G_star[s][s] = 1
+    #         alignment_graph[s][s] = (0, s, s)
+    #         # print("ISOLATED")
+    ##################################
+    ##################################
+
+
+    return G, graph_has_converged
+
+
+
+
+# def construct_approximate_2set_minimizer_bipartite_graph(X, C, X_file, C_file):
 #     """
 #         X: a string pointing to a fasta file with reads  ## a dict containing original reads and their accession
 #         C: a string pointing to a fasta file with candidates  ## a dict containing consensus transcript candidates

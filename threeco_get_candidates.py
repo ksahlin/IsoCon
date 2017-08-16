@@ -19,80 +19,7 @@ from modules import correct_sequence_to_minimizer
 from modules import end_invariant_functions
 from collections import defaultdict
 
-# def get_homopolymer_invariants(candidate_transcripts):
-#     seq_to_acc = { seq : acc for (acc, seq) in  candidate_transcripts.items() }
-#     print("Unique before compression: ", len(seq_to_acc) )
 
-#     candidate_transcripts_transformed = {}
-#     clusters = defaultdict(list)
-#     for acc in candidate_transcripts:
-#         seq_transformed = transform(candidate_transcripts[acc])
-#         candidate_transcripts_transformed[acc] = seq_transformed
-#         clusters[seq_transformed].append(acc)
-
-#     seq_to_acc_transformed = { seq : acc for (acc, seq) in candidate_transcripts_transformed.items()}
-#     print("Unique after compression: ", len(seq_to_acc_transformed) )
-
-#     edges = {}
-#     for seq in clusters:
-#         if len(clusters[seq]) > 1:
-#             # print(clusters[seq])
-#             for acc in clusters[seq]:
-#                 edges[acc] = {}
-#             for acc1, acc2 in combinations(clusters[seq], 2):
-#                 edges[acc1][acc2] = 1
-#                 edges[acc2][acc1] = 1
-
-#     return edges
-
-
-# #############################################################
-# #############################################################
-# if homopolymer_compression:
-#     # All converged
-#     for acc, s in S.items():
-#         if s not in G_star:
-#             G_star[s] = {}
-#         else:
-#             if s in G_star[s]:
-#                 G_star[s][s] += 1  
-#                 # print(acc)
-#             else:
-#                 G_star[s][s] = 2
-#                 # print(acc)
-
-#     converged = False
-#     print("ENTERING HOMOPOLYMER COMPRESSION MODE")
-#     # create homopolymer equivalence class edges
-#     G_homopolymer_star = {}
-#     weight = {}
-#     for acc, s in S.items():
-#         if s not in G_star:
-#             G_star[s] = {}
-#             weight[s] = 1
-#         else:
-#             weight[s] += 1
-
-#     homopolymer_edges = get_homopolymer_invariants(S)
-#     homopol_extra_added = 0
-#     for acc1 in homopolymer_edges:
-#         s1 = S[acc1]
-#         for acc2 in homopolymer_edges[acc1]:
-#             # Do individual minimizer component graphs of the homopolymenr equivalence classes here!
-#             s2 = S[acc2]
-#             G_star[s1][s2] = 1
-#             G_star[s2][s1] = 1
-#             homopol_extra_added += 2
-
-#     print("EDGES FROM HOMOPOLYMER IDENTICAL:", homopol_extra_added)
-#     unique_strings = {transform(seq) : acc for acc, seq in S.items()}
-#     S_prime_transformed = {acc : seq for seq, acc in unique_strings.items()}
-#     # Send homopolymer components to this function!
-#     # Keep in mind. Isolated nodes are not neccesarily isolated!
-#     all_internode_edges_in_minimizer_graph, isolated_nodes = minimizer_graph.compute_minimizer_graph(S_prime_transformed, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
-
-#     #############################################################
-#     #############################################################
 
 def get_unique_seq_accessions(S):
     seq_to_acc = {}
@@ -115,13 +42,6 @@ def get_partition_alignments(graph_partition, M, G_star):
     ed_temp.sort()
     print("ED from edlib:", ed_temp)
     print("number of ed calculated:", len(ed_temp))
-    # for s1 in exact_edit_distances:
-    #     for s2 in exact_edit_distances[s1]:
-    #         print()
-    #         print(exact_edit_distances[s1][s2])
-    #         print(s1)
-    #         print(s2)
-
 
     exact_alignments = sw_align_sequences(exact_edit_distances, single_core = False)
 
@@ -350,7 +270,7 @@ def find_candidate_transcripts(read_file, params):
                 print(read_acc)
                 not_converged_reads.write(">{0}_corrected_but_not_converged_version\n{1}\n".format(read_acc, corrected_s))
 
-
+    not_converged_reads.close()
     edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers)
     alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m)
 

@@ -316,10 +316,10 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         nr_of_tests_this_round = len([ 1 for t_acc in minimizer_graph_transposed for c_acc in minimizer_graph_transposed[t_acc] ] )
         print("NUMBER OF CANDIDATES LEFT:", len(C), "Number of performed statistical tests in this round:", nr_of_tests_this_round)
 
-        if realignment_to_avoid_local_max == 1:
-            new_significance_values = statistical_test_v2.do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, params )
-        else:
-            new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, params )
+        # if realignment_to_avoid_local_max == 1:
+        #     new_significance_values = statistical_test_v2.do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, params )
+        # else:
+        new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, params )
 
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}
