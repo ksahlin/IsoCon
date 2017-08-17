@@ -271,8 +271,8 @@ def find_candidate_transcripts(read_file, params):
                 not_converged_reads.write(">{0}_corrected_but_not_converged_version\n{1}\n".format(read_acc, corrected_s))
 
     not_converged_reads.close()
-    edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers)
-    alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m)
+    edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers, single_core = params.single_core)
+    alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m, single_core = params.single_core)
 
 
     if params.ignore_ends_len > 0:
