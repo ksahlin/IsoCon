@@ -161,7 +161,8 @@ def construct_approximate_minimizer_graph(S, params, edge_creating_min_treshold 
     was_assigned_to_a_minimizer = set([s for s in G.nodes() if len(G.neighbors(s)) > 0 ])
     strings_converged = set([s for s in G.nodes() if G.node[s]["degree"] > 1 ])
     isolated_nodes = unique_strings - (was_assigned_to_a_minimizer | strings_converged)
-    print("{0} strings was not converged and did not find a minimizer when aligning.".format(isolated_nodes))
+    print("{0} strings was not converged and did not find a minimizer when aligning.".format(len(isolated_nodes)))
+    print("{0} edges in minimizer graph".format(len(G.edges())))
     for s in isolated_nodes:
         assert s in G
 
