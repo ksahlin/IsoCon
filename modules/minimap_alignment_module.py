@@ -161,7 +161,7 @@ def map_with_minimap(targets, queries):
 
     with open(minimap_output, "w") as minimap_file:
         sys.stdout.flush()
-        subprocess.check_call([ "minimap", "-f", "0.00000001", "-w5", "-L40", "-m0", 
+        subprocess.check_call([ "minimap", "-f", "0.00000001", "-Sw5", "-L40", "-m0", 
                                 "-t", str(processes),
                                targets, queries ],
                                 stdout=minimap_file,
