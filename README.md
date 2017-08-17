@@ -120,7 +120,7 @@ optional arguments:
 #### Commands
 
 ```
-    $ ./run3CO pipeline --help
+    $ ./IsoCon pipeline --help
 usage: Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads. pipeline
        [-h] -fl_reads FL_READS -outfolder OUTFOLDER [--barcodes BARCODES]
        [--develop_mode] [--minimizer_search_depth MINIMIZER_SEARCH_DEPTH]

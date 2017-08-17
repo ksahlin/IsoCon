@@ -42,8 +42,8 @@ import re
 from multiprocessing import Pool
 import multiprocessing as mp
 
-import threeco_get_candidates, threeco_statistical_test
-from modules import threeco_parameters
+import isocon_get_candidates, isocon_statistical_test
+from modules import isocon_parameters
 from modules.input_output import write_output, fasta_parser
 from modules import partitions
 from modules import identify_barcodes
@@ -74,7 +74,7 @@ def run_get_candidates(params):
         # need to redirect path to reads to the new path with modified reads as well
         filtered_file = identify_barcodes.remove_barcodes_fcn(params.read_file, params)
         params.read_file = filtered_file
-    candidate_file = threeco_get_candidates.find_candidate_transcripts(params.read_file, params)
+    candidate_file = isocon_get_candidates.find_candidate_transcripts(params.read_file, params)
     total_elapsed = time() - total_start
     write_output.logger('TOTAL TIME ELAPSED FOR MINIMIZER APPROACH:{0}'.format(str(total_elapsed)), params.logfile)
 
@@ -116,7 +116,7 @@ def run_stat_filter(params):
     filtered_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
     G_star, partition_of_X =  partitions.partition_strings_2set(original_reads, filtered_candidates, params.fl_reads, params.candidates, params)
     to_realign = {}
-    threeco_statistical_test.stat_filter_candidates(params.fl_reads, params.candidates, partition_of_X, to_realign, params)
+    isocon_statistical_test.stat_filter_candidates(params.fl_reads, params.candidates, partition_of_X, to_realign, params)
     total_elapsed = time() - total_start
     if params.cleanup:
         clean_dir(params)
@@ -150,7 +150,7 @@ def run_pipeline(params):
         params.read_file = filtered_file
 
     minimizer_start = time() 
-    candidate_file, partition_of_X, to_realign = threeco_get_candidates.find_candidate_transcripts(params.read_file, params)
+    candidate_file, partition_of_X, to_realign = isocon_get_candidates.find_candidate_transcripts(params.read_file, params)
     # for x_acc in alignments_of_reads_to_candidates:
     #     assert len(alignments_of_reads_to_candidates[x_acc]) == 1
     minimizer_elapsed = time() - minimizer_start
@@ -161,14 +161,14 @@ def run_pipeline(params):
     # candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
     # G_star, partition_of_X = partitions.partition_strings_2set(original_reads, candidates, params.read_file, candidate_file, params)
 
-    threeco_statistical_test.stat_filter_candidates(params.read_file, candidate_file, partition_of_X, to_realign, params)
+    isocon_statistical_test.stat_filter_candidates(params.read_file, candidate_file, partition_of_X, to_realign, params)
     stats_elapsed = time() - stats_start
     write_output.logger('TIME ELAPSED FOR STATISTICAL TEST OF CANDIDATES:{0}'.format(str(stats_elapsed)), params.logfile)
 
     if params.cleanup:
         clean_dir(params)
     total_elapsed = time() - total_start
-    write_output.logger('TOTAL TIME ELAPSED FOR 3CO:{0}'.format(str(total_elapsed)), params.logfile)
+    write_output.logger('TOTAL TIME ELAPSED FOR IsoCon:{0}'.format(str(total_elapsed)), params.logfile)
 
 
 if __name__ == '__main__':
@@ -250,7 +250,7 @@ if __name__ == '__main__':
     except IOError as e:
         sys.exit("couldn't find read file paf file: " + args.fl_reads + " check that the path is correct and that the file exists")
 
-    params = threeco_parameters.Parameters(**args.__dict__)
+    params = isocon_parameters.Parameters(**args.__dict__)
 
     # if params.nontargeted:
     #     if params.ignore_ends_len == 15: # User has _probably_ not set option
