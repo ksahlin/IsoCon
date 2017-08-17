@@ -187,7 +187,7 @@ def ssw_alignment(x, y, i,j, ends_discrepancy_threshold = 25 , x_acc = "", y_acc
         y: reference
 
     """
-    if i % 10000 == 0 and j % 100 == 0:
+    if i % 10000 == 0 and j % 2000 == 0 and j > 0:
         print("processing alignments on y_j with j={0}, mismatch_penalty: {1}".format(j+1, mismatch_penalty))
 
     score_matrix = ssw.DNA_ScoreMatrix(match=1, mismatch=mismatch_penalty)

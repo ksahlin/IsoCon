@@ -35,15 +35,15 @@ def get_unique_seq_accessions(S):
 
     return seq_to_acc
 
-def get_partition_alignments(graph_partition, M, G_star):
-    exact_edit_distances = edlib_align_sequences(graph_partition, single_core = False)    
+def get_partition_alignments(graph_partition, M, G_star, params):
+    exact_edit_distances = edlib_align_sequences(graph_partition, single_core = params.single_core)    
         
     ed_temp = [ exact_edit_distances[s1][s2] for s1 in exact_edit_distances for s2 in exact_edit_distances[s1]  ] 
     ed_temp.sort()
     print("ED from edlib:", ed_temp)
     print("number of ed calculated:", len(ed_temp))
 
-    exact_alignments = sw_align_sequences(exact_edit_distances, single_core = False)
+    exact_alignments = sw_align_sequences(exact_edit_distances, single_core = params.single_core)
 
     ssw_temp = [ exact_alignments[s1][s2] for s1 in exact_alignments for s2 in exact_alignments[s1]  ] 
     # ssw_temp.sort()
@@ -114,7 +114,7 @@ def find_candidate_transcripts(read_file, params):
 
     minimizer_start = time() 
     G_star, graph_partition, M, converged = highest_reachable_with_edge_degrees(S, params)
-    partition_alignments = get_partition_alignments(graph_partition, M, G_star)       
+    partition_alignments = get_partition_alignments(graph_partition, M, G_star, params)       
 
     minimizer_elapsed = time() - minimizer_start
     write_output.logger('Time for minimizers and partition, step 1:{0}'.format(str(minimizer_elapsed)), params.logfile)
@@ -214,7 +214,7 @@ def find_candidate_transcripts(read_file, params):
         # partition_alignments, partition, M, converged = partition_strings(S)
 
         G_star, graph_partition, M, converged = highest_reachable_with_edge_degrees(S, params)
-        partition_alignments = get_partition_alignments(graph_partition, M, G_star)  
+        partition_alignments = get_partition_alignments(graph_partition, M, G_star, params)  
         out_file_name = os.path.join(params.outfolder, "candidates_step_" +  str(step) + ".fa")
         out_file = open(out_file_name, "w")
         for i, m in enumerate(partition_alignments):

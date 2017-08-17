@@ -28,7 +28,7 @@ def highest_reachable_with_edge_degrees(S, params):
     partition = {}
     # print("here")
     for subgraph in sorted(nx.weakly_connected_component_subgraphs(G_transpose), key=len, reverse=True):
-        print("Subgraph of size", len(subgraph.nodes()), "nr edges:", len(subgraph.edges()), [len(x) for x in subgraph.nodes()] )
+        # print("Subgraph of size", len(subgraph.nodes()), "nr edges:", len(subgraph.edges()), [len(x) for x in subgraph.nodes()] )
         while subgraph:
             reachable_comp_sizes = []
             reachable_comp_weights = {}

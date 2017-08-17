@@ -11,7 +11,7 @@ from modules import functions
 from modules.multinomial_distr import multinomial_
 from modules.SW_alignment_module import sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences_keeping_accession
-from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, get_invariant_adjustment, adjust_probability_of_read_to_alignment_invariant, adjust_probability_of_candidate_to_alignment_invariant
+from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, adjust_probability_of_candidate_to_alignment_invariant
 
 
 def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, params):
@@ -200,69 +200,17 @@ def stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_a
 
     pobin_mean = sum([ epsilon_invariant_adjusted[q_acc] for q_acc in epsilon_invariant_adjusted])    
     p_value = poisson.sf(k - 1, pobin_mean)
-
-
-    #### CORRECTION FACTOR MULTIPLE TESTING W.R.T. HOMOPOLYMENR LENGHTS ##############
-    # gives keyerror!!
-    homopolymenr_length_numbers = functions.calculate_homopolymenr_lengths(t_seq) # dictionary { homopolymer_length : number of occurances on reference}
-    print(homopolymenr_length_numbers)
-    correction_factor = 1
-    all_variants = {}
-    for pos, (state, char) in delta_t[c_acc].items():
-        print(state, char)
-        u_v = candidate_indiv_invariant_factors[c_acc][pos][(state, char)]
-        # print(u_v, state )
-        if (u_v, state) in all_variants:
-            all_variants[(u_v, state)] +=1
-        else:
-            all_variants[(u_v, state)] = 1
-
-    for (u_v, state), n_v in all_variants.items():
-        if state == "I":
-            u_v = max(u_v - 1, 1)
-
-        if u_v not in homopolymenr_length_numbers:
-            index, u_v = min(enumerate(homopolymenr_length_numbers.keys()), key=lambda x: abs(x[1] - u_v))
-            nr_hom_lengths = homopolymenr_length_numbers[u_v]
-        else:
-            nr_hom_lengths = homopolymenr_length_numbers[u_v]
-
-
-        if u_v > 1:
-            correction_factor *= functions.choose(nr_hom_lengths, n_v)
-
-        elif state == "I":
-            correction_factor *= functions.choose(4*(nr_hom_lengths + 1), n_v)
-        elif state == "S":
-            correction_factor *= functions.choose(3*nr_hom_lengths, n_v)
-
-        elif state == "D":
-            correction_factor *= functions.choose(nr_hom_lengths, n_v)
-
-        else:
-            print("BUG", state)
-            sys.exit()
-    print(correction_factor)
-    #####################################################################################
-
+    
     mult_factor_inv = ( (4*(m+1))**n_I ) * functions.choose(m, n_D) * functions.choose( 3*(m-n_D), n_S)
-    print(correction_factor, mult_factor_inv)
-    # for q_acc in epsilon_invariant_adjusted:
-    #     if epsilon_invariant_adjusted[q_acc] > 0.5:
-    #         print(epsilon_invariant_adjusted[q_acc], q_acc)
+
     pobin_var = sum([ epsilon_invariant_adjusted[q_acc] * ( 1 - epsilon_invariant_adjusted[q_acc] ) for q_acc in epsilon_invariant_adjusted])
     pobin_stddev = math.sqrt(pobin_var)
     if pobin_mean > 5.0: # implies that mean is at least 2.2 times larger than stddev, this should give fairly symmetrical distribution
         p_value_norm = norm.sf(float(k-1), loc= pobin_mean, scale= pobin_stddev )
 
         print(c_acc, "COMPARE P-VALS:", p_value, "norm:", p_value_norm)
-        # print("Also correction factors:", correction_factor, mult_factor_inv)
 
 
-    # corrected_p_value =  mult_factor_inv * p_value
-
-    # print("Corrected p value:", corrected_p_value, "k:", k, "Nr mapped to:", original_mapped_to_c)
-    # print("lambda inv adjusted", lambda_po_approx_inv, mult_factor_inv, k, len(delta_t[c_acc]), candidate_indiv_invariant_factors[c_acc])
     #############################
     #################################### 
     return  p_value, mult_factor_inv
@@ -329,10 +277,6 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates, ignore_ends_len):
 
     # get multialignment matrix here
     alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_len)
-    for c_acc in candidates:
-        print(c_acc)
-    print(candidates)
-    print(alignment_matrix_to_t.keys())
 
     # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
     # these are bases that we disregard when testing varinats
@@ -349,7 +293,6 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates, ignore_ends_len):
         epsilon, lambda_S, lambda_D, lambda_I = functions.get_error_rates_and_lambda(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
         # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
         candidate_support = functions.get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
-        # read_indiv_invariant_factors = adjust_probability_of_read_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
         candidate_indiv_invariant_factors = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
 
     for c_acc in list(candidates):

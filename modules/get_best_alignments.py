@@ -2,7 +2,7 @@
 from modules import edlib_alignment_module
 from modules import SW_alignment_module
 
-def find_best_matches(approximate_matches, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
+def find_best_matches(approximate_matches, params, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
     """
         input: approximate_matches is a dictionary with a string as key and a list of strings as value
         output: dictionary with a string as key and a dictionary as value. 
@@ -10,7 +10,7 @@ def find_best_matches(approximate_matches, edge_creating_min_treshold = -1, edge
                 Each string in the inner dict has the same (lowest) edit distance to the key 
     """
 
-    exact_edit_distances = edlib_alignment_module.edlib_align_sequences(approximate_matches, single_core = True)
+    exact_edit_distances = edlib_alignment_module.edlib_align_sequences(approximate_matches, single_core = params.single_core)
     best_exact_edit_distances = {}
     tot_ed = 0
     cntrr = 0
@@ -59,7 +59,7 @@ def find_best_matches(approximate_matches, edge_creating_min_treshold = -1, edge
     print("TOTAL EDGES:", cntrr)
     print("EDIT DISTANCE PER EDGE:", filtered_tot_ed/float(cntrr))
 
-    exact_alignments = SW_alignment_module.sw_align_sequences(best_exact_edit_distances, single_core = False )
+    exact_alignments = SW_alignment_module.sw_align_sequences(best_exact_edit_distances, single_core = params.single_core)
 
     # process the exact matches here
     best_exact_matches = {}
@@ -118,7 +118,7 @@ def find_best_matches(approximate_matches, edge_creating_min_treshold = -1, edge
 
     return best_exact_matches
 
-def find_best_matches_2set(highest_paf_scores, X, C):
+def find_best_matches_2set(highest_paf_scores, X, C, params):
     """
         input: approximate_matches is a dictionary with a string as key and a list of strings as value
         output: dictionary with a string as key and a dictionary as value. 
@@ -135,7 +135,7 @@ def find_best_matches_2set(highest_paf_scores, X, C):
             approximate_matches[read_acc][t_acc] = (X[read_acc], C[t_acc])
 
 
-    exact_edit_distances = edlib_alignment_module.edlib_align_sequences_keeping_accession(approximate_matches, single_core = False)
+    exact_edit_distances = edlib_alignment_module.edlib_align_sequences_keeping_accession(approximate_matches, single_core = params.single_core)
     best_exact_edit_distances = {}
     for s1_acc in exact_edit_distances:
         for s2_acc in exact_edit_distances[s1_acc]:
@@ -159,7 +159,7 @@ def find_best_matches_2set(highest_paf_scores, X, C):
                 del best_exact_edit_distances[s1_acc][s2_acc]
 
 
-    exact_alignments = SW_alignment_module.sw_align_sequences_keeping_accession(best_exact_edit_distances, single_core = False )
+    exact_alignments = SW_alignment_module.sw_align_sequences_keeping_accession(best_exact_edit_distances, single_core = params.single_core)
 
     # process the exact matches here
     best_exact_matches = {}

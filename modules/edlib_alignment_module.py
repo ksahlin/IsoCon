@@ -105,7 +105,7 @@ def edlib_alignment_helper(arguments):
     return edlib_alignment(*args, **kwargs)
 
 def edlib_alignment(x, y, i,j, x_acc = "", y_acc = ""):
-    if i % 10000 == 0 and j % 100 == 0:
+    if i % 10000 == 0 and j % 2000 == 0 and j > 0:
         print("processing alignments on y_j with j={0}".format(j+1))
 
     result = edlib.align(x,y, "NW") # , task="path")

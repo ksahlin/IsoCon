@@ -73,28 +73,6 @@ def construct_exact_minimizer_graph(S, params):
 
     return G, converged  
 
-def construct_exact_2set_minimizer_bipartite_graph(X, C, X_file, C_file, params):
-
-    best_exact_matches = minimizer_graph.compute_2set_minimizer_graph(X, C, params)
-    read_layer =  best_exact_matches.keys()
-    candidate_layer = set([cand for read in best_exact_matches for cand in best_exact_matches[read]])
-    # G_star = {}
-    G = nx.DiGraph()
-    G.add_nodes_from(read_layer, bipartite=0)
-    G.add_nodes_from(candidate_layer, bipartite=1)
-    G.add_edges_from([(x,c) for x in best_exact_matches for c in best_exact_matches[x]])
-    
-    # for x_acc in best_exact_matches:
-    #     # G_star[x_acc] = {}
-    #     for c_acc in best_exact_matches[x_acc]:
-    #         # assert c_acc not in G_star[x_acc]
-    #         # assert c_acc not in G[x_acc]
-    #         G.add_edge(x_acc, c_acc, edit_distance=best_exact_matches[x_acc][c_acc])
-    #         # G_star[x_acc][c_acc] = 1
-    #         # edit_distance = best_exact_matches[x_acc][c_acc]
-
-    return G
-
 
 def construct_approximate_minimizer_graph(S, params, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
 
@@ -166,7 +144,7 @@ def construct_approximate_minimizer_graph(S, params, edge_creating_min_treshold 
 
     paf_files, acc_to_strings = minimap_alignment_module.minimap_partition(unique_strings, not_in_clusters, params)
     approximate_matches = minimap_alignment_module.paf_to_best_matches(paf_files, acc_to_strings)
-    best_exact_matches = get_best_alignments.find_best_matches(approximate_matches,  edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold )
+    best_exact_matches = get_best_alignments.find_best_matches(approximate_matches, params, edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold )
 
 
     ##################################
@@ -221,9 +199,30 @@ def construct_approximate_minimizer_graph(S, params, edge_creating_min_treshold 
     return G, graph_has_converged
 
 
+def construct_exact_2set_minimizer_bipartite_graph(X, C, X_file, C_file, params):
+
+    best_exact_matches = minimizer_graph.compute_2set_minimizer_graph(X, C, params)
+    read_layer =  best_exact_matches.keys()
+    candidate_layer = set([cand for read in best_exact_matches for cand in best_exact_matches[read]])
+    # G_star = {}
+    G = nx.DiGraph()
+    G.add_nodes_from(read_layer, bipartite=0)
+    G.add_nodes_from(candidate_layer, bipartite=1)
+    G.add_edges_from([(x,c) for x in best_exact_matches for c in best_exact_matches[x]])
+    
+    # for x_acc in best_exact_matches:
+    #     # G_star[x_acc] = {}
+    #     for c_acc in best_exact_matches[x_acc]:
+    #         # assert c_acc not in G_star[x_acc]
+    #         # assert c_acc not in G[x_acc]
+    #         G.add_edge(x_acc, c_acc, edit_distance=best_exact_matches[x_acc][c_acc])
+    #         # G_star[x_acc][c_acc] = 1
+    #         # edit_distance = best_exact_matches[x_acc][c_acc]
+
+    return G
 
 
-# def construct_approximate_2set_minimizer_bipartite_graph(X, C, X_file, C_file):
+# def construct_approximate_2set_minimizer_bipartite_graph(X, C, X_file, C_file, params):
 #     """
 #         X: a string pointing to a fasta file with reads  ## a dict containing original reads and their accession
 #         C: a string pointing to a fasta file with candidates  ## a dict containing consensus transcript candidates
@@ -232,7 +231,7 @@ def construct_approximate_minimizer_graph(S, params, edge_creating_min_treshold 
 #     # TODO: eventually filter candidates with lower support than 2-3? Here?
 #     paf_file_name = minimap_alignment_module.map_with_minimap(C_file, X_file)
 #     highest_paf_scores = minimap_alignment_module.paf_to_best_matches_2set(paf_file_name)
-#     best_exact_matches = get_best_alignments.find_best_matches_2set(highest_paf_scores, X, C)
+#     best_exact_matches = get_best_alignments.find_best_matches_2set(highest_paf_scores, X, C, params)
 
 #     G_star = {}
 #     alignment_graph = {}

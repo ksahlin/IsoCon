@@ -67,6 +67,401 @@
 #     return G_star, converged    
 
 
+def create_multialignment_format_OLD(query_to_target_positioned_dict, start, stop):
+    """
+        only create multialignment format of the query sequences that cover the region [start,stop] start stop is the vector 
+        coordinates where vector is of size 2*len(target) + 1
+    """
+    assert len(query_to_target_positioned_dict) > 0
+    target_vector_length = len( list(query_to_target_positioned_dict.values())[0][0])
+    assert stop < target_vector_length # vector coordinates are 0-indexed
+
+    # get allreads alignments covering interesting segment
+    # row_accessions = []
+    segments = {}
+    for q_acc, (q_to_t_pos, t_vector_start, t_vector_end) in query_to_target_positioned_dict.items():
+        if t_vector_start <= start and t_vector_end >= stop: # read cover region
+            segment = q_to_t_pos[start - t_vector_start : stop - t_vector_start +1 ]
+            # row_accessions.append(q_acc)
+            segments[q_acc] = segment
+
+
+    # create alignment matrix of segment
+    alignment_matrix = {}
+    for q_acc in segments:
+        alignment_matrix[q_acc] = []
+
+    for j in range(0, stop - start + 1):
+        if (start + j) % 2 == 0:  # we are between a target base pairs (need to check the longest one)
+            insertions = [(segments[q_acc][j], q_acc) for q_acc in segments]
+            max_insertion, q_acc_max_ins = max(insertions, key= lambda x : len(x[0]))
+            max_insertion = "-" + max_insertion + "-"  # pad the max insertion
+
+            ###### OLD WORKING CODE #########
+            # for q_acc in segments:
+            #     for p in range(len(max_insertion)):
+            #         # all shorter insertions are left shifted -- identical indels are guaranteed to be aligned
+            #         # however, no multialignment is performed among the indels
+            #         if p < len(segments[q_acc][j]):
+            #             alignment_matrix[q_acc].append(segments[q_acc][j][p])
+            #         else:
+            #             alignment_matrix[q_acc].append("-")
+            #########################
+
+            for q_acc in segments:
+                # check if identical substring in biggest insertion first:
+                q_ins = segments[q_acc][j]
+                q_insertion_modified = ""
+
+                if q_ins == "-":
+                    # print("LOOL")
+                    q_insertion_modified = "-"*len(max_insertion)
+
+                if not q_insertion_modified:
+                    pos = max_insertion.find(q_ins) 
+                    q_insertion_modified = ""
+                    if pos >=0:
+                        if pos >= 1:
+                            pass
+                            # print("here perfect new!! q: {0} max: {1}, new q_ins:{2}".format(q_ins, max_insertion,  "-"*pos + max_insertion[ pos : pos + len(q_ins) ] + "-"* len(max_insertion[ pos + len(q_ins) : ])))
+                        
+                        q_insertion_modified = "-"*pos + max_insertion[ pos : pos + len(q_ins) ] + "-"* len(max_insertion[ pos + len(q_ins) : ])
+
+                
+                if not q_insertion_modified:
+                    # else, check is smaller deletion can be aligned from left to write, e.g. say max deletion is GACG
+                    # then an insertion AG may be aligned as -A-G. Take this alignment instead
+                    can_be_threaded = True
+                    prev_pos = -1
+                    match_pos = set()
+                    for q_nucl in q_ins:
+                        pos = max_insertion.find(q_nucl) 
+                        match_pos.add(pos)
+                        if pos <= prev_pos:
+                            can_be_threaded = False
+                            break
+                        prev_pos = pos
+
+                    if can_be_threaded:
+                        q_insertion_modified = ""
+                        for p in range(len(max_insertion)):
+                            if p in match_pos:
+                                nucl = max_insertion[p]
+                            else:
+                                nucl = "-"
+                            q_insertion_modified = q_insertion_modified + nucl
+                        # print("NEW can be threaded: q:{0}, max: {1}, new thread: {2}".format(q_ins, max_insertion, q_insertion_modified))
+
+                if not q_insertion_modified:
+                    # otherwise just shift left
+                    # print("Not solved: q:{0}, max: {1}".format(q_ins, max_insertion))
+                    # check if there is at least one matching character we could align to
+                    max_p = 0
+                    max_matches = 0
+                    for p in range(0, len(max_insertion) - len(q_ins) + 1 ):
+                        nr_matches = len([1 for c1, c2 in zip(q_ins, max_insertion[p: p + len(q_ins) ] ) if c1 == c2])
+                        if nr_matches > max_matches:
+                            max_p = p
+                            max_matches = nr_matches
+
+                    if max_p > 0:
+                        q_insertion_modified = "-"*max_p + q_ins + "-"*len(max_insertion[max_p + len(q_ins) : ])
+                        # print("specially solved: q:{0} max:{1} ".format(q_insertion_modified, max_insertion) )
+
+                if not q_insertion_modified:
+                    q_insertion_modified = []
+                    for p in range(len(max_insertion)):
+                        # all shorter insertions are left shifted -- identical indels are guaranteed to be aligned
+                        # however, no multialignment is performed among the indels
+                        if p < len(q_ins):
+                            q_insertion_modified.append(q_ins[p])
+                        else:
+                            q_insertion_modified.append("-")
+
+                #### finally add to alignment matrix
+                if len(q_insertion_modified) != len(max_insertion):
+                    print(q_insertion_modified, max_insertion, q_ins)
+                assert len(q_insertion_modified) == len(max_insertion)
+                for p in range(len(max_insertion)):
+                    alignment_matrix[q_acc].append(q_insertion_modified[p])
+
+        else: # we are on a target base pair -- all varinats must be exactly A,C,G,T, - i.e., length 1
+            for q_acc in segments:
+                alignment_matrix[q_acc].append(segments[q_acc][j])
+    # print(alignment_matrix)
+    return alignment_matrix
+
+def create_multialignment_format(query_to_target_positioned_dict, start, stop):
+    """
+        only create multialignment format of the query sequences that cover the region [start,stop] start stop is the vector 
+        coordinates where vector is of size 2*len(target) + 1
+    """
+    assert len(query_to_target_positioned_dict) > 0
+    target_vector_length = len( list(query_to_target_positioned_dict.values())[0][0])
+    assert stop < target_vector_length # vector coordinates are 0-indexed
+
+    # get allreads alignments covering interesting segment
+    # row_accessions = []
+    segments = {}
+    for q_acc, (q_to_t_pos, t_vector_start, t_vector_end) in query_to_target_positioned_dict.items():
+        if t_vector_start <= start and t_vector_end >= stop: # read cover region
+            segment = q_to_t_pos[start - t_vector_start : stop - t_vector_start +1 ]
+            # row_accessions.append(q_acc)
+            segments[q_acc] = segment
+
+
+    # create alignment matrix of segment
+    alignment_matrix = {}
+    for q_acc in segments:
+        alignment_matrix[q_acc] = []
+
+    for j in range(0, stop - start + 1):
+        if (start + j) % 2 == 0:  # we are between a target base pairs (need to check the longest one)
+            insertions = [(segments[q_acc][j], q_acc) for q_acc in segments]
+            # TODO: HERE IS STOCHASTICITY! Lets just do edlib(path=True) here all the time and take leftmost best alignment if several!, that would simplify code, right?! 
+            max_insertion, q_acc_max_ins = max(insertions, key= lambda x : len(x[0]))
+            max_ins_len = len(max_insertion)
+            all_max_ins = set(["-" + ins + "-" for (ins, acc) in insertions if len(ins) == max_ins_len])
+            # if len(all_max_ins) > 1 and max_ins_len == 2:
+            #     print("pos", j, all_max_ins)
+            max_insertion = "-" + max_insertion + "-"  # pad the max insertion
+            padded_max_ins_len = len(max_insertion)
+
+            for q_acc in segments:
+                # check if identical substring in biggest insertion first:
+                q_ins = segments[q_acc][j]
+                q_insertion_modified = ""
+
+                if q_ins == "-":
+                    # print("LOOL")
+                    q_insertion_modified = "-"*padded_max_ins_len
+
+
+                can_be_threaded = False
+                if not q_insertion_modified:
+                    # else, check is smaller deletion can be aligned from left to write, e.g. say max deletion is GACG
+                    # then an insertion AG may be aligned as -A-G. Take this alignment instead
+                    for max_ins in sorted(all_max_ins):
+                        # print("max ins", max_ins)
+                        q_insertion_modified = thread_to_max_ins(max_ins, q_ins)
+                        if q_insertion_modified:
+                            can_be_threaded = True
+                            # print("mod", q_insertion_modified)
+                            break
+
+
+                if not q_insertion_modified:
+                    q_insertion_modified = []
+                    for p in range(padded_max_ins_len):
+                        # all shorter insertions are left shifted -- identical indels are guaranteed to be aligned
+                        # however, no multialignment is performed among the indels
+                        if p < len(q_ins):
+                            q_insertion_modified.append(q_ins[p])
+                        else:
+                            q_insertion_modified.append("-")
+
+                #### finally add to alignment matrix
+                if len(q_insertion_modified) != padded_max_ins_len:
+                    print(q_insertion_modified, max_insertion, q_ins)
+                assert len(q_insertion_modified) == padded_max_ins_len
+
+                # if len(all_max_ins) > 1 and padded_max_ins_len == 4 and q_ins != "-":
+                #     print(j, q_ins, "threaded:", can_be_threaded , q_insertion_modified)
+
+                for p in range(padded_max_ins_len):
+                    alignment_matrix[q_acc].append(q_insertion_modified[p])
+
+        else: # we are on a target base pair -- all varinats must be exactly A,C,G,T, - i.e., length 1
+            for q_acc in segments:
+                alignment_matrix[q_acc].append(segments[q_acc][j])
+    # print(alignment_matrix)
+    return alignment_matrix
+
+
+def adjust_probability_of_read_to_alignment_invariant(delta_t, alignment_matrix, t_acc):
+
+    target_alignment = alignment_matrix[t_acc]
+    # Get the individual invariant factors u_iv for each read and variant x_i and v in delta, v is a tuple (state, char).
+    # store this 3 dimensional in dictionary u_iv = {x_acc: {pos: { (state,char) : u_iv} }} 
+    u_iv = {}
+    for q_acc in alignment_matrix:
+        if q_acc == t_acc or q_acc in delta_t:
+            continue
+        u_iv[q_acc] = {}
+        read_alignment = alignment_matrix[q_acc]
+
+        for c_acc in delta_t:
+            candidate_alignment = alignment_matrix[c_acc]
+            for pos in delta_t[c_acc]:
+                if pos not in u_iv[q_acc]:
+                    u_iv[q_acc][pos] = {}
+            
+                state, char = delta_t[c_acc][pos]
+                if state == "S": # substitutions has u_v =1 by definition
+                    u_v = 1
+                elif candidate_alignment[pos] != read_alignment[pos]: # read is not matching the varinat at the candidate position, this also has u_v = 1
+                    u_v = 1
+                else: # read matches candidate variant, now we need to check how many possible combinations an error can cause them to match due to invariant
+                    u_v = get_multiplier_for_variant(state, char, pos, target_alignment, read_alignment)
+                    # print("multiplier:", u_v)
+                    # print(target_alignment[pos-10: pos+10],state, char)
+                    # print(read_alignment[pos-10: pos+10],state, char)
+                    # print(candidate_alignment[pos-10: pos+10],state, char)
+
+                u_iv[q_acc][pos][(state, char)] = u_v
+
+    return u_iv
+
+
+def get_invariant_adjustment(delta_t, alignment_matrix, t_acc):
+    invariant_factors = {}
+    target_alignment = alignment_matrix[t_acc]
+    stop = len(target_alignment) - 1
+    for c_acc in delta_t:
+        min_u_candidate_S = 1
+        min_u_candidate_D = 10000
+        min_u_candidate_I = 10000
+        candidate_alignment = alignment_matrix[c_acc]
+
+        for pos in delta_t[c_acc]:
+            state, char = delta_t[c_acc][pos]
+            u_pos = 1
+            if state == "D":
+                v = target_alignment[pos]
+            elif state == "I":
+                v = char
+            else:
+                # min_u_candidate = 1 # substitution by defintion has uniqueness 1 we can go to the next candidate
+                continue 
+            offset = 1
+            upper_stop = False
+            lower_stop = False
+            while True:
+                if pos + offset > stop:
+                    upper_stop = True
+                elif target_alignment[pos + offset] == candidate_alignment[pos + offset] == v:
+                    u_pos += 1
+                elif target_alignment[pos + offset] == candidate_alignment[pos + offset] == "-":
+                    pass
+                else:
+                    upper_stop = True
+
+
+                if pos - offset < 0:
+                    lower_stop = True                    
+                elif target_alignment[pos - offset] == candidate_alignment[pos - offset] == v:
+                    u_pos += 1
+                elif target_alignment[pos - offset] == candidate_alignment[pos - offset] == "-":
+                    pass
+                else:
+                    lower_stop = True
+
+                if lower_stop == upper_stop == True:
+                    break
+
+
+                offset += 1
+
+            if state == "D":
+                if u_pos < min_u_candidate_D:
+                    min_u_candidate_D = u_pos
+            elif state == "I":
+                if u_pos < min_u_candidate_I:
+                    min_u_candidate_I = u_pos
+
+            # if u_pos < min_u_candidate:
+            #     min_u_candidate = u_pos
+
+        if min_u_candidate_D == 10000:
+            min_u_candidate_D = 1
+        if min_u_candidate_I == 10000:
+            min_u_candidate_I = 1
+
+        invariant_factors[c_acc] = (min_u_candidate_S, min_u_candidate_D, min_u_candidate_I)
+
+    return invariant_factors
+
+def homopolymenr_multiple_testing_correction_factor:
+     #### CORRECTION FACTOR MULTIPLE TESTING W.R.T. HOMOPOLYMENR LENGHTS ##############
+    # gives keyerror!!
+    homopolymenr_length_numbers = functions.calculate_homopolymenr_lengths(t_seq) # dictionary { homopolymer_length : number of occurances on reference}
+    print(homopolymenr_length_numbers)
+    correction_factor = 1
+    all_variants = {}
+    for pos, (state, char) in delta_t[c_acc].items():
+        print(state, char)
+        u_v = candidate_indiv_invariant_factors[c_acc][pos][(state, char)]
+        # print(u_v, state )
+        if (u_v, state) in all_variants:
+            all_variants[(u_v, state)] +=1
+        else:
+            all_variants[(u_v, state)] = 1
+
+    for (u_v, state), n_v in all_variants.items():
+        if state == "I":
+            u_v = max(u_v - 1, 1)
+
+        if u_v not in homopolymenr_length_numbers:
+            index, u_v = min(enumerate(homopolymenr_length_numbers.keys()), key=lambda x: abs(x[1] - u_v))
+            nr_hom_lengths = homopolymenr_length_numbers[u_v]
+        else:
+            nr_hom_lengths = homopolymenr_length_numbers[u_v]
+
+
+        if u_v > 1:
+            correction_factor *= functions.choose(nr_hom_lengths, n_v)
+
+        elif state == "I":
+            correction_factor *= functions.choose(4*(nr_hom_lengths + 1), n_v)
+        elif state == "S":
+            correction_factor *= functions.choose(3*nr_hom_lengths, n_v)
+
+        elif state == "D":
+            correction_factor *= functions.choose(nr_hom_lengths, n_v)
+
+        else:
+            print("BUG", state)
+            sys.exit()
+    print(correction_factor)
+    #####################################################################################
+
+def check_if_consensus(c_acc, C, X, partition_of_X):
+
+    partition_dict = {c_acc : {c_acc : (C[c_acc], C[c_acc])}}
+    for x_acc in partition_of_X[c_acc]:
+        partition_dict[c_acc][x_acc] = (C[c_acc], X[x_acc])
+
+    exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, single_core = True)    
+    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, single_core = True)
+    partition_alignments = {} 
+
+    for c_acc in exact_alignments:
+        partition_alignments[c_acc] = {}
+        for x_acc in exact_alignments[c_acc]:
+            aln_c, aln_x, (matches, mismatches, indels) = exact_alignments[c_acc][x_acc]
+            edit_dist = mismatches + indels
+            partition_alignments[c_acc][x_acc] = (edit_dist, aln_c, aln_x, 1)
+
+    alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(C[c_acc], partition_alignments[c_acc])
+    c_alignment = alignment_matrix_to_c[c_acc]
+    is_consensus = True
+    not_cons_positions = []
+    for j in range(len(PFM_to_c)):
+        c_v =  c_alignment[j]
+        candidate_count = PFM_to_c[j][c_v]
+        for v in PFM_to_c[j]:
+            if v != c_v and candidate_count <= PFM_to_c[j][v]: # needs to have at least one more in support than the second best as we have added c itself to the multialignment
+                # print("not consensus at:", j, PFM_to_c[j])
+                not_cons_positions.append((j, c_v, PFM_to_c[j]))
+                is_consensus = False
+
+    if not is_consensus:
+        print("Were not consensus at:", not_cons_positions)
+    else:
+        print("Were consensus")
+
+    return is_consensus
+
 # def get_homopolymer_invariants(candidate_transcripts):
 #     seq_to_acc = { seq : acc for (acc, seq) in  candidate_transcripts.items() }
 #     print("Unique before compression: ", len(seq_to_acc) )
