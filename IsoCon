@@ -176,7 +176,7 @@ if __name__ == '__main__':
     # create the top-level parser
     parent_parser = argparse.ArgumentParser("Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads.")
     # parent_parser.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
-    parent_parser.add_argument('--version', action='version', version='%(prog)s 0.2.3')
+    parent_parser.add_argument('--version', action='version', version='%(prog)s 0.2.4')
 
     subparsers = parent_parser.add_subparsers(help='help for subcommand')
 
@@ -191,7 +191,7 @@ if __name__ == '__main__':
     pipeline.add_argument('--minimizer_search_depth', type=int, default=2**32, help='Maximum number of pairwise alignments in search matrix to find minimizer. [default =2**32]')
     pipeline.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
     pipeline.add_argument('--min_candidate_support', type=int, default=2, help='Required minimum number of reads converged to the same sequence to be included in statistical test.')
-    pipeline.add_argument('--minimap_bin_size', type=int, default=2**32, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
+    pipeline.add_argument('--minimap_bin_size', type=int, default=500, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
     # pipeline.add_argument('--statistical_test_editdist', type=int, default=0, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
     pipeline.add_argument('--ignore_ends_len', type=int, default=15, help='Number of bp to ignore in ends. If two candidates are identical expept in ends of this size, they are collapses and the longest common substing is chosen to represent them. In statistical test step, minimizers are found based on ignoring the ends of this size. Also indels in ends will not be tested. [default ignore_ends_len=15].')
     pipeline.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
