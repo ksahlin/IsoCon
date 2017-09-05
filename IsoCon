@@ -185,13 +185,14 @@ if __name__ == '__main__':
     pipeline_required = pipeline.add_argument_group('required arguments')
     pipeline_required.add_argument('-fl_reads', required=True, type=str, help='Fast<a/q> file pacbio Reads of Insert. ')
     pipeline_required.add_argument('-outfolder', required=True, type=str, help='Outfolder. ')
-    pipeline.add_argument('--nontargeted', action='store_true', help='Uses minimap to find minimizers instead of our exact approach disigned for targeted sequnecing. ')
+    # pipeline.add_argument('--nontargeted', action='store_true', help='Uses minimap to find minimizers instead of our exact approach disigned for targeted sequnecing. ')
     pipeline.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
     pipeline.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     pipeline.add_argument('--minimizer_search_depth', type=int, default=2**32, help='Maximum number of pairwise alignments in search matrix to find minimizer. [default =2**32]')
+    pipeline.add_argument('--minimizer_min_identity', type=float, default=0, help='Minimum identity between sequences to be considered. [default = 0.0, all identity levels considered]')
     pipeline.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
     pipeline.add_argument('--min_candidate_support', type=int, default=2, help='Required minimum number of reads converged to the same sequence to be included in statistical test.')
-    pipeline.add_argument('--minimap_bin_size', type=int, default=1000, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
+    # pipeline.add_argument('--minimap_bin_size', type=int, default=1000, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
     # pipeline.add_argument('--statistical_test_editdist', type=int, default=0, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
     pipeline.add_argument('--ignore_ends_len', type=int, default=15, help='Number of bp to ignore in ends. If two candidates are identical expept in ends of this size, they are collapses and the longest common substing is chosen to represent them. In statistical test step, minimizers are found based on ignoring the ends of this size. Also indels in ends will not be tested. [default ignore_ends_len=15].')
     pipeline.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
@@ -252,11 +253,6 @@ if __name__ == '__main__':
 
     params = isocon_parameters.Parameters(**args.__dict__)
 
-    # if params.nontargeted:
-    #     if params.ignore_ends_len == 15: # User has _probably_ not set option
-    #          params.ignore_ends_len = 50
-    #     else: # user has set option
-    #         pass
 
     params.minimap_alignments = os.path.join(params.outfolder, "minimapped")
 

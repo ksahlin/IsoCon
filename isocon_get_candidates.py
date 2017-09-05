@@ -18,7 +18,7 @@ from modules.input_output import fasta_parser, write_output
 from modules import correct_sequence_to_minimizer
 from modules import end_invariant_functions
 from collections import defaultdict
-
+from collections import Counter
 
 
 def get_unique_seq_accessions(S):
@@ -105,7 +105,10 @@ def find_candidate_transcripts(read_file, params):
     S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
 
     lenghts = [len(seq) for seq in S.values()]
-    print(sorted(lenghts))
+    C = Counter(lenghts)
+    for l in sorted(C.keys()):
+        print("seq length {0}: {1} occurnaces".format(l, C[l]) )
+    # print(sorted(lenghts))
     max_len = max(lenghts)
     min_len = min(lenghts)
     print("Max transcript length:{0}, Min transcript length:{1}".format(max_len, min_len))

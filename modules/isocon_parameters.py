@@ -1,3 +1,4 @@
+from __future__ import print_function
 class Parameters(object):
     """docstring for Parameters
         This class is uset to create one object containing
@@ -14,5 +15,5 @@ class Parameters(object):
         # parameters that might need to be inferred during
         # runtime.
         for key, value in kwargs.items():
-            print(key, value)
+            print("{0}: {1}".format(key, value))
             setattr(self, key, value)

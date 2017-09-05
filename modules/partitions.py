@@ -10,10 +10,10 @@ from modules import functions
 
 
 def highest_reachable_with_edge_degrees(S, params):
-    if params.nontargeted:
-        G_star, converged = graphs.construct_approximate_minimizer_graph(S, params)
-    else:
-        G_star, converged = graphs.construct_exact_minimizer_graph(S, params)
+    # if params.nontargeted:
+    #     G_star, converged = graphs.construct_approximate_minimizer_graph(S, params)
+    # else:
+    G_star, converged = graphs.construct_exact_minimizer_graph(S, params)
 
     unique_start_strings = set(G_star.nodes())
 

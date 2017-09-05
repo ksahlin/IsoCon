@@ -196,7 +196,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
     print()
     print("Number of reads to realign:", len(to_realign))
     step = 1
-    
+    prefilter = True
     previous_partition_of_X = copy.deepcopy(partition_of_X) #{ c_acc : set() for c_acc in C.keys()}
     previous_components = { c_acc : set() for c_acc in C.keys()}
     significance_values = {}   
@@ -293,19 +293,19 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
 
         ## save time if the minimizer and all cantidates in a component has identical reads assignmed to them as previous step
         # Since indata is the same, the test is guaranteed to give same siginficance values as previous step
-
-        previous_significance_values = {}
-        for t_acc in list(minimizer_graph_transposed.keys()):
-            accessions_in_component_to_test = set([c_acc for c_acc in minimizer_graph_transposed[t_acc].keys()] + [t_acc])
-            # print(accessions_in_component_to_test)
-            if (accessions_in_component_to_test == previous_components[t_acc]) and all([ len(previous_partition_of_X[acc]) == len(partition_of_X[acc]) for acc in accessions_in_component_to_test]):
-                print("TEST IDENTICAL TO PREVIOUS STEP, SKIPPING FOR", t_acc)
-                for acc in accessions_in_component_to_test:
-                    previous_significance_values[acc] = significance_values[acc]
-                del minimizer_graph_transposed[t_acc]
-            else: 
-                # print("Modified")
-                previous_components[t_acc] = accessions_in_component_to_test
+        if realignment_to_avoid_local_max != 1:
+            previous_significance_values = {}
+            for t_acc in list(minimizer_graph_transposed.keys()):
+                accessions_in_component_to_test = set([c_acc for c_acc in minimizer_graph_transposed[t_acc].keys()] + [t_acc])
+                # print(accessions_in_component_to_test)
+                if (accessions_in_component_to_test == previous_components[t_acc]) and all([ len(previous_partition_of_X[acc]) == len(partition_of_X[acc]) for acc in accessions_in_component_to_test]):
+                    print("TEST IDENTICAL TO PREVIOUS STEP, SKIPPING FOR", t_acc)
+                    for acc in accessions_in_component_to_test:
+                        previous_significance_values[acc] = significance_values[acc]
+                    del minimizer_graph_transposed[t_acc]
+                else: 
+                    # print("Modified")
+                    previous_components[t_acc] = accessions_in_component_to_test
 
         #####################################################################################################
 
@@ -314,27 +314,38 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         # these are all candidates that are minimizers to some other, isolated nodes are not tested
         # candidatate in G_star_C
         nr_of_tests_this_round = len([ 1 for t_acc in minimizer_graph_transposed for c_acc in minimizer_graph_transposed[t_acc] ] )
-        print("NUMBER OF CANDIDATES LEFT:", len(C), "Number of performed statistical tests in this round:", nr_of_tests_this_round)
+        print("NUMBER OF CANDIDATES LEFT:", len(C), "Number statistical tests in this round:", nr_of_tests_this_round)
 
         # if realignment_to_avoid_local_max == 1:
         #     new_significance_values = statistical_test_v2.do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, params )
         # else:
         new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, params )
+        new_significance_values_list = list(new_significance_values.items())
+        nr_candidates_tested = len([c_acc for c_acc,  tuple_vals in new_significance_values_list if tuple_vals[0] != "not_tested"])
+        print("Number of unique candidates tested:",  nr_candidates_tested)
 
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}
-        for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in list(new_significance_values.items()):
+        for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in new_significance_values_list:
             if p_value == "not_tested":
                 print("Did not test", c_acc)
-            elif p_value * mult_factor_inv > 0.001:
-                print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "delta_size:", delta_size )
-                del C[c_acc] 
-                modified = True
-                for x_acc in partition_of_X[c_acc]:
-                    to_realign[x_acc] = X[x_acc]
-                    # del alignments_of_x_to_c[x_acc]
+            elif prefilter:
+                if p_value > 0.01:
+                    print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "delta_size:", delta_size )
+                    del C[c_acc] 
+                    modified = True
+                    for x_acc in partition_of_X[c_acc]:
+                        to_realign[x_acc] = X[x_acc]
+                    del partition_of_X[c_acc]
 
-                del partition_of_X[c_acc]
+            else:
+                if p_value * mult_factor_inv > 0.05/float(nr_candidates_tested):
+                    print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "delta_size:", delta_size )
+                    del C[c_acc] 
+                    modified = True
+                    for x_acc in partition_of_X[c_acc]:
+                        to_realign[x_acc] = X[x_acc]
+                    del partition_of_X[c_acc]
 
         print("nr candidates left:", len(C))
         candidate_file = os.path.join(params.outfolder, "candidates_after_step_{0}.fa".format(step))
@@ -356,6 +367,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         elif not modified and realignment_to_avoid_local_max == 0: # we have not yet done a final alignment and everythin is significant, realign to escape local maxima alignment
             realignment_to_avoid_local_max = 1
             modified = True
+            prefilter = False
 
         statistical_elapsed = time() - statistical_start
         write_output.logger('Time for Statistical test, step {0}:{1}'.format(step, str(statistical_elapsed)), params.logfile)

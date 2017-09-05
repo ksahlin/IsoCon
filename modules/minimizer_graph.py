@@ -224,7 +224,8 @@ def get_minimizers(batch_of_queries, global_index_in_matrix, start_index, seq_to
                 break
             j += 1
 
-        # print("best ed:", best_ed)
+        # if best_edit_distances[acc1]:
+        #     print("best ed:", best_ed)
         # if best_ed > 100:
         #     print(best_ed, "for seq with length", len(seq1), seq1)
     return best_edit_distances
@@ -263,6 +264,14 @@ def compute_2set_minimizer_graph(X, C, params):
     # histogram(neighbors, args, name='neighbours_zoomed.png', x='x-axis', y='y-axis', x_cutoff=20, title="Number of neighbours in minimizer graph")
     return minimizer_graph_x_to_c
 
+# def reverse_complement(string):
+#     #rev_nuc = {'A':'T', 'C':'G', 'G':'C', 'T':'A', 'N':'N', 'X':'X'}
+#     # Modified for Abyss output
+#     rev_nuc = {'A':'T', 'C':'G', 'G':'C', 'T':'A', 'a':'t', 'c':'g', 'g':'c', 't':'a', 'N':'N', 'X':'X', 'n':'n', 'Y':'R', 'R':'Y', 'K':'M', 'M':'K', 'S':'S', 'W':'W', 'B':'V', 'V':'B', 'H':'D', 'D':'H', 'y':'r', 'r':'y', 'k':'m', 'm':'k', 's':'s', 'w':'w', 'b':'v', 'v':'b', 'h':'d', 'd':'h'}
+
+#     rev_comp = ''.join([rev_nuc[nucl] for nucl in reversed(string)])
+#     return(rev_comp)
+
 
 def compute_minimizer_graph(S, has_converged, params):
     """
@@ -274,6 +283,22 @@ def compute_minimizer_graph(S, has_converged, params):
 
     seq_to_acc_list = list(seq_to_acc.items())
     seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
+    # for s, acc in  seq_to_acc_list_sorted:
+    #     print(len(s), s[:20], s[:20].count("A"), s[:20].count("C"), s[:20].count("G"), s[:20].count("T"), acc)
+
+########################
+    # seq_to_acc_RC = [ (reverse_complement(seq), acc+"_RC") for (acc, seq) in S.items() ]
+    # all_seqs = seq_to_acc_RC + seq_to_acc_list
+    # seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: (len(x[0]), x[0][:20])  ) # sort first on length, then on 20mer
+    # seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: (x[0][:20], len(x[0]))  ) # sort first on 20mer, then on length
+
+    # for s, acc in  seq_to_acc_list_sorted:
+    #     print(len(s), s[:20], s[:20].count("A"), s[:20].count("C"), s[:20].count("G"), s[:20].count("T")) #, acc)
+
+    # sys.exit()
+
+########################
+
     collapsed_consensus_transcripts =  { acc : seq for (seq, acc) in  seq_to_acc.items() }
     print("Number of collapsed consensus:", len(collapsed_consensus_transcripts))
     minimizer_graph = get_exact_minimizer_graph(seq_to_acc_list_sorted, has_converged, params)
