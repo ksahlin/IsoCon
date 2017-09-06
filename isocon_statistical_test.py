@@ -293,8 +293,8 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
 
         ## save time if the minimizer and all cantidates in a component has identical reads assignmed to them as previous step
         # Since indata is the same, the test is guaranteed to give same siginficance values as previous step
+        previous_significance_values = {}
         if realignment_to_avoid_local_max != 1:
-            previous_significance_values = {}
             for t_acc in list(minimizer_graph_transposed.keys()):
                 accessions_in_component_to_test = set([c_acc for c_acc in minimizer_graph_transposed[t_acc].keys()] + [t_acc])
                 # print(accessions_in_component_to_test)
@@ -320,6 +320,27 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         #     new_significance_values = statistical_test_v2.do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, params )
         # else:
         new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, params )
+
+        # updating if previously identical test had higher p_val than the highest new one, substitute with the stored test.
+        for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in new_significance_values.items():
+            if c_acc in previous_significance_values:
+                print("HERE!!")
+                prev_p_val, prev_mult_factor_inv = previous_significance_values[c_acc][0], previous_significance_values[c_acc][1]
+                if prev_p_val != "not_tested" and p_value != "not_tested":
+                    if prev_p_val * prev_mult_factor_inv > p_value * mult_factor_inv:
+                        print("old:", previous_significance_values[c_acc])
+                        print("new:", new_significance_values[c_acc])
+                        new_significance_values[c_acc] = previous_significance_values[c_acc]
+        # updating with previously stored identical tests
+        for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in previous_significance_values.items():
+            if c_acc not in new_significance_values:
+                print("HERE22!!")
+                new_significance_values[c_acc] = previous_significance_values[c_acc]            
+
+        # print('INTERSECTION:', set(new_significance_values.keys()) & set(previous_significance_values.keys()) )
+        # assert set(new_significance_values.keys()).isdisjoint( set(previous_significance_values.keys()) )
+        # new_significance_values.update(previous_significance_values)
+
         new_significance_values_list = list(new_significance_values.items())
 
         corrected_pvals = [p_value*mult_factor_inv for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in new_significance_values_list if p_value != "not_tested" ]
@@ -363,8 +384,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         candidate_file = os.path.join(params.outfolder, "candidates_after_step_{0}.fa".format(step))
         step += 1
 
-        significance_values = previous_significance_values.copy()
-        significance_values.update(new_significance_values) # which returns None since it mutates z
+        significance_values = new_significance_values.copy()
         
         if len(C) == 0: # no candidates were significant!
             break
