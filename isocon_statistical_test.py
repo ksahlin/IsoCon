@@ -181,6 +181,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
     print("Total original reads", len(X_original))
     x_assigned_to_cluster = set([ x_acc for c_acc in partition_of_X for x_acc in partition_of_X[c_acc] ])
     X = {acc: seq for (acc, seq) in X_original.items() if acc in x_assigned_to_cluster or acc in  to_realign }    # just set X to partition_of_X + to_realign here
+
     print("Reads included in statistical testing:", len(X))
     if os.stat(candidate_file).st_size == 0:
         out_file_name = os.path.join(params.outfolder, "final_candidates.fa")
@@ -189,6 +190,10 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         sys.exit(0)
     else:
         C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
+
+    # realign everything
+    to_realign = X      
+    partition_of_X = { c_acc : set() for c_acc in C.keys()}
 
     ################################################################
     print()
@@ -234,7 +239,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
             print("REALIGNING EVERYTHING FINAL STEP")
             to_realign = X      
             partition_of_X = { c_acc : set() for c_acc in C.keys()}
-            alignments_of_x_to_c = {}
+            # alignments_of_x_to_c = {}
 
 
 
