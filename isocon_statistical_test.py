@@ -342,20 +342,20 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         # new_significance_values.update(previous_significance_values)
 
         new_significance_values_list = list(new_significance_values.items())
+        if len(new_significance_values_list) > 0:
+            corrected_pvals = [p_value*mult_factor_inv for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in new_significance_values_list if p_value != "not_tested" ]
+            corrected_pvals.sort()
+            if len(corrected_pvals) %2 == 0:
+                corrected_pvals_median = (corrected_pvals[int(len(corrected_pvals)/2)-1] + corrected_pvals[int(len(corrected_pvals)/2)]) / 2.0
+            else:
+                corrected_pvals_median = corrected_pvals[int(len(corrected_pvals)/2)]
+            print("Median corrected p-val:", corrected_pvals_median)
 
-        corrected_pvals = [p_value*mult_factor_inv for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in new_significance_values_list if p_value != "not_tested" ]
-        corrected_pvals.sort()
-        if len(corrected_pvals) %2 == 0:
-            corrected_pvals_median = (corrected_pvals[int(len(corrected_pvals)/2)-1] + corrected_pvals[int(len(corrected_pvals)/2)]) / 2.0
-        else:
-            corrected_pvals_median = corrected_pvals[int(len(corrected_pvals)/2)]
-        print("Median corrected p-val:", corrected_pvals_median)
+            nr_candidates_tested = len([c_acc for c_acc,  tuple_vals in new_significance_values_list if tuple_vals[0] != "not_tested"])
+            print("Number of unique candidates tested:",  nr_candidates_tested)
 
-        nr_candidates_tested = len([c_acc for c_acc,  tuple_vals in new_significance_values_list if tuple_vals[0] != "not_tested"])
-        print("Number of unique candidates tested:",  nr_candidates_tested)
-
-        p_val_threshold = max(corrected_pvals_median, 1.0/float(nr_candidates_tested)) 
-        print("Filtering threshold (p_val*mult_correction_factor):",  p_val_threshold)
+            p_val_threshold = max(corrected_pvals_median, 1.0/float(nr_candidates_tested)) 
+            print("Filtering threshold (p_val*mult_correction_factor):",  p_val_threshold)
 
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}
