@@ -191,8 +191,10 @@ def get_supporting_reads_for_candidates(target_accession, candidate_accessions, 
         # for q_acc in alignment_matrix:
         #     if q_acc == target_accession or q_acc in candidate_accessions:
         #         continue
-
-        for q_acc in partition_of_X[c]:
+        # print("LEEN", len(partition_of_X[c]), len(partition_of_X[target_accession]) , len(partition_of_X[c].union(partition_of_X[target_accession]) ))
+        # print(len(partition_of_X[c] and  partition_of_X[target_accession]) )
+        assert len(partition_of_X[c] &  partition_of_X[target_accession]) == 0
+        for q_acc in partition_of_X[c].union(partition_of_X[target_accession]):
             if q_acc not in  alignment_matrix:
                 print("READ {0} ALIGNED TO {0} BUT FAILED TO ALIGN TO {1}".format(q_acc, c, target_accession) )
                 continue
