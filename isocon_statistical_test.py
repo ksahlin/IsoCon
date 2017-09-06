@@ -321,31 +321,43 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         # else:
         new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, params )
         new_significance_values_list = list(new_significance_values.items())
+
+        corrected_pvals = [p_value*mult_factor_inv for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in new_significance_values_list if p_value != "not_tested" ]
+        corrected_pvals.sort()
+        if len(corrected_pvals) %2 == 0:
+            corrected_pvals_median = (corrected_pvals[int(len(corrected_pvals)/2)-1] + corrected_pvals[int(len(corrected_pvals)/2)]) / 2.0
+        else:
+            corrected_pvals_median = corrected_pvals[int(len(corrected_pvals)/2)]
+        print("Median corrected p-val:", corrected_pvals_median)
+
         nr_candidates_tested = len([c_acc for c_acc,  tuple_vals in new_significance_values_list if tuple_vals[0] != "not_tested"])
         print("Number of unique candidates tested:",  nr_candidates_tested)
+
+        p_val_threshold = max(corrected_pvals_median, 1.0/float(nr_candidates_tested)) 
+        print("Filtering threshold (p_val*mult_correction_factor):",  p_val_threshold)
 
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}
         for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in new_significance_values_list:
             if p_value == "not_tested":
                 print("Did not test", c_acc)
-            elif prefilter:
-                if p_value > 0.01:
-                    print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "delta_size:", delta_size )
-                    del C[c_acc] 
-                    modified = True
-                    for x_acc in partition_of_X[c_acc]:
-                        to_realign[x_acc] = X[x_acc]
-                    del partition_of_X[c_acc]
+            # elif prefilter:
+            #     if p_value > 0.01:
+            #         print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "delta_size:", delta_size )
+            #         del C[c_acc] 
+            #         modified = True
+            #         for x_acc in partition_of_X[c_acc]:
+            #             to_realign[x_acc] = X[x_acc]
+            #         del partition_of_X[c_acc]
 
-            else:
-                if p_value * mult_factor_inv > 0.05/float(nr_candidates_tested):
-                    print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "delta_size:", delta_size )
-                    del C[c_acc] 
-                    modified = True
-                    for x_acc in partition_of_X[c_acc]:
-                        to_realign[x_acc] = X[x_acc]
-                    del partition_of_X[c_acc]
+            # else:
+            elif p_value * mult_factor_inv > p_val_threshold:
+                print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "delta_size:", delta_size )
+                del C[c_acc] 
+                modified = True
+                for x_acc in partition_of_X[c_acc]:
+                    to_realign[x_acc] = X[x_acc]
+                del partition_of_X[c_acc]
 
         print("nr candidates left:", len(C))
         candidate_file = os.path.join(params.outfolder, "candidates_after_step_{0}.fa".format(step))
