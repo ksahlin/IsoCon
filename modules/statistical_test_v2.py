@@ -385,7 +385,7 @@ from decimal import *
 getcontext().prec = 100
 
 def exact_test(probability, weight, x):
-    probs = probability.values()
+    probs = list(probability.values())
     tmp_distr1 = [Decimal(1.0) - Decimal(probs[0]), Decimal(probs[0])]
     for i in range(1, len(probs)):
         tmp_distr2 = [Decimal(1.0) - Decimal(probs[i]), Decimal(probs[i])]

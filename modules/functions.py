@@ -237,7 +237,7 @@ def get_difference_coordinates_for_candidates(target_accession, candidate_access
 def get_prob_of_support_per_read(target_accession, segment_length, candidate_accessions, errors, invariant_factors_for_candidate):
     probability = {}
     assert len(invariant_factors_for_candidate) == 1
-    c_acc = invariant_factors_for_candidate.keys()[0]
+    c_acc = list(invariant_factors_for_candidate.keys())[0]
 
     for q_acc in errors:
         probability[q_acc] = 1.0
