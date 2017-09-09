@@ -283,7 +283,7 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
             # print("positions to correct:", nr_pos_to_correct)
 
             if nr_pos_to_correct2 > 0 and nr_pos_to_correct == 0:
-                print("Edit distance: {0}, but after removing ambiguous majority positions 0 to correct.".format(nr_pos_to_correct2))
+                print("Edit distance: {0}, but after removing ambiguous majority positions 0 to correct. Lenght partition (unique): {1}, total seqs: {2}".format(nr_pos_to_correct2, len(partition), N_t))
 
             if nr_pos_to_correct  == 0:
                 continue
