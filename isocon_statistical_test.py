@@ -191,9 +191,9 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
     else:
         C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
 
-    # realign everything
-    to_realign = X      
-    partition_of_X = { c_acc : set() for c_acc in C.keys()}
+    # # realign everything
+    # to_realign = X      
+    # partition_of_X = { c_acc : set() for c_acc in C.keys()}
 
     ################################################################
     print()

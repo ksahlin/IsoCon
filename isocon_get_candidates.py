@@ -107,7 +107,7 @@ def find_candidate_transcripts(read_file, params):
     lenghts = [len(seq) for seq in S.values()]
     C = Counter(lenghts)
     for l in sorted(C.keys()):
-        print("seq length {0}: {1} occurnaces".format(l, C[l]) )
+        print("seq length {0}: {1} occurances".format(l, C[l]) )
     # print(sorted(lenghts))
     max_len = max(lenghts)
     min_len = min(lenghts)

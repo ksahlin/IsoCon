@@ -233,6 +233,125 @@ def get_difference_coordinates_for_candidates(target_accession, candidate_access
     return position_differences
 
 
+
+def get_prob_of_support_per_read(target_accession, segment_length, candidate_accessions, errors, invariant_factors_for_candidate):
+    probability = {}
+    assert len(invariant_factors_for_candidate) == 1
+    c_acc = invariant_factors_for_candidate.keys()[0]
+
+    for q_acc in errors:
+        probability[q_acc] = 1.0
+        p_S = (errors[q_acc]["S"] / float(segment_length) ) / 4.0
+        p_I = (errors[q_acc]["I"] / float(segment_length) ) /3.0
+        p_D = (errors[q_acc]["D"] / float(segment_length) )
+
+        for pos in invariant_factors_for_candidate[c_acc]:
+            for (state, char) in invariant_factors_for_candidate[c_acc][pos]:
+                u_v = invariant_factors_for_candidate[c_acc][pos][(state, char)]
+                if state == "S":
+                    probability[q_acc] *= p_S**(1.0/u_v)
+                elif state == "I":
+                    probability[q_acc] *= p_I**(1.0/u_v)
+                elif state == "D":
+                    probability[q_acc] *= p_D**(1.0/u_v)
+    return probability
+
+
+def get_weights_per_read(target_accession, segment_length, candidate_accessions, errors):
+    sum_of_inverse_errors = {}
+    sum_of_inverse_errors["I"] = sum([ 1.0/errors[q_acc]["I"] for q_acc in errors if errors[q_acc]["I"] > 0])
+    sum_of_inverse_errors["D"] = sum([ 1.0/errors[q_acc]["D"] for q_acc in errors if errors[q_acc]["D"] > 0])
+    sum_of_inverse_errors["S"] = sum([ 1.0/errors[q_acc]["S"] for q_acc in errors if errors[q_acc]["S"] > 0])
+
+    sum_of_inverse_errors = sum([sum_of_inverse_errors["I"], sum_of_inverse_errors["D"], sum_of_inverse_errors["S"]])
+
+    weight = {}
+    for q_acc in errors:
+        assert q_acc != target_accession and q_acc not in candidate_accessions
+        q_errors_inverse =  1.0 / (errors[q_acc]["I"] + errors[q_acc]["D"] + errors[q_acc]["S"])
+        if q_errors_inverse == 0:
+             weight[q_acc] = 1.0 / sum_of_inverse_errors
+        else:
+            weight[q_acc] = q_errors_inverse / sum_of_inverse_errors
+
+
+        # weights[q_acc] = {}
+        # for error_type in ["I", "S", "D"]:
+        #     weights[q_acc][error_type] = errors[q_acc][error_type] / float(sum_of_errors[error_type])
+
+    return weight
+
+
+def get_errors_per_read(target_accession, segment_length, candidate_accessions, alignment_matrix):
+    errors = {}
+    target_alignment = alignment_matrix[target_accession]
+    ed_poisson_i, ed_poisson_s, ed_poisson_d = 0, 0, 0
+    
+    for q_acc in alignment_matrix:
+        if q_acc == target_accession:
+            continue
+        if q_acc in candidate_accessions:
+            continue  
+
+        errors[q_acc] = {}
+        query_alignment = alignment_matrix[q_acc]
+        ed_i, ed_s, ed_d = 0.0, 0.0, 0.0
+
+        for j in range(len(query_alignment)):
+            q_base = query_alignment[j]
+            t_base = target_alignment[j]
+            if q_base != t_base:
+                if t_base == "-":
+                    ed_i += 1
+                elif q_base == "-":
+                    ed_d += 1
+                else:
+                    ed_s += 1
+ 
+
+        # get poisson counts on all positions
+        for j in range(len(query_alignment)):
+            target_alignment = alignment_matrix[target_accession]
+            # candidate_alignment = alignment_matrix[x_to_c_acc[q_acc]]
+            # if j not in forbidden:
+            q_base = query_alignment[j]
+            t_base = target_alignment[j]
+            if q_base != t_base:
+                if t_base == "-":
+                    ed_poisson_i += 1
+                elif q_base == "-":
+                    ed_poisson_d += 1
+                else:
+                    ed_poisson_s += 1      
+
+        errors[q_acc]["I"] = ed_i
+        errors[q_acc]["S"] = ed_s
+        errors[q_acc]["D"] = ed_d
+
+    # print(errors)
+    return errors
+
+def reads_supporting_candidate(target_accession, candidate_accessions, alignment_matrix, Delta_t, partition_of_X):
+    assert len(candidate_accessions) == 1
+    c_acc = list(candidate_accessions)[0]
+    x = []
+    for q_acc in partition_of_X[c_acc].union(partition_of_X[target_accession]):
+        if q_acc not in alignment_matrix:
+            print("READ {0} ALIGNED TO {0} BUT FAILED TO ALIGN TO {1}".format(q_acc, c, target_accession) )
+            continue
+        query_alignment = alignment_matrix[q_acc]    
+        support = 1
+        for delta in Delta_t[c_acc]:
+            q_base = query_alignment[delta]
+            c_state, c_base = Delta_t[c_acc][delta]
+            if q_base != c_base:
+                support = 0
+
+        if support:
+            x.append(q_acc)
+    return x
+
+
 def get_error_rates_and_lambda(target_accession, segment_length, candidate_accessions, alignment_matrix):
     epsilon = {}
     target_alignment = alignment_matrix[target_accession]

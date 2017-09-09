@@ -42,7 +42,7 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
                 continue
 
             for c_acc in minimizer_graph_transposed[t_acc]:
-                p_vals = statistical_test(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len)
+                p_vals = statistical_test_CLT(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len)
 
                 for tested_cand_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in p_vals.items():
                     if p_value == "not_tested":
@@ -170,7 +170,7 @@ def do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_
 
 def statistical_test_helper(arguments):
     args, kwargs = arguments
-    return statistical_test(*args, **kwargs)
+    return statistical_test_CLT(*args, **kwargs)
 
 
 def stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c):
@@ -237,7 +237,6 @@ def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_le
 
     alignment_matrix_to_t, PFM_to_t = create_position_probability_matrix(C[t_acc], partition_alignments[t_acc])
     return alignment_matrix_to_t, PFM_to_t
-
 
 
 def statistical_test(t_acc, X, C, partition_of_X, candidates, ignore_ends_len):
@@ -308,3 +307,122 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates, ignore_ends_len):
 
     return significance_values
 
+
+
+def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_len):
+    significance_values = {}
+    t_seq = C[t_acc]
+    if len(candidates) == 0:
+        significance_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
+        return significance_values
+
+    reads = set([x_acc for c_acc in candidates for x_acc in partition_of_X[c_acc]] )
+    reads.update(partition_of_X[t_acc])
+
+    #### Bug FIX ############
+    total_read_in_partition = len(partition_of_X[t_acc])
+    reads_in_partition = set(partition_of_X[t_acc])
+    # print(partition_of_X[t_acc])
+    for c_acc in candidates:
+        # for x_acc in partition_of_X[c_acc]:
+        #     if x_acc in reads_in_partition:
+        #         print("Already in partition:", x_acc)
+        #         print(x_acc in partition_of_X[t_acc])
+        #         print("candidate:", c_acc)
+        #     else:
+        #         reads_in_partition.add(x_acc)
+        total_read_in_partition += len(partition_of_X[c_acc])
+        # print(partition_of_X[c_acc])
+
+    ############################
+
+    N_t = len(reads)
+
+    # print("N_t:", N_t, "reads in partition:", total_read_in_partition, "ref:", t_acc )
+    # print("Nr candidates:", len(candidates), candidates)
+    assert total_read_in_partition == N_t # each read should be uiquely assinged to a candidate
+    reads_and_candidates = reads.union( [c_acc for c_acc in candidates]) 
+    reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
+
+    # get multialignment matrix here
+    alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_len)
+
+    # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
+    # these are bases that we disregard when testing varinats
+    # We get individual cut positions depending on which candidate is being tested -- we dont want to include ends spanning over the reference or candidate
+    # we cut at the start position in c or t that comes last, and the end position in c or t that comes first
+    assert len(list(candidates)) == 1
+    for c_acc in list(candidates):
+        if ignore_ends_len > 0:
+            alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
+
+        # get parameter estimates for statistical test
+        candidate_accessions = set( [ c_acc for c_acc in candidates] )
+        delta_t = functions.get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
+        errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
+        weight = functions.get_weights_per_read(t_acc, len(t_seq), candidate_accessions, errors) 
+        invariant_factors_for_candidate = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
+        probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
+
+        # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
+        x = functions.reads_supporting_candidate(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
+        # p_value = CLT_test(probability, weight, x)
+        p_value = poisson_approx_test(probability, weight, x)
+        correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
+
+        delta_size = len(delta_t[c_acc])
+        if delta_size == 0:
+            print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
+
+        print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, correction_factor, p_value * correction_factor,  len(x), N_t, delta_size) )
+        significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
+
+    return significance_values
+
+
+def poisson_approx_test(probability, weight, x):
+
+    print([weight[x_i] for x_i in probability if x_i in x ])
+    print([weight[x_i] for x_i in probability ])
+    min_w = min(weight.values())
+    weight_multiplier = 1.0 / min_w
+
+    weight = { x_i : weight[x_i] * weight_multiplier for x_i in weight}
+    print([weight[x_i] for x_i in probability ])
+
+    observed_weighted_x = sum([weight[x_i]*1.0 for x_i in probability if x_i in x ])
+    po_lambda = sum([ probability[x_i]* weight[x_i] for x_i in probability ])
+
+    k = observed_weighted_x if observed_weighted_x == 0 or not observed_weighted_x.is_integer() else observed_weighted_x - 1
+    print("k:", k)
+    p_value = poisson.sf(k - 1, po_lambda)
+
+    return p_value
+
+
+def CLT_test(probability, weight, x):
+
+    observed_weighted_x = sum([weight[x_i]*1.0 for x_i in probability if x_i in x ])
+    mu = sum([ probability[x_i]* weight[x_i] for x_i in probability ])
+    var = sum([ probability[x_i]*(1.0 - probability[x_i])* weight[x_i]**2 for x_i in probability ])
+    sigma = math.sqrt(var)
+    print([weight[x_i] for x_i in probability if x_i in x ])
+    print([weight[x_i] for x_i in probability ])
+    print(mu, sigma, observed_weighted_x)
+    p_value_norm = norm.sf(observed_weighted_x, loc= mu, scale= sigma )
+
+    return p_value_norm
+
+def calc_correction_factor(t_seq, c_acc, delta_t):
+    m = len(t_seq)
+    n_S, n_D, n_I = 0, 0, 0
+    for pos, (state, char) in delta_t[c_acc].items():
+        if state == "S":
+            n_S += 1
+        elif state == "D":
+            n_D += 1
+        if state == "I":
+            n_I += 1
+    
+    correction_factor = ( (4*(m+1))**n_I ) * functions.choose(m, n_D) * functions.choose( 3*(m-n_D), n_S)
+    return correction_factor
