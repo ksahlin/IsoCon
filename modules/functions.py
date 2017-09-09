@@ -268,7 +268,12 @@ def get_weights_per_read(target_accession, segment_length, candidate_accessions,
     weight = {}
     for q_acc in errors:
         assert q_acc != target_accession and q_acc not in candidate_accessions
-        q_errors_inverse =  1.0 / (errors[q_acc]["I"] + errors[q_acc]["D"] + errors[q_acc]["S"])
+        read_errors = (errors[q_acc]["I"] + errors[q_acc]["D"] + errors[q_acc]["S"])
+        if read_errors > 0:
+            q_errors_inverse =  1.0 / (errors[q_acc]["I"] + errors[q_acc]["D"] + errors[q_acc]["S"])
+        else:
+            q_errors_inverse = 0
+        
         if q_errors_inverse == 0:
              weight[q_acc] = 1.0 / sum_of_inverse_errors
         else:

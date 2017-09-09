@@ -367,7 +367,8 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
         x = functions.reads_supporting_candidate(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
         # p_value = CLT_test(probability, weight, x)
-        p_value = poisson_approx_test(probability, weight, x)
+        # p_value = poisson_approx_test(probability, weight, x)
+        p_value = exact_test(probability, weight, x)
         correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
 
         delta_size = len(delta_t[c_acc])
@@ -380,11 +381,53 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
     return significance_values
 
 
+from decimal import * 
+getcontext().prec = 100
+
+def exact_test(probability, weight, x):
+    probs = probability.values()
+    tmp_distr1 = [Decimal(1.0) - Decimal(probs[0]), Decimal(probs[0])]
+    for i in range(1, len(probs)):
+        tmp_distr2 = [Decimal(1.0) - Decimal(probs[i]), Decimal(probs[i])]
+        distr = [0]*(len(tmp_distr1) + 1)
+        for l in range(len(tmp_distr1)):
+            for m in range(2):
+                distr[l+m] += tmp_distr1[l] * tmp_distr2[m]
+
+        tmp_distr1 = distr
+
+    p_distr = tmp_distr1
+
+    observed_count = sum([1 for x_i in probability if x_i in x ])    
+    p_value = Decimal(1.0) - sum(p_distr[:observed_count])
+    return float(p_value)
+
+
+# def exact_test(probability, weight, x):
+#     probs = probability.values()
+
+#     tmp_distr1 = [1.0 - probs[0], probs[0]]
+#     for i in range(1, len(probs)):   
+#         tmp_distr2 = [1.0 - probs[i], probs[i]]
+#         distr = [0]*(len(tmp_distr1) + 1)
+#         for l in range(len(tmp_distr1)):
+#             for m in range(2):
+#                 distr[l+m] += tmp_distr1[l] * tmp_distr2[m]
+
+#         tmp_distr1 = distr
+
+#     p_distr = tmp_distr1
+
+#     observed_count = sum([1 for x_i in probability if x_i in x ])
+#     p_value = 1.0  - sum(p_distr[:observed_count])
+
+#     return p_value
+
 def poisson_approx_test(probability, weight, x):
 
     print([weight[x_i] for x_i in probability if x_i in x ])
     print([weight[x_i] for x_i in probability ])
-    min_w = min(weight.values())
+    min_w = min([weight[x_i] for x_i in probability if weight[x_i] > 0 ])
     weight_multiplier = 1.0 / min_w
 
     weight = { x_i : weight[x_i] * weight_multiplier for x_i in weight}
@@ -393,9 +436,17 @@ def poisson_approx_test(probability, weight, x):
     observed_weighted_x = sum([weight[x_i]*1.0 for x_i in probability if x_i in x ])
     po_lambda = sum([ probability[x_i]* weight[x_i] for x_i in probability ])
 
-    k = observed_weighted_x if observed_weighted_x == 0 or not observed_weighted_x.is_integer() else observed_weighted_x - 1
+    observed_x = sum([1.0 for x_i in probability if x_i in x ])
+    po_lambda = sum([ probability[x_i] for x_i in probability ])
+    if observed_x == 0:
+        k = -1
+    elif observed_x.is_integer():
+        k = observed_x - 1
+    else:
+        k = math.floor(observed_x)
+    # k = observed_weighted_x if observed_weighted_x == 0 or not observed_weighted_x.is_integer() else observed_weighted_x - 1
     print("k:", k)
-    p_value = poisson.sf(k - 1, po_lambda)
+    p_value = poisson.sf(k, po_lambda)
 
     return p_value
 
