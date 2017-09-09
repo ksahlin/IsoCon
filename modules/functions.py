@@ -342,7 +342,7 @@ def reads_supporting_candidate(target_accession, candidate_accessions, alignment
     x = []
     for q_acc in partition_of_X[c_acc].union(partition_of_X[target_accession]):
         if q_acc not in alignment_matrix:
-            print("READ {0} ALIGNED TO {0} BUT FAILED TO ALIGN TO {1}".format(q_acc, c, target_accession) )
+            print("READ {0} ALIGNED TO {1} BUT FAILED TO ALIGN TO {2}".format(q_acc, c_acc, target_accession) )
             continue
         query_alignment = alignment_matrix[q_acc]    
         support = 1
