@@ -15,6 +15,15 @@ import unittest
 from collections import defaultdict
 import math
 
+def reverse_complement(string):
+    #rev_nuc = {'A':'T', 'C':'G', 'G':'C', 'T':'A', 'N':'N', 'X':'X'}
+    # Modified for Abyss output
+    rev_nuc = {'A':'T', 'C':'G', 'G':'C', 'T':'A', 'a':'t', 'c':'g', 'g':'c', 't':'a', 'N':'N', 'X':'X', 'n':'n', 'Y':'R', 'R':'Y', 'K':'M', 'M':'K', 'S':'S', 'W':'W', 'B':'V', 'V':'B', 'H':'D', 'D':'H', 'y':'r', 'r':'y', 'k':'m', 'm':'k', 's':'s', 'w':'w', 'b':'v', 'v':'b', 'h':'d', 'd':'h'}
+
+    rev_comp = ''.join([rev_nuc[nucl] for nucl in reversed(string)])
+    return(rev_comp)
+
+
 def cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len):
     target_alignment = alignment_matrix_to_t[t_acc]
     candidate_alignment = alignment_matrix_to_t[c_acc]

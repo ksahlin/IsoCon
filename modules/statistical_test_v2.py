@@ -14,7 +14,7 @@ from modules.edlib_alignment_module import edlib_align_sequences_keeping_accessi
 from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, adjust_probability_of_candidate_to_alignment_invariant
 
 
-def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, params):
+def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, ccs_dict, params):
     p_values = {}
     actual_tests = 0
     

@@ -16,7 +16,7 @@ from scipy.stats import poisson
 from time import time
 
 
-from modules.functions import transpose, create_position_probability_matrix
+from modules.functions import transpose, create_position_probability_matrix, reverse_complement
 from modules import functions
 from modules.partitions import partition_strings_2set
 from modules import graphs
@@ -196,6 +196,55 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
     # partition_of_X = { c_acc : set() for c_acc in C.keys()}
 
     ################################################################
+
+    ### IF CCS file is provided ####
+    from modules import ccs_info
+    import re
+    import pysam
+    if params.ccs:
+        ccs_file = pysam.AlignmentFile(params.ccs, "rb", check_sq=False)
+        ccs_dict = ccs_info.get_ccs(ccs_file)
+        read_id_pattern = r"[\d]+/ccs"
+        print(len(ccs_dict))
+        X_ids = {  x_acc.split("/")[1] : x_acc for x_acc in X} 
+        assert len(X_ids) == len(X)
+        # print(X.keys())
+        # print(sorted(X_ids.keys()))
+        # print(sorted(ccs_dict.keys()))
+
+        for q_name in list(ccs_dict.keys()):
+            if q_name in X_ids:
+                print(q_name, "in reads!")
+                new_q_name = X_ids[q_name]
+                ccs_obj = ccs_dict[q_name]
+                ccs_obj.name = new_q_name
+                if X[new_q_name] == ccs_obj.seq:
+                    print("fwd")
+                else:
+                    Need to transform quality values in homopolymenr regions since they are leftshifted!!!
+                    seq_rc = reverse_complement(ccs_obj.seq)
+                    ccs_obj.seq = seq_rc
+                    ccs_obj.qual = ccs_obj.qual[::-1]
+                    print("reversing!")
+                del ccs_dict[q_name]
+                ccs_dict[new_q_name] = ccs_obj
+                # print(new_q_name, "added!")
+            else:
+                del ccs_dict[q_name]
+        print(len(ccs_dict))
+        assert len(ccs_dict) == len(X_ids)
+    else:
+        ccs_dict = {}
+            
+    for q_acc in ccs_dict:
+        ccs_record = ccs_dict[q_acc]
+        # print(ccs_record.qual[575:610], ccs_record.seq[575:610])
+        index = ccs_record.seq.find("TTGGTGTT")
+        print(ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
+        p_error = ccs_record.get_p_error_in_base(index)
+        print(index, p_error)
+    ################################
+
     print()
     print("STARTING STATISTICAL TESTING")
     print()
@@ -324,7 +373,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         # if realignment_to_avoid_local_max == 1:
         #     new_significance_values = statistical_test_v2.do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, params )
         # else:
-        new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, params )
+        new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, ccs_dict, params )
 
         # updating if previously identical test had higher p_val than the highest new one, substitute with the stored test.
         for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in new_significance_values.items():

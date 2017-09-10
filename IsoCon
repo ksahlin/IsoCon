@@ -186,6 +186,7 @@ if __name__ == '__main__':
     pipeline_required.add_argument('-fl_reads', required=True, type=str, help='Fast<a/q> file pacbio Reads of Insert. ')
     pipeline_required.add_argument('-outfolder', required=True, type=str, help='Outfolder. ')
     # pipeline.add_argument('--nontargeted', action='store_true', help='Uses minimap to find minimizers instead of our exact approach disigned for targeted sequnecing. ')
+    pipeline.add_argument('--ccs', type=str, help='BAM/SAM file with CCS sequence predictions. ')
     pipeline.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
     pipeline.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     pipeline.add_argument('--minimizer_search_depth', type=int, default=2**32, help='Maximum number of pairwise alignments in search matrix to find minimizer. [default =2**32]')
