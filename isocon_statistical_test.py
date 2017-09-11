@@ -205,10 +205,22 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         ccs_dict_raw = ccs_info.get_ccs(ccs_file)
         X_ids = {  x_acc.split("/")[1] : x_acc for x_acc in X} 
         ccs_dict = ccs_info.modify_strings_and_acc(ccs_dict_raw, X_ids, X)
+
+        print("BUG SEARCH")
+        for q_acc in partition_of_X["transcript_3_support_15"]:
+            print()
+            ccs_record = ccs_dict[q_acc]
+            # print(ccs_record.qual[575:610], ccs_record.seq[575:610])
+            index = ccs_record.seq.find("TTGGTGTT")
+            print(ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
+            p_error = ccs_record.get_p_error_in_base(index+ 8)
+            print(ccs_record.seq)
+            # print(X[q_acc])
+            print(index, p_error, "supporting transcript_3_support_15")
+        sys.exit()
+
     else:
         ccs_dict = {}
-            
-
 
     ################################
 

@@ -92,18 +92,22 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
                 start_index = ccs_record.seq.index(X[q_acc])
                 stop_index = start_index + len(X[q_acc])
                 ccs_record.seq = ccs_record.seq[start_index: stop_index]
-                ccs_record.qual = ccs_record.qual[start_index: stop_index]
+                ccs_record.qual = list(ccs_record.qual)[start_index: stop_index]
                 index = ccs_record.seq.find("TTGGTGTT")
                 # if index >= 0:
                 #     print(index, ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
                 assert ccs_record.seq == X[q_acc]
 
-
+            # change bach the name of the ccs_record to match with the flnc reads 
             new_q_name = X_ids[q_id]
             ccs_obj = ccs_dict_raw[q_id]
             ccs_obj.name = new_q_name
+            ccs_dict_raw[new_q_name] = ccs_obj
+            del ccs_dict_raw[q_id]
+
         else:
             del ccs_dict_raw[q_id]
+
     
     print(len(ccs_dict_raw))
     assert len(ccs_dict_raw) == len(X_ids)
@@ -118,21 +122,6 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
             print(ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
             p_error = ccs_record.get_p_error_in_base(index)
             print(index, p_error)
-
-    print("BUG SEARCH")
-    for q_acc in partition_of_X["transcript_3_support_15"]:
-        print()
-        ccs_record = ccs_dict_raw[q_acc]
-        # print(ccs_record.qual[575:610], ccs_record.seq[575:610])
-        index = ccs_record.seq.find("TTGGTGTT")
-        print(ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
-        p_error = ccs_record.get_p_error_in_base(index)
-        print(ccs_record.seq)
-        print(reverse_complement(ccs_record.seq))
-        assert len(ccs_record.seq) == len(reverse_complement(ccs_record.seq))
-        print(X[q_acc])
-        print(index, p_error, "supporting transcript_3_support_15")
-    sys.exit()
 
     return ccs_dict_raw
 
