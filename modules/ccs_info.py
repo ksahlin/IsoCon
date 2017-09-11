@@ -1,4 +1,10 @@
 from collections import defaultdict
+import re
+import sys
+
+from modules.functions import reverse_complement
+
+
 class CCS(object):
     """docstring for CCS"""
     def __init__(self, name, seq, qual, np):
@@ -33,6 +39,104 @@ class CCS(object):
         return p
 
 
+
+def fix_quality_values(seq, qualities):
+    assert len(seq) == len(qualities)
+    left_shifted_qualities = []
+    homo_pl_region = [ qualities[0] ]
+    for i in range(1, len(seq)):
+        if seq[i-1] == seq[i]:
+            homo_pl_region.append( qualities[i] )
+        else:
+            left_shift = homo_pl_region[::-1]
+            left_shifted_qualities.append(left_shift) 
+            homo_pl_region =  [ qualities[i] ]
+
+    # last homopolymer region or base
+    left_shift = homo_pl_region[::-1]
+    left_shifted_qualities.append(left_shift) 
+    qual_values = [nucl_qual for poly_region in left_shifted_qualities for nucl_qual in poly_region]
+    return qual_values
+
+
+def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
+    print(len(ccs_dict_raw))
+    assert len(X_ids) == len(X)
+    # print(X.keys())
+    # print(sorted(X_ids.keys()))
+    # print(sorted(ccs_dict_raw.keys()))
+
+    for q_id in list(ccs_dict_raw.keys()):
+        if q_id in X_ids:
+            print(q_id, "in reads!")
+
+            q_acc = X_ids[q_id]
+            p = r"strand=-"
+            m = re.search(p, q_acc)
+            if m:
+                ccs_record = ccs_dict_raw[q_id]
+                seq_rc = reverse_complement(ccs_record.seq)
+                qual_r = ccs_record.qual[::-1]
+                qualities = fix_quality_values(seq_rc, qual_r )
+                start_index = seq_rc.index(X[q_acc])
+                stop_index = start_index + len(X[q_acc])
+                ccs_record.seq = seq_rc[start_index: stop_index]
+                ccs_record.qual = qualities[start_index: stop_index]
+                index = ccs_record.seq.find("TTGGTGTT")
+                # if index >= 0:
+                #     print("reversed:",  ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
+                assert ccs_record.seq == X[q_acc]
+
+            else:
+                ccs_record = ccs_dict_raw[q_id]
+                start_index = ccs_record.seq.index(X[q_acc])
+                stop_index = start_index + len(X[q_acc])
+                ccs_record.seq = ccs_record.seq[start_index: stop_index]
+                ccs_record.qual = ccs_record.qual[start_index: stop_index]
+                index = ccs_record.seq.find("TTGGTGTT")
+                # if index >= 0:
+                #     print(index, ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
+                assert ccs_record.seq == X[q_acc]
+
+
+            new_q_name = X_ids[q_id]
+            ccs_obj = ccs_dict_raw[q_id]
+            ccs_obj.name = new_q_name
+        else:
+            del ccs_dict_raw[q_id]
+    
+    print(len(ccs_dict_raw))
+    assert len(ccs_dict_raw) == len(X_ids)
+    print("HERE!")
+
+
+    for q_acc in ccs_dict_raw:
+        ccs_record = ccs_dict_raw[q_acc]
+        # print(ccs_record.qual[575:610], ccs_record.seq[575:610])
+        index = ccs_record.seq.find("TTGGTGTT")
+        if index >= 0:
+            print(ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
+            p_error = ccs_record.get_p_error_in_base(index)
+            print(index, p_error)
+
+    print("BUG SEARCH")
+    for q_acc in partition_of_X["transcript_3_support_15"]:
+        print()
+        ccs_record = ccs_dict_raw[q_acc]
+        # print(ccs_record.qual[575:610], ccs_record.seq[575:610])
+        index = ccs_record.seq.find("TTGGTGTT")
+        print(ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
+        p_error = ccs_record.get_p_error_in_base(index)
+        print(ccs_record.seq)
+        print(reverse_complement(ccs_record.seq))
+        assert len(ccs_record.seq) == len(reverse_complement(ccs_record.seq))
+        print(X[q_acc])
+        print(index, p_error, "supporting transcript_3_support_15")
+    sys.exit()
+
+    return ccs_dict_raw
+
+
 def get_p_error_from_q(qual_list):
     probs = []
     for q in qual_list:
@@ -49,7 +153,6 @@ def get_p_error_from_char(qual_string):
         probs.append(p)
     return probs
 
-import re
 
 def get_ccs(ccs_file):  
     ccs_dict = defaultdict(dict)
