@@ -150,19 +150,19 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
     assert len(ccs_dict_raw) == len(X_ids)
     print("HERE!")
 
-    lambda_ = 0
-    cntr = 0
-    for q_acc in ccs_dict_raw:
-        ccs_record = ccs_dict_raw[q_acc]
-        # print(ccs_record.qual[575:610], ccs_record.seq[575:610])
-        index = ccs_record.seq.find("TCAGCCTCT")
-        if index >= 0:
-            print(ccs_record.qual[index + 9: index + 15], ccs_record.seq[index + 9: index + 15])
-            p_error = ccs_record.get_p_error_in_base(index + 9)
-            print(index + 9, p_error)
-            lambda_ += p_error
-            cntr += 1
-    print("tot prob:", lambda_, "tot obs:", cntr)
+    # lambda_ = 0
+    # cntr = 0
+    # for q_acc in ccs_dict_raw:
+    #     ccs_record = ccs_dict_raw[q_acc]
+    #     # print(ccs_record.qual[575:610], ccs_record.seq[575:610])
+    #     index = ccs_record.seq.find("TCAGCCTCT")
+    #     if index >= 0:
+    #         print(ccs_record.qual[index + 9: index + 15], ccs_record.seq[index + 9: index + 15])
+    #         p_error = ccs_record.get_p_error_in_base(index + 9)
+    #         print(index + 9, p_error)
+    #         lambda_ += p_error
+    #         cntr += 1
+    # print("tot prob:", lambda_, "tot obs:", cntr)
     return ccs_dict_raw
 
 
