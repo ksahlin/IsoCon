@@ -26,12 +26,49 @@ class CCS(object):
         return(indicator_probs)
 
     def alignment_matrix_pos_to_ccs_coord(self, ccs_alignment_vector, pos):
-        aln_piece = ccs_alignment_vector[:pos+1]
-        coord_in_ccs = sum([1 for n in aln_piece if n != "-"]) - 1  # go from 1-indexed to 0-indexed
+        """
+            Finds the correct position in the ccs read to get the base quality prediction from, given a position
+            in our alignment matrix.
+        """
 
-        if ccs_alignment_vector[pos] == "-": # if deletion, jump one position to the right
-            coord_in_ccs += 1
-        return  coord #0-indexed
+        aln_piece = ccs_alignment_vector[:pos+1]        
+
+        # coord_in_ccs = sum([1 for n in aln_piece if n != "-"]) - 1  # go from 1-indexed to 0-indexed
+        # if ccs_alignment_vector[pos] == "-": # if deletion, jump one position to the right
+        #     coord_in_ccs += 1
+
+        seq_piece = "".join([n for n in aln_piece if n != "-"])
+        if len(seq_piece) > 5:
+            index = self.seq.index(seq_piece)
+            if ccs_alignment_vector[pos] == "-":
+                coord_in_ccs = index + len(seq_piece)
+            else:
+                coord_in_ccs = index + len(seq_piece) - 1
+        else:
+            aln_piece_after = ccs_alignment_vector[pos:]        
+            seq_piece = "".join([n for n in aln_piece_after if n != "-"])
+            index = self.seq.index(seq_piece)
+            coord_in_ccs = index
+
+        # verify that index is the left most if homopolymer region, otherwise shift left
+        nucl = self.seq[coord_in_ccs]
+        if coord_in_ccs > 0:
+            if nucl != self.seq[coord_in_ccs - 1]:
+                return  coord_in_ccs #0-indexed
+            else:
+                while coord_in_ccs > 0 and (nucl == self.seq[coord_in_ccs - 1]):
+                    # print("HERRRRE")
+                    coord_in_ccs -= 1
+                    nucl = self.seq[coord_in_ccs]
+
+                return coord_in_ccs
+        else:
+            return  coord_in_ccs #0-indexed
+
+        # print(coord_in_ccs, coord_in_ccs2)
+        # assert coord_in_ccs == coord_in_ccs2
+
+        
 
     def get_p_error_in_base(self, coord):
         q = self.qual[coord]
@@ -114,6 +151,7 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
     print("HERE!")
 
     lambda_ = 0
+    cntr = 0
     for q_acc in ccs_dict_raw:
         ccs_record = ccs_dict_raw[q_acc]
         # print(ccs_record.qual[575:610], ccs_record.seq[575:610])
@@ -123,7 +161,8 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
             p_error = ccs_record.get_p_error_in_base(index + 9)
             print(index + 9, p_error)
             lambda_ += p_error
-    print("tot prob:", lambda_)
+            cntr += 1
+    print("tot prob:", lambda_, "tot obs:", cntr)
     return ccs_dict_raw
 
 

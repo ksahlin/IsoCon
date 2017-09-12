@@ -365,6 +365,7 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         if ccs_dict:
             probability = functions.get_ccs_position_prob_per_read(t_acc, alignment_matrix_to_t, candidate_accessions, delta_t, ccs_dict) 
             weight = {q_acc : 1.0 for q_acc in probability.keys()}
+            print( sum( list(probability.values()) ), candidate_accessions )
         else:
             errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
             weight = functions.get_weights_per_read(t_acc, len(t_seq), candidate_accessions, errors) 
