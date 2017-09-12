@@ -29,7 +29,7 @@ class CCS(object):
         aln_piece = ccs_alignment_vector[:pos+1]
         coord_in_ccs = sum([1 for n in aln_piece if n != "-"]) - 1  # go from 1-indexed to 0-indexed
 
-        if ccs_alignment_vector[pos] == "-": # if delation, jump one position to the right
+        if ccs_alignment_vector[pos] == "-": # if deletion, jump one position to the right
             coord_in_ccs += 1
         return  coord #0-indexed
 
@@ -82,7 +82,7 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
                 stop_index = start_index + len(X[q_acc])
                 ccs_record.seq = seq_rc[start_index: stop_index]
                 ccs_record.qual = qualities[start_index: stop_index]
-                index = ccs_record.seq.find("TTGGTGTT")
+                # index = ccs_record.seq.find("TCAGCCTCT")
                 # if index >= 0:
                 #     print("reversed:",  ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
                 assert ccs_record.seq == X[q_acc]
@@ -93,7 +93,7 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
                 stop_index = start_index + len(X[q_acc])
                 ccs_record.seq = ccs_record.seq[start_index: stop_index]
                 ccs_record.qual = list(ccs_record.qual)[start_index: stop_index]
-                index = ccs_record.seq.find("TTGGTGTT")
+                # index = ccs_record.seq.find("TCAGCCTCT")
                 # if index >= 0:
                 #     print(index, ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
                 assert ccs_record.seq == X[q_acc]
@@ -113,16 +113,17 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
     assert len(ccs_dict_raw) == len(X_ids)
     print("HERE!")
 
-
+    lambda_ = 0
     for q_acc in ccs_dict_raw:
         ccs_record = ccs_dict_raw[q_acc]
         # print(ccs_record.qual[575:610], ccs_record.seq[575:610])
-        index = ccs_record.seq.find("TTGGTGTT")
+        index = ccs_record.seq.find("TCAGCCTCT")
         if index >= 0:
-            print(ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
-            p_error = ccs_record.get_p_error_in_base(index)
-            print(index, p_error)
-
+            print(ccs_record.qual[index + 9: index + 15], ccs_record.seq[index + 9: index + 15])
+            p_error = ccs_record.get_p_error_in_base(index + 9)
+            print(index + 9, p_error)
+            lambda_ += p_error
+    print("tot prob:", lambda_)
     return ccs_dict_raw
 
 

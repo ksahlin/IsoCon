@@ -211,13 +211,13 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
             print()
             ccs_record = ccs_dict[q_acc]
             # print(ccs_record.qual[575:610], ccs_record.seq[575:610])
-            index = ccs_record.seq.find("TTGGTGTT")
-            print(ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
-            p_error = ccs_record.get_p_error_in_base(index+ 8)
+            index = ccs_record.seq.find("TCAGCCTCT")
+            print(ccs_record.qual[index + 9:index + 15], ccs_record.seq[index + 9:index + 15])
+            p_error = ccs_record.get_p_error_in_base(index+ 9)
             print(ccs_record.seq)
             # print(X[q_acc])
             print(index, p_error, "supporting transcript_3_support_15")
-        sys.exit()
+        # sys.exit()
 
     else:
         ccs_dict = {}

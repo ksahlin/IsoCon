@@ -42,7 +42,7 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
                 continue
 
             for c_acc in minimizer_graph_transposed[t_acc]:
-                p_vals = statistical_test_CLT(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len)
+                p_vals = statistical_test_CLT(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len, ccs_dict)
 
                 for tested_cand_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in p_vals.items():
                     if p_value == "not_tested":
@@ -65,7 +65,7 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
         try:
-            res = pool.map_async(statistical_test_helper, [ ( (t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len), {}) for t_acc in minimizer_graph_transposed for c_acc in minimizer_graph_transposed[t_acc]  ] )
+            res = pool.map_async(statistical_test_helper, [ ( (t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len, ccs_dict), {}) for t_acc in minimizer_graph_transposed for c_acc in minimizer_graph_transposed[t_acc]  ] )
             statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -99,73 +99,73 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
     return p_values
 
 
-def do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, params):
-    p_values = {}
-    actual_tests = 0
+# def do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, params):
+#     p_values = {}
+#     actual_tests = 0
     
-    # separate partition_of_X and X, C here into subsets for each t in minimizer graph to speed up parallelization when lots of reads
-    partition_of_X_for_minmizer = {}
-    X_for_minmizer = {}
-    C_for_minmizer = {}
-    candidates_to = {}
-    for t_acc in minimizer_graph_transposed:
-        candidates_to[t_acc] = minimizer_graph_transposed[t_acc]
-        partition_of_X_for_minmizer[t_acc] = {c_acc : set([x_acc for x_acc in partition_of_X[c_acc]]) for c_acc in list(minimizer_graph_transposed[t_acc].keys()) + [t_acc]}
-        C_for_minmizer[t_acc] = { c_acc : C[c_acc] for c_acc in list(minimizer_graph_transposed[t_acc].keys()) + [t_acc] }
-        X_for_minmizer[t_acc] = { x_acc : X[x_acc] for c_acc in partition_of_X_for_minmizer[t_acc] for x_acc in partition_of_X_for_minmizer[t_acc][c_acc]}
+#     # separate partition_of_X and X, C here into subsets for each t in minimizer graph to speed up parallelization when lots of reads
+#     partition_of_X_for_minmizer = {}
+#     X_for_minmizer = {}
+#     C_for_minmizer = {}
+#     candidates_to = {}
+#     for t_acc in minimizer_graph_transposed:
+#         candidates_to[t_acc] = minimizer_graph_transposed[t_acc]
+#         partition_of_X_for_minmizer[t_acc] = {c_acc : set([x_acc for x_acc in partition_of_X[c_acc]]) for c_acc in list(minimizer_graph_transposed[t_acc].keys()) + [t_acc]}
+#         C_for_minmizer[t_acc] = { c_acc : C[c_acc] for c_acc in list(minimizer_graph_transposed[t_acc].keys()) + [t_acc] }
+#         X_for_minmizer[t_acc] = { x_acc : X[x_acc] for c_acc in partition_of_X_for_minmizer[t_acc] for x_acc in partition_of_X_for_minmizer[t_acc][c_acc]}
 
-    if params.single_core:
-        for t_acc in minimizer_graph_transposed:
-            p_vals = statistical_test(t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc], params.ignore_ends_len)
-            for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in p_vals.items():
-                if p_value == "not_tested":
-                    assert c_acc not in p_values # should only be here once
-                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+#     if params.single_core:
+#         for t_acc in minimizer_graph_transposed:
+#             p_vals = statistical_test(t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc], params.ignore_ends_len)
+#             for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in p_vals.items():
+#                 if p_value == "not_tested":
+#                     assert c_acc not in p_values # should only be here once
+#                     p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
 
-                elif c_acc in p_values: # new most insignificant p_value
-                    actual_tests += 1
-                    if p_value * mult_factor_inv > p_values[c_acc][0] * p_values[c_acc][1]:
-                        p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+#                 elif c_acc in p_values: # new most insignificant p_value
+#                     actual_tests += 1
+#                     if p_value * mult_factor_inv > p_values[c_acc][0] * p_values[c_acc][1]:
+#                         p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
 
-                else: # not tested before
-                    actual_tests += 1
-                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+#                 else: # not tested before
+#                     actual_tests += 1
+#                     p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
 
-    else:
-        ####### parallelize statistical tests #########
-        # pool = Pool(processes=mp.cpu_count())
-        original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-        signal.signal(signal.SIGINT, original_sigint_handler)
-        pool = Pool(processes=mp.cpu_count())
-        try:
-            res = pool.map_async(statistical_test_helper, [ ( (t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc], params.ignore_ends_len), {}) for t_acc in minimizer_graph_transposed  ] )
-            statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
-        except KeyboardInterrupt:
-            print("Caught KeyboardInterrupt, terminating workers")
-            pool.terminate()
-            sys.exit()
-        else:
-            print("Normal termination")
-            pool.close()
-        pool.join()
+#     else:
+#         ####### parallelize statistical tests #########
+#         # pool = Pool(processes=mp.cpu_count())
+#         original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+#         signal.signal(signal.SIGINT, original_sigint_handler)
+#         pool = Pool(processes=mp.cpu_count())
+#         try:
+#             res = pool.map_async(statistical_test_helper, [ ( (t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc], params.ignore_ends_len), {}) for t_acc in minimizer_graph_transposed  ] )
+#             statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
+#         except KeyboardInterrupt:
+#             print("Caught KeyboardInterrupt, terminating workers")
+#             pool.terminate()
+#             sys.exit()
+#         else:
+#             print("Normal termination")
+#             pool.close()
+#         pool.join()
 
-        for all_tests_to_a_given_target in statistical_test_results:
-            for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in list(all_tests_to_a_given_target.items()): 
-                if p_value ==  "not_tested":
-                    assert c_acc not in p_values # should only be here once
-                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+#         for all_tests_to_a_given_target in statistical_test_results:
+#             for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in list(all_tests_to_a_given_target.items()): 
+#                 if p_value ==  "not_tested":
+#                     assert c_acc not in p_values # should only be here once
+#                     p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
 
-                elif c_acc in p_values: # new most insignificant p_value
-                    actual_tests += 1
-                    if p_value * mult_factor_inv > p_values[c_acc][0] * p_values[c_acc][1]:
-                        p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
-                else: # not tested before
-                    actual_tests += 1
-                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+#                 elif c_acc in p_values: # new most insignificant p_value
+#                     actual_tests += 1
+#                     if p_value * mult_factor_inv > p_values[c_acc][0] * p_values[c_acc][1]:
+#                         p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+#                 else: # not tested before
+#                     actual_tests += 1
+#                     p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
 
-    print("Total number of tests performed this round:", actual_tests)
+#     print("Total number of tests performed this round:", actual_tests)
 
-    return p_values
+#     return p_values
 
 
 def statistical_test_helper(arguments):
@@ -309,7 +309,7 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates, ignore_ends_len):
 
 
 
-def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_len):
+def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_len, ccs_dict):
     significance_values = {}
     t_seq = C[t_acc]
     if len(candidates) == 0:
@@ -359,13 +359,19 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         # get parameter estimates for statistical test
         candidate_accessions = set( [ c_acc for c_acc in candidates] )
         delta_t = functions.get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
-        errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
-        weight = functions.get_weights_per_read(t_acc, len(t_seq), candidate_accessions, errors) 
-        invariant_factors_for_candidate = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
-        probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
-
         # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
         x = functions.reads_supporting_candidate(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
+        
+        if ccs_dict:
+            probability = functions.get_ccs_position_prob_per_read(t_acc, alignment_matrix_to_t, candidate_accessions, delta_t, ccs_dict) 
+            weight = {q_acc : 1.0 for q_acc in probability.keys()}
+        else:
+            errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
+            weight = functions.get_weights_per_read(t_acc, len(t_seq), candidate_accessions, errors) 
+            invariant_factors_for_candidate = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
+            probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
+
+        #TODO: do exact only if partition less than, say 200? Otherwise poisson approx
         # p_value = CLT_test(probability, weight, x)
         # p_value = poisson_approx_test(probability, weight, x)
         p_value = exact_test(probability, weight, x)
@@ -403,25 +409,6 @@ def exact_test(probability, weight, x):
     return float(p_value)
 
 
-# def exact_test(probability, weight, x):
-#     probs = probability.values()
-
-#     tmp_distr1 = [1.0 - probs[0], probs[0]]
-#     for i in range(1, len(probs)):   
-#         tmp_distr2 = [1.0 - probs[i], probs[i]]
-#         distr = [0]*(len(tmp_distr1) + 1)
-#         for l in range(len(tmp_distr1)):
-#             for m in range(2):
-#                 distr[l+m] += tmp_distr1[l] * tmp_distr2[m]
-
-#         tmp_distr1 = distr
-
-#     p_distr = tmp_distr1
-
-#     observed_count = sum([1 for x_i in probability if x_i in x ])
-#     p_value = 1.0  - sum(p_distr[:observed_count])
-
-#     return p_value
 
 def poisson_approx_test(probability, weight, x):
 

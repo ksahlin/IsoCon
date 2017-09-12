@@ -242,6 +242,44 @@ def get_difference_coordinates_for_candidates(target_accession, candidate_access
     return position_differences
 
 
+def get_ccs_position_prob_per_read(target_accession, alignment_matrix, candidate_accessions, Delta_t, ccs_dict):
+    probability = {}
+    assert len(candidate_accessions) == 1
+    c_acc = list(candidate_accessions)[0]
+    target_alignment = alignment_matrix[target_accession]
+    candidate_alignment = alignment_matrix[c_acc]
+
+    this looping needs re-writing
+    reads can have any basepair at given position.
+    just read of the p-error at the given ccs position and that's it?
+    print(c_acc)
+    for q_acc in alignment_matrix:
+        if q_acc == target_accession:
+            continue
+        if q_acc in candidate_accessions:
+            continue  
+
+        probability[q_acc] = 1.0
+        ccs_alignment = alignment_matrix[q_acc]
+        for pos in Delta_t[c_acc]:
+            c_state, c_base = Delta_t[c_acc][pos]
+            # determine what type the read has in position
+            ccs_nucl = ccs_alignment[pos]
+            t_nucl = target_alignment[pos]
+            assert c_base != t_nucl
+            ccs_coord = ccs_dict.alignment_matrix_pos_to_ccs_coord(ccs_alignment, pos)
+            p_error = ccs_dict.get_p_error_in_base(ccs_coord)
+            print(p_error)
+            if ccs_nucl == "-": # candidate is a deletion
+                probability[q_acc] *= p_error
+            elif t_nucl == "-" and ccs_nucl != "-":  # candidate is insertion
+                probability[q_acc] *= p_error #/4.0
+            else: # candidate is substitution
+                assert ccs_nucl != "-" and  t_nucl != "-"
+                probability[q_acc] *= p_error #/3.0
+
+
+
 
 def get_prob_of_support_per_read(target_accession, segment_length, candidate_accessions, errors, invariant_factors_for_candidate):
     probability = {}
@@ -258,11 +296,11 @@ def get_prob_of_support_per_read(target_accession, segment_length, candidate_acc
             for (state, char) in invariant_factors_for_candidate[c_acc][pos]:
                 u_v = invariant_factors_for_candidate[c_acc][pos][(state, char)]
                 if state == "S":
-                    probability[q_acc] *= p_S**(1.0/u_v)
+                    probability[q_acc] *= p_S*u_v # *(1.0/u_v)
                 elif state == "I":
-                    probability[q_acc] *= p_I**(1.0/u_v)
+                    probability[q_acc] *= p_I*u_v #**(1.0/u_v)
                 elif state == "D":
-                    probability[q_acc] *= p_D**(1.0/u_v)
+                    probability[q_acc] *= p_D*u_v #**(1.0/u_v)
     return probability
 
 
