@@ -325,8 +325,8 @@ def get_prob_of_support_per_read(target_accession, segment_length, candidate_acc
 
     for q_acc in errors:
         probability[q_acc] = 1.0
-        p_S = (errors[q_acc]["S"] / float(segment_length) ) / 4.0
-        p_I = (errors[q_acc]["I"] / float(segment_length) ) /3.0
+        p_S = (errors[q_acc]["S"] / float(segment_length) ) / 3.0
+        p_I = (errors[q_acc]["I"] / float(segment_length) ) /4.0
         p_D = (errors[q_acc]["D"] / float(segment_length) )
 
         for pos in invariant_factors_for_candidate[c_acc]:

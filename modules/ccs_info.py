@@ -81,6 +81,7 @@ class CCS(object):
 
 
 def p_error_to_qual(p):
+    print(p)
     q = -10*math.log( p, 10)
     return q
 

@@ -356,14 +356,6 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         assert X[x_acc] == ccs_dict[x_acc].seq
     # get multialignment matrix here
     alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_len)
-    for x_acc in alignment_matrix_to_t:
-        if x_acc == "m151210_031012_42146_c100926392550000001823199905121697_s1_p0/115170/1760_48_CCS_strand=-;fiveseen=1;polyAseen=0;threeseen=1;fiveend=40;polyAend=-1;threeend=1752;primer=9;chimera=0":
-            ccs_seq = "".join([n for n in  alignment_matrix_to_t[x_acc] if n != "-"])
-            print(x_acc)
-            print(X[x_acc])
-            print(ccs_dict[x_acc].seq)
-            print(ccs_seq)
-            assert X[x_acc] == ccs_seq
 
     # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
     # these are bases that we disregard when testing varinats
@@ -381,10 +373,16 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         x = functions.reads_supporting_candidate(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
         
         if ccs_dict:
-            probability = functions.get_ccs_position_prob_per_read(t_acc, alignment_matrix_to_t, candidate_accessions, delta_t, ccs_dict) 
-            weight = {q_acc : ccs_info.p_error_to_qual(probability[q_acc]) for q_acc in probability.keys()}
-            print( sum( list(probability.values()) ), candidate_accessions )
-            print("Weighted average:", sum( [ weight[q_acc] * probability[q_acc] for q_acc in probability] ), candidate_accessions )
+            errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
+            invariant_factors_for_candidate = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
+            empirical_probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
+            
+            ccs_probability = functions.get_ccs_position_prob_per_read(t_acc, alignment_matrix_to_t, candidate_accessions, delta_t, ccs_dict) 
+            weight = {q_acc : ccs_info.p_error_to_qual(ccs_probability[q_acc]) for q_acc in ccs_probability.keys()}
+            print("emp:", sum( list(empirical_probability.values()) ), candidate_accessions )
+            print("ccs:", sum( list(ccs_probability.values()) ), candidate_accessions )
+            print("Max:", sum( [ max(ccs_probability[q_acc], empirical_probability[q_acc] ) for q_acc in ccs_probability] ), candidate_accessions )
+            probability = {  q_acc : max(ccs_probability[q_acc], empirical_probability[q_acc] ) for q_acc in ccs_probability }
         else:
             errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
             weight = functions.get_weights_per_read(t_acc, len(t_seq), candidate_accessions, errors) 
