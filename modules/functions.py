@@ -14,6 +14,8 @@
 import unittest
 from collections import defaultdict
 import math
+import re
+import edlib
 
 def reverse_complement(string):
     #rev_nuc = {'A':'T', 'C':'G', 'G':'C', 'T':'A', 'N':'N', 'X':'X'}
@@ -61,7 +63,7 @@ def cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_end
     cut_end = len(target_alignment) - cut_end
 
 
-    # print("cutting from", len(target_alignment), "positions to", len(target_alignment[ cut_start : cut_end ]) )
+    print("cutting from", len(target_alignment), "positions to", len(target_alignment[ cut_start : cut_end ]) )
     for acc in alignment_matrix_to_t:
         alignment_matrix_to_t[acc] = alignment_matrix_to_t[acc][ cut_start : cut_end ]
     return  alignment_matrix_to_t
@@ -253,11 +255,20 @@ def get_ccs_position_prob_per_read(target_accession, alignment_matrix, candidate
     # reads can have any basepair at given position.
     # just read of the p-error at the given ccs position and that's it?
     # print(c_acc)
+    tmp_weight_equal = 0
+    tmp_weight_diff = 0
+
+    # print("t", len("".join([n for n in target_alignment if n != "-"])))
+    # print("c", len("".join([n for n in candidate_alignment if n != "-"])))
     for q_acc in alignment_matrix:
         if q_acc == target_accession:
             continue
         if q_acc in candidate_accessions:
             continue  
+
+
+        print("q", len("".join([n for n in alignment_matrix[q_acc] if n != "-"])))
+
 
         probability[q_acc] = 1.0
         ccs_alignment = alignment_matrix[q_acc]
@@ -266,12 +277,33 @@ def get_ccs_position_prob_per_read(target_accession, alignment_matrix, candidate
             # determine what type the read has in position
             t_nucl = target_alignment[pos]
             assert c_base != t_nucl
+
+            # if c_state == "S":
+            # elif c_state == "I":
+
+            # else:
+
             ccs_coord = ccs_dict[q_acc].alignment_matrix_pos_to_ccs_coord(ccs_alignment, pos)
             p_error = ccs_dict[q_acc].get_p_error_in_base(ccs_coord)
             probability[q_acc] *= p_error
-            # print(c_base, ccs_alignment[pos], ccs_dict[q_acc].seq[ccs_coord],   ccs_alignment[pos-10:pos+10],  ccs_dict[q_acc].seq[ccs_coord-20:ccs_coord +41], p_error, ccs_dict[q_acc].np)
+            # print("".join([n for n in target_alignment[pos-100:pos+100]]))
+            # print("".join([n for n in candidate_alignment[pos-100:pos+100]]))
+            # print("".join([n for n in ccs_alignment[pos-100:pos+100]]))
+            # print("acc seq:", q_acc)
+            # print("ccs bam seq:", ccs_dict[q_acc].seq)
+            # print(candidate_alignment[pos-10:pos+10], pos, ccs_coord)
+            # print('pos:', ccs_dict[q_acc].seq.find("GTCACTGCTGGATATCA"), "pred coord:", ccs_coord)
+            print(pos, c_state, c_base, ccs_alignment[pos], ccs_dict[q_acc].seq[ccs_coord],   ccs_alignment[pos-10:pos+10],  ccs_dict[q_acc].seq[ccs_coord-6:ccs_coord +11], p_error, ccs_dict[q_acc].np)
 
-            # ccs_nucl = ccs_alignment[pos]            
+            ccs_nucl = ccs_alignment[pos]            
+            if ccs_nucl == t_nucl:
+                # tmp_weight_equal += ccs_dict[q_acc].np
+                tmp_weight_equal += ccs_dict[q_acc].qual[ccs_coord]
+            else:
+                # tmp_weight_diff += ccs_dict[q_acc].np
+                tmp_weight_diff += ccs_dict[q_acc].qual[ccs_coord]
+
+
             # if ccs_nucl == "-": # candidate is a deletion
             #     probability[q_acc] *= p_error
             # elif t_nucl == "-" and ccs_nucl != "-":  # candidate is insertion
@@ -279,7 +311,8 @@ def get_ccs_position_prob_per_read(target_accession, alignment_matrix, candidate
             # else: # candidate is substitution
             #     assert ccs_nucl != "-" and  t_nucl != "-"
             #     probability[q_acc] *= p_error #/3.0
-
+    print("diff:",tmp_weight_diff )
+    print("equal:",tmp_weight_equal )
 
     return probability
 
@@ -391,7 +424,7 @@ def reads_supporting_candidate(target_accession, candidate_accessions, alignment
     assert len(candidate_accessions) == 1
     c_acc = list(candidate_accessions)[0]
     x = []
-    for q_acc in partition_of_X[c_acc]: #.union(partition_of_X[target_accession]):
+    for q_acc in partition_of_X[c_acc].union(partition_of_X[target_accession]):
         if q_acc not in alignment_matrix:
             print("READ {0} ALIGNED TO {1} BUT FAILED TO ALIGN TO {2}".format(q_acc, c_acc, target_accession) )
             continue
@@ -510,19 +543,19 @@ def create_position_probability_matrix(m, partition):
         partition as keys and the alignment of s_i with respect to the alignment matix.
     """
     query_to_target_positioned_dict = {}
-    for q in partition:
-        (edit_distance, m_alignment, s_alignment, degree_of_s) = partition[q]
+    for q_acc in partition:
+        (edit_distance, m_alignment, s_alignment, degree_of_s) = partition[q_acc]
         s_positioned, target_vector_start_position, target_vector_end_position = position_query_to_alignment(s_alignment, m_alignment, 0)
         assert target_vector_start_position == 0
         assert target_vector_end_position + 1 == 2*len(m) + 1 # vector positions are 0-indexed
-        query_to_target_positioned_dict[q] = (s_positioned, target_vector_start_position, target_vector_end_position)
+        query_to_target_positioned_dict[q_acc] = (s_positioned, target_vector_start_position, target_vector_end_position)
 
     alignment_matrix = create_multialignment_format_OLD_fixed(query_to_target_positioned_dict, 0, 2*len(m))
 
-    # N_t = sum([container_tuple[3] for q, container_tuple in partition.items()]) # total number of sequences in partition
+    # N_t = sum([container_tuple[3] for q_acc, container_tuple in partition.items()]) # total number of sequences in partition
     # print("total seq multiset:", N_t, "total seqs in set:", len(partition))
     PFM = []
-    for j in range(len(alignment_matrix[q])): # for each column
+    for j in range(len(alignment_matrix[q_acc])): # for each column
         PFM.append({"A": 0, "C": 0, "G": 0, "T": 0, "-": 0})
         for s in alignment_matrix:
             nucl = alignment_matrix[s][j]
@@ -677,8 +710,8 @@ def create_multialignment_format_OLD_fixed(query_to_target_positioned_dict, star
             
             max_ins_len = len(max_insertion)
             all_max_ins = set([ins for (ins, acc) in insertions if len(ins) == max_ins_len])
-            # if len(all_max_ins) > 1 and max_ins_len > 1:
-            #     print(all_max_ins, max_insertion)
+            # if max_ins_len > 4:
+            #     print(j, all_max_ins, max_insertion, q_acc_max_ins)
             # if len(all_max_ins) > 1 and max_ins_len == 2:
             #     print("pos", j, all_max_ins)
             max_insertion = sorted(all_max_ins)[0] 
@@ -705,10 +738,13 @@ def create_multialignment_format_OLD_fixed(query_to_target_positioned_dict, star
 
 
                 if not q_insertion_modified:
-                    # else, check is smaller deletion can be aligned from left to write, e.g. say max deletion is GACG
+                    # else, check if smaller deletion can be aligned from left to write, e.g. say max deletion is GACG
                     # then an insertion AG may be aligned as -A-G. Take this alignment instead
-                    q_insertion_modified = thread_to_max_ins(max_insertion, q_ins)
-                
+                    q_insertion_modified = min_ed(max_insertion, q_ins)
+                    # q_insertion_modified = thread_to_max_ins(max_insertion, q_ins)
+                    # if q_insertion_modified:
+                    #     print("new threaded:", q_insertion_modified2)
+                    #     print("threaded:", q_insertion_modified)
 
                 if not q_insertion_modified:
                     # otherwise just shift left
@@ -735,6 +771,13 @@ def create_multialignment_format_OLD_fixed(query_to_target_positioned_dict, star
                             q_insertion_modified.append(q_ins[p])
                         else:
                             q_insertion_modified.append("-")
+                
+                # if max_ins_len > 4:
+                #     print("q:{0} max:{1},q_original:{2} ".format(q_insertion_modified, max_insertion, q_ins) )
+
+                # if q_ins != "-" and q_ins != "".join([n for n in q_insertion_modified if n != "-"]):
+                #     print("BUG: q:{0} max:{1},q_original:{2} pos:{3}, new:{4} ".format(q_insertion_modified, max_insertion, q_ins, j, q_insertion_modified2) )
+                #     # sys.exit()
 
                 #### finally add to alignment matrix
                 # if len(q_insertion_modified) != len(max_insertion):
@@ -750,10 +793,40 @@ def create_multialignment_format_OLD_fixed(query_to_target_positioned_dict, star
     return alignment_matrix
 
 
+def min_ed(max_insertion, q_ins):
+    result = edlib.align(max_insertion, q_ins, task="path", mode= "NW")
+    cigar = result["cigar"]
+    tuples = []
+    # do not allow deletions in max_insertion: because we do not want to alter this sequence
+    if "D" in cigar:
+        return ""
+    matches = re.split(r'[=DXSMI]+', cigar)
+    i = 0
+    for length in matches[:-1]:
+        i += len(length)
+        type_ = cigar[i]
+        i += 1
+        tuples.append((int(length), type_ ))
+
+    q_insertion_modified = ""
+    q_ins_pos = 0
+    for length, type_ in tuples:
+        # if we reach here we are guaranteed no deletions in alignment of max_insertion
+        # we therefore simply thread in the matching or mismatching characters (if type '=' or 'X')
+        # or we put a "-" (if type is 'I')
+        if type_ == "I":
+            q_insertion_modified += "-"*length
+        else:
+            q_insertion_modified += q_ins[q_ins_pos : q_ins_pos + length]
+            q_ins_pos += length
+    return q_insertion_modified
+
+
+
 
 
 def thread_to_max_ins(max_insertion, q_ins):
-    # else, check if smaller variant can be aligned from left to right, e.g. say max deletion is GACG
+    # else, check if smaller variant can be aligned from left to right with all nucleotides matching in q_ins, e.g. say max deletion is GACG
     # then an insertion AG may be aligned as -A-G. Take this alignment instead
     can_be_threaded = True
     prev_pos = -1

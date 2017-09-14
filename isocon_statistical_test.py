@@ -205,7 +205,8 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         ccs_dict_raw = ccs_info.get_ccs(ccs_file)
         X_ids = {  x_acc.split("/")[1] : x_acc for x_acc in X} 
         ccs_dict = ccs_info.modify_strings_and_acc(ccs_dict_raw, X_ids, X)
-
+        for x_acc in X:
+            assert X[x_acc] == ccs_dict[x_acc].seq
         # print("BUG SEARCH")
         # for q_acc in partition_of_X["transcript_3_support_15"]:
         #     print()
@@ -217,7 +218,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         #     print(ccs_record.seq)
         #     # print(X[q_acc])
         #     print(index, p_error, "supporting transcript_3_support_15")
-        # # sys.exit()
+        # sys.exit()
 
     else:
         ccs_dict = {}
@@ -325,10 +326,17 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
 
 
         ## save time if the minimizer and all cantidates in a component has identical reads assignmed to them as previous step
+        # or heuristically: if candidate hase more than 2x more support than the reference itself (will give highly significant p-value anyway) to save computation time
         # Since indata is the same, the test is guaranteed to give same siginficance values as previous step
         previous_significance_values = {}
         if realignment_to_avoid_local_max != 1:
             for t_acc in list(minimizer_graph_transposed.keys()):
+                # skip to test candidates with more reads than their respective references, because its redundant computation that will lead to significant values anyway..
+                # for c_acc in minimizer_graph_transposed[t_acc].keys():
+                #     if len(partition_of_X[c_acc]) >= 2*len(partition_of_X[t_acc]):
+                #         print("skipping test for dominant candidate {0} to ref {1}".format(c_acc, t_acc))
+                #         del minimizer_graph_transposed[t_acc][c_acc]
+
                 accessions_in_component_to_test = set([c_acc for c_acc in minimizer_graph_transposed[t_acc].keys()] + [t_acc])
                 # print(accessions_in_component_to_test)
                 if (accessions_in_component_to_test == previous_components[t_acc]) and all([ len(previous_partition_of_X[acc]) == len(partition_of_X[acc]) for acc in accessions_in_component_to_test]):
@@ -340,6 +348,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
                     # print("Modified")
                     previous_components[t_acc] = accessions_in_component_to_test
 
+            # print(minimizer_graph_transposed)
         #####################################################################################################
 
 

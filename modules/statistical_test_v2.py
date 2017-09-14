@@ -12,7 +12,7 @@ from modules.multinomial_distr import multinomial_
 from modules.SW_alignment_module import sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences_keeping_accession
 from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, adjust_probability_of_candidate_to_alignment_invariant
-
+from modules import ccs_info
 
 def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, ccs_dict, params):
     p_values = {}
@@ -37,10 +37,11 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
 
     if params.single_core:
         for t_acc in minimizer_graph_transposed:
-            if len(minimizer_graph_transposed[t_acc]) == 0:
-                p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
-                continue
-
+        #     if len(minimizer_graph_transposed[t_acc]) == 0:
+        #         p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
+        #         continue
+        #     print("t", t_acc)
+            
             for c_acc in minimizer_graph_transposed[t_acc]:
                 p_vals = statistical_test_CLT(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len, ccs_dict)
 
@@ -58,6 +59,9 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
                         actual_tests += 1
                         p_values[tested_cand_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
 
+        for t_acc in minimizer_graph_transposed:
+            if t_acc not in p_values:
+                p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
     else:
         ####### parallelize statistical tests #########
         # pool = Pool(processes=mp.cpu_count())
@@ -235,6 +239,10 @@ def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_le
             edit_dist = mismatches + indels
             partition_alignments[t_acc][x_acc] = (edit_dist, aln_t, aln_x, 1)
 
+            x_aln_seq = "".join([n for n in aln_x if n != "-"])
+            if x_acc in X:
+                assert X[x_acc] == x_aln_seq
+
     alignment_matrix_to_t, PFM_to_t = create_position_probability_matrix(C[t_acc], partition_alignments[t_acc])
     return alignment_matrix_to_t, PFM_to_t
 
@@ -344,8 +352,18 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
     reads_and_candidates = reads.union( [c_acc for c_acc in candidates]) 
     reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
 
+    for x_acc in X:
+        assert X[x_acc] == ccs_dict[x_acc].seq
     # get multialignment matrix here
     alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_len)
+    for x_acc in alignment_matrix_to_t:
+        if x_acc == "m151210_031012_42146_c100926392550000001823199905121697_s1_p0/115170/1760_48_CCS_strand=-;fiveseen=1;polyAseen=0;threeseen=1;fiveend=40;polyAend=-1;threeend=1752;primer=9;chimera=0":
+            ccs_seq = "".join([n for n in  alignment_matrix_to_t[x_acc] if n != "-"])
+            print(x_acc)
+            print(X[x_acc])
+            print(ccs_dict[x_acc].seq)
+            print(ccs_seq)
+            assert X[x_acc] == ccs_seq
 
     # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
     # these are bases that we disregard when testing varinats
@@ -364,8 +382,9 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         
         if ccs_dict:
             probability = functions.get_ccs_position_prob_per_read(t_acc, alignment_matrix_to_t, candidate_accessions, delta_t, ccs_dict) 
-            weight = {q_acc : 1.0 for q_acc in probability.keys()}
+            weight = {q_acc : ccs_info.p_error_to_qual(probability[q_acc]) for q_acc in probability.keys()}
             print( sum( list(probability.values()) ), candidate_accessions )
+            print("Weighted average:", sum( [ weight[q_acc] * probability[q_acc] for q_acc in probability] ), candidate_accessions )
         else:
             errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
             weight = functions.get_weights_per_read(t_acc, len(t_seq), candidate_accessions, errors) 

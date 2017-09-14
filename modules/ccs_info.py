@@ -1,6 +1,7 @@
 from collections import defaultdict
 import re
 import sys
+import math
 
 from modules.functions import reverse_complement
 
@@ -39,6 +40,9 @@ class CCS(object):
 
         seq_piece = "".join([n for n in aln_piece if n != "-"])
         if len(seq_piece) > 5:
+            # print(len(ccs_alignment_vector), pos+1)
+            # print("".join([n for n in ccs_alignment_vector if n != "-"])) #print(seq_piece)
+            # print(self.seq ) #[ : len(seq_piece)])
             index = self.seq.index(seq_piece)
             if ccs_alignment_vector[pos] == "-":
                 coord_in_ccs = index + len(seq_piece)
@@ -50,24 +54,24 @@ class CCS(object):
             index = self.seq.index(seq_piece)
             coord_in_ccs = index
 
-        # verify that index is the left most if homopolymer region, otherwise shift left
-        nucl = self.seq[coord_in_ccs]
-        if coord_in_ccs > 0:
-            if nucl != self.seq[coord_in_ccs - 1]:
-                return  coord_in_ccs #0-indexed
-            else:
-                while coord_in_ccs > 0 and (nucl == self.seq[coord_in_ccs - 1]):
-                    # print("HERRRRE")
-                    coord_in_ccs -= 1
-                    nucl = self.seq[coord_in_ccs]
+        # below code does not work if substitution within a homopolymenr region..
+        # # verify that index is the left most if homopolymer region, otherwise shift left
+        # nucl = self.seq[coord_in_ccs]
+        # if coord_in_ccs > 0:
+        #     if nucl != self.seq[coord_in_ccs - 1]:
+        #         return  coord_in_ccs #0-indexed
+        #     else:
+        #         while coord_in_ccs > 0 and (nucl == self.seq[coord_in_ccs - 1]):
+        #             # print("HERRRRE")
+        #             coord_in_ccs -= 1
+        #             nucl = self.seq[coord_in_ccs]
 
-                return coord_in_ccs
-        else:
-            return  coord_in_ccs #0-indexed
+        #         return coord_in_ccs
+        # else:
+        #     return  coord_in_ccs #0-indexed
 
-        # print(coord_in_ccs, coord_in_ccs2)
-        # assert coord_in_ccs == coord_in_ccs2
 
+        return coord_in_ccs
         
 
     def get_p_error_in_base(self, coord):
@@ -76,6 +80,9 @@ class CCS(object):
         return p
 
 
+def p_error_to_qual(p):
+    q = -10*math.log( p, 10)
+    return q
 
 def fix_quality_values(seq, qualities):
     assert len(seq) == len(qualities)
@@ -151,6 +158,7 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
     print("HERE!")
 
     # lambda_ = 0
+    # lambda_2 = 0
     # cntr = 0
     # for q_acc in ccs_dict_raw:
     #     ccs_record = ccs_dict_raw[q_acc]
@@ -159,10 +167,14 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
     #     if index >= 0:
     #         print(ccs_record.qual[index + 9: index + 15], ccs_record.seq[index + 9: index + 15])
     #         p_error = ccs_record.get_p_error_in_base(index + 9)
+    #         p_error2 = sum([ccs_record.get_p_error_in_base(index + pos) for pos in range(9,13)])
     #         print(index + 9, p_error)
     #         lambda_ += p_error
+    #         lambda_2 += min(1.0, p_error2)
     #         cntr += 1
     # print("tot prob:", lambda_, "tot obs:", cntr)
+    # print("tot sum prob homopol:", lambda_2, "tot obs:", cntr)
+    
     return ccs_dict_raw
 
 
