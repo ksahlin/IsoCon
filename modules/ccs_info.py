@@ -53,6 +53,7 @@ class CCS(object):
             seq_piece = "".join([n for n in aln_piece_after if n != "-"])
             index = self.seq.index(seq_piece)
             coord_in_ccs = index
+            print("Gah here")
 
         # below code does not work if substitution within a homopolymenr region..
         # # verify that index is the left most if homopolymer region, otherwise shift left

@@ -284,6 +284,7 @@ def get_ccs_position_prob_per_read(target_accession, alignment_matrix, candidate
             # else:
 
             ccs_coord = ccs_dict[q_acc].alignment_matrix_pos_to_ccs_coord(ccs_alignment, pos)
+            print(ccs_coord, len(ccs_alignment), pos)
             p_error = ccs_dict[q_acc].get_p_error_in_base(ccs_coord)
             probability[q_acc] *= p_error
             # print("".join([n for n in target_alignment[pos-100:pos+100]]))

@@ -207,6 +207,8 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         ccs_dict = ccs_info.modify_strings_and_acc(ccs_dict_raw, X_ids, X)
         for x_acc in X:
             assert X[x_acc] == ccs_dict[x_acc].seq
+            # if "GTTCGACAGCTCAACCTCTATGGATTTAGTAAAATTCAAC" in ccs_dict[x_acc].seq:
+            #     print("rare variant in read!", x_acc)
         # print("BUG SEARCH")
         # for q_acc in partition_of_X["transcript_3_support_15"]:
         #     print()

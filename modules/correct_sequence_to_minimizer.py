@@ -243,6 +243,10 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
     if len(partition) > 1 and N_t > 2:
         # all strings has not converged
         alignment_matrix, PFM = create_position_probability_matrix(m, partition) 
+        for s_before in partition:
+            s_after = "".join([n for n in alignment_matrix[s_before] if n != "-"])
+            assert s_before == s_after
+
         # consensus_alignment = [ max(PFM[j], key=lambda k: PFM[j][k]) for j in range(len(PFM))]
         # print("minimizer errors:",  math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)  )
         # frozen_positions = get_frozen_positions(alignment_matrix[m])
@@ -277,14 +281,21 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
 
         for s in sorted(partition):
             nr_pos_to_correct2 = int(math.ceil(partition[s][0] / 2.0)) #decide how many errors we should correct here
-            # print("positions to correct for sequence s:", nr_pos_to_correct, s ==m)
             s_alignment_in_matrix = alignment_matrix[s]
+            
+            minority_positions = [ (j,majority_vector[j], s_alignment_in_matrix[j]) for j in range(len(majority_vector)) if s_alignment_in_matrix[j] not in majority_vector[j] ]
+            
             nr_pos_to_correct = int(math.ceil( len([ 1 for j in range(len(majority_vector)) if (len(majority_vector[j]) == 1 and majority_vector[j] != s_alignment_in_matrix[j] ) ]) * 0.5)) # (step/ float(step +1)) ))
             # print("positions to correct:", nr_pos_to_correct)
 
-            if nr_pos_to_correct2 > 0 and nr_pos_to_correct == 0:
-                print("Edit distance: {0}, but after removing ambiguous majority positions 0 to correct. Lenght partition (unique): {1}, total seqs: {2}".format(nr_pos_to_correct2, len(partition), N_t))
+            if nr_pos_to_correct == 0:
+                print("Edit distance to minimizer:", partition[s][0], "is minimizer:", s ==m, "Minority positions:", minority_positions)
 
+            if nr_pos_to_correct2 > 0 and nr_pos_to_correct == 0:
+                print("Edit distance to minimizer: {0}, {1} minority positions, correcting no position. Length partition (unique): {2}, total seqs: {3}".format(partition[s][0], len(minority_positions), len(partition), N_t))
+                # for s in partition:
+                #     print(s)
+                # print([ (j,majority_vector[j], s_alignment_in_matrix[j], PFM[j]) for j in range(len(majority_vector)) if majority_vector[j] != s_alignment_in_matrix[j] ])
             if nr_pos_to_correct  == 0:
                 continue
 
