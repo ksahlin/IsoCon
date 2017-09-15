@@ -395,8 +395,8 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         # p_value = poisson_approx_test(probability, weight, x)
         p_value = exact_test(probability, weight, x)
         print("exact p:", p_value )
-        p_value2 = raghavan_upper_pvalue_bound(probability, x)
-        print("Weighted raghavan p:", p_value2 )
+        # p_value = raghavan_upper_pvalue_bound(probability, x)
+        # print("Weighted raghavan p:", p_value )
 
         correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
 
@@ -442,11 +442,11 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
     # print("p-min: ",p_i_min, "nr supp:", len(x_equal_to_one), [weight[x_i] for x_i in x_equal_to_one ] )
     d = y / m - 1
     k = m*d
-    if d > 10:
-        p_value_upper_bound = k.exp() / (d+1)**(k + k/d)
+    # if d > 10:
+    p_value_upper_bound = k.exp() / (d+1)**(k + k/d)
 
-    else:
-        p_value_upper_bound = (d.exp() / (d+1)**(d+1))**m
+    # else:
+    #     p_value_upper_bound = (d.exp() / (d+1)**(d+1))**m
 
     print("m:{0}, d:{1}, y:{2}, k :{3}, p_bound={4}".format(round(m,20) , round(d,20),round(y,20), round(k,20), round(p_value_upper_bound,20) ) )
     return float(p_value_upper_bound)
