@@ -375,14 +375,15 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         if ccs_dict:
             errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
             invariant_factors_for_candidate = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
-            empirical_probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
-            
+            # empirical_probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
+            min_uncertainty = functions.get_min_uncertainty_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
+
             ccs_probability = functions.get_ccs_position_prob_per_read(t_acc, alignment_matrix_to_t, candidate_accessions, delta_t, ccs_dict) 
             weight = {q_acc : ccs_info.p_error_to_qual(ccs_probability[q_acc]) for q_acc in ccs_probability.keys()}
-            print("emp:", sum( list(empirical_probability.values()) ), candidate_accessions )
+            # print("emp:", sum( list(empirical_probability.values()) ), candidate_accessions )
             print("ccs:", sum( list(ccs_probability.values()) ), candidate_accessions )
-            print("Max:", sum( [ max(ccs_probability[q_acc], empirical_probability[q_acc] ) for q_acc in ccs_probability] ), candidate_accessions )
-            probability = {  q_acc : max(ccs_probability[q_acc], empirical_probability[q_acc] ) for q_acc in ccs_probability }
+            print("Max:", sum( [ max(ccs_probability[q_acc], min_uncertainty[q_acc] ) for q_acc in ccs_probability] ), candidate_accessions )
+            probability = {  q_acc : max(ccs_probability[q_acc], min_uncertainty[q_acc] ) for q_acc in ccs_probability }
         else:
             errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
             weight = functions.get_weights_per_read(t_acc, len(t_seq), candidate_accessions, errors) 
@@ -393,6 +394,10 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         # p_value = CLT_test(probability, weight, x)
         # p_value = poisson_approx_test(probability, weight, x)
         p_value = exact_test(probability, weight, x)
+        print("exact p:", p_value )
+        p_value2 = raghavan_upper_pvalue_bound(probability, x)
+        print("Weighted raghavan p:", p_value2 )
+
         correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
 
         delta_size = len(delta_t[c_acc])
@@ -405,8 +410,46 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
     return significance_values
 
 
+
+
 from decimal import * 
 getcontext().prec = 100
+
+def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
+    """ 
+        Method for bounding the p-value from above based on:
+        https://math.stackexchange.com/questions/1546366/distribution-of-weighted-sum-of-bernoulli-rvs
+        With this paper: [1] https://www.cc.gatech.edu/~mihail/Rag88.pdf
+
+        1. assign all weights  0 < a_i <= 1 as w_i = min(p_i) / p_i
+        smallest probabilities will get weight 1.0. 
+        2. Define Y = sum_i x_i*w_i calculate mean E[Y] = m = sum_i p_i*w_i
+        3. Use Theorem 1 in [1] that states 
+            (*) P(Y > m(1+d)) < (e^d / (1+d)^(1+d) )^m
+            for d > 0, m > 0.
+
+            (i) Get relevant d (given a value y) for us by letting d := (y/m) - 1
+            (ii) Compute (e^d / (1+d)^(1+d) )^m. If d (say > 10) large and m small, avoid big and small numbers by
+                (A) Use the fact that m = k/d, for some k.
+                (B) Rewrite RHS in (*) as e^(d*k/d) / (1+d)^(k(1+d)/d)  =  e^k / (1+d)^(k + k/d)
+        4. p_value is now bounded above (no greater than) the computed value.
+    """
+    p_i_min = min(probability.values())
+    weight = {q_acc : p_i_min / probability[q_acc]  for q_acc in probability.keys()}
+
+    m = Decimal( sum([ weight[q_acc] * probability[q_acc]  for q_acc in probability.keys()]) )
+    y = Decimal( sum([weight[x_i] for x_i in x_equal_to_one ]) )
+    # print("p-min: ",p_i_min, "nr supp:", len(x_equal_to_one), [weight[x_i] for x_i in x_equal_to_one ] )
+    d = y / m - 1
+    k = m*d
+    if d > 10:
+        p_value_upper_bound = k.exp() / (d+1)**(k + k/d)
+
+    else:
+        p_value_upper_bound = (d.exp() / (d+1)**(d+1))**m
+
+    print("m:{0}, d:{1}, y:{2}, k :{3}, p_bound={4}".format(round(m,20) , round(d,20),round(y,20), round(k,20), round(p_value_upper_bound,20) ) )
+    return float(p_value_upper_bound)
 
 def exact_test(probability, weight, x):
     probs = list(probability.values())

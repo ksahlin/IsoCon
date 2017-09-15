@@ -267,7 +267,7 @@ def get_ccs_position_prob_per_read(target_accession, alignment_matrix, candidate
             continue  
 
 
-        print("q", len("".join([n for n in alignment_matrix[q_acc] if n != "-"])))
+        # print("q", len("".join([n for n in alignment_matrix[q_acc] if n != "-"])))
 
 
         probability[q_acc] = 1.0
@@ -284,7 +284,7 @@ def get_ccs_position_prob_per_read(target_accession, alignment_matrix, candidate
             # else:
 
             ccs_coord = ccs_dict[q_acc].alignment_matrix_pos_to_ccs_coord(ccs_alignment, pos)
-            print(ccs_coord, len(ccs_alignment), pos)
+            # print(ccs_coord, len(ccs_alignment), pos)
             p_error = ccs_dict[q_acc].get_p_error_in_base(ccs_coord)
             probability[q_acc] *= p_error
             # print("".join([n for n in target_alignment[pos-100:pos+100]]))
@@ -294,15 +294,15 @@ def get_ccs_position_prob_per_read(target_accession, alignment_matrix, candidate
             # print("ccs bam seq:", ccs_dict[q_acc].seq)
             # print(candidate_alignment[pos-10:pos+10], pos, ccs_coord)
             # print('pos:', ccs_dict[q_acc].seq.find("GTCACTGCTGGATATCA"), "pred coord:", ccs_coord)
-            print(pos, c_state, c_base, ccs_alignment[pos], ccs_dict[q_acc].seq[ccs_coord],   ccs_alignment[pos-10:pos+10],  ccs_dict[q_acc].seq[ccs_coord-6:ccs_coord +11], p_error, ccs_dict[q_acc].np)
+            # print(pos, c_state, c_base, ccs_alignment[pos], ccs_dict[q_acc].seq[ccs_coord],   ccs_alignment[pos-10:pos+10],  ccs_dict[q_acc].seq[ccs_coord-6:ccs_coord +11], p_error, ccs_dict[q_acc].np)
 
-            ccs_nucl = ccs_alignment[pos]            
-            if ccs_nucl == t_nucl:
-                # tmp_weight_equal += ccs_dict[q_acc].np
-                tmp_weight_equal += ccs_dict[q_acc].qual[ccs_coord]
-            else:
-                # tmp_weight_diff += ccs_dict[q_acc].np
-                tmp_weight_diff += ccs_dict[q_acc].qual[ccs_coord]
+            # ccs_nucl = ccs_alignment[pos]            
+            # if ccs_nucl == t_nucl:
+            #     # tmp_weight_equal += ccs_dict[q_acc].np
+            #     tmp_weight_equal += ccs_dict[q_acc].qual[ccs_coord]
+            # else:
+            #     # tmp_weight_diff += ccs_dict[q_acc].np
+            #     tmp_weight_diff += ccs_dict[q_acc].qual[ccs_coord]
 
 
             # if ccs_nucl == "-": # candidate is a deletion
@@ -312,11 +312,33 @@ def get_ccs_position_prob_per_read(target_accession, alignment_matrix, candidate
             # else: # candidate is substitution
             #     assert ccs_nucl != "-" and  t_nucl != "-"
             #     probability[q_acc] *= p_error #/3.0
-    print("diff:",tmp_weight_diff )
-    print("equal:",tmp_weight_equal )
+    # print("diff:",tmp_weight_diff )
+    # print("equal:",tmp_weight_equal )
 
     return probability
 
+
+def get_min_uncertainty_per_read(target_accession, segment_length, candidate_accessions, errors, invariant_factors_for_candidate):
+    probability = {}
+    assert len(invariant_factors_for_candidate) == 1
+    c_acc = list(invariant_factors_for_candidate.keys())[0]
+
+    for q_acc in errors:
+        probability[q_acc] = 1.0
+        p_S =  (1.0 / float(segment_length) ) / 3.0   # p = 0.0 not allowed, min_p is 1/(3*len(seq))
+        p_I =  (1.0 / float(segment_length) ) / 4.0   # p = 0.0 not allowed, min_p is 1/(4*len(seq))
+        p_D =  (1.0 / float(segment_length) )         # p = 0.0 not allowed, min_p is 1/(len(seq))
+
+        for pos in invariant_factors_for_candidate[c_acc]:
+            for (state, char) in invariant_factors_for_candidate[c_acc][pos]:
+                u_v = invariant_factors_for_candidate[c_acc][pos][(state, char)]
+                if state == "S":
+                    probability[q_acc] *= p_S*u_v # *(1.0/u_v)
+                elif state == "I":
+                    probability[q_acc] *= p_I*u_v #**(1.0/u_v)
+                elif state == "D":
+                    probability[q_acc] *= p_D*u_v #**(1.0/u_v)
+    return probability
 
 
 def get_prob_of_support_per_read(target_accession, segment_length, candidate_accessions, errors, invariant_factors_for_candidate):
@@ -326,9 +348,9 @@ def get_prob_of_support_per_read(target_accession, segment_length, candidate_acc
 
     for q_acc in errors:
         probability[q_acc] = 1.0
-        p_S = (errors[q_acc]["S"] / float(segment_length) ) / 3.0
-        p_I = (errors[q_acc]["I"] / float(segment_length) ) /4.0
-        p_D = (errors[q_acc]["D"] / float(segment_length) )
+        p_S = ( max(errors[q_acc]["S"], 1.0) / float(segment_length) ) / 3.0   # p = 0.0 not allowed, min_p is 1/(3*len(seq))
+        p_I = ( max(errors[q_acc]["I"], 1.0) / float(segment_length) ) / 4.0   # p = 0.0 not allowed, min_p is 1/(4*len(seq))
+        p_D = ( max(errors[q_acc]["D"], 1.0) / float(segment_length) )         # p = 0.0 not allowed, min_p is 1/(len(seq))
 
         for pos in invariant_factors_for_candidate[c_acc]:
             for (state, char) in invariant_factors_for_candidate[c_acc][pos]:

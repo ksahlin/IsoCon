@@ -32,6 +32,7 @@ class CCS(object):
             in our alignment matrix.
         """
 
+
         aln_piece = ccs_alignment_vector[:pos+1]        
 
         # coord_in_ccs = sum([1 for n in aln_piece if n != "-"]) - 1  # go from 1-indexed to 0-indexed
@@ -39,21 +40,25 @@ class CCS(object):
         #     coord_in_ccs += 1
 
         seq_piece = "".join([n for n in aln_piece if n != "-"])
-        if len(seq_piece) > 5:
+        # if len(seq_piece) > 5:
             # print(len(ccs_alignment_vector), pos+1)
             # print("".join([n for n in ccs_alignment_vector if n != "-"])) #print(seq_piece)
             # print(self.seq ) #[ : len(seq_piece)])
-            index = self.seq.index(seq_piece)
-            if ccs_alignment_vector[pos] == "-":
-                coord_in_ccs = index + len(seq_piece)
-            else:
+        index = self.seq.index(seq_piece)
+        if ccs_alignment_vector[pos] == "-": # the position is within a deletion in the ccs sequence, uncertainty need to be obtained from the base following the deletion
+            
+            if len(seq_piece) == len(self.seq): #deletion occurs after last base pair (corner case and base quality is NA)
                 coord_in_ccs = index + len(seq_piece) - 1
+            else:
+                coord_in_ccs = index + len(seq_piece)  
         else:
-            aln_piece_after = ccs_alignment_vector[pos:]        
-            seq_piece = "".join([n for n in aln_piece_after if n != "-"])
-            index = self.seq.index(seq_piece)
-            coord_in_ccs = index
-            print("Gah here")
+            coord_in_ccs = index + len(seq_piece) - 1
+        # else:
+        #     aln_piece_after = ccs_alignment_vector[pos:]        
+        #     seq_piece = "".join([n for n in aln_piece_after if n != "-"])
+        #     index = self.seq.index(seq_piece)
+        #     coord_in_ccs = index
+        #     print("Gah here")
 
         # below code does not work if substitution within a homopolymenr region..
         # # verify that index is the left most if homopolymer region, otherwise shift left
@@ -82,7 +87,7 @@ class CCS(object):
 
 
 def p_error_to_qual(p):
-    print(p)
+    # print(p)
     q = -10*math.log( p, 10)
     return q
 
