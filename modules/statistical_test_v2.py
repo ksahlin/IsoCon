@@ -393,10 +393,10 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         #TODO: do exact only if partition less than, say 200? Otherwise poisson approx
         # p_value = CLT_test(probability, weight, x)
         # p_value = poisson_approx_test(probability, weight, x)
-        # p_value = exact_test(probability, weight, x)
-        # print("exact p:", p_value )
-        p_value = raghavan_upper_pvalue_bound(probability, x)
-        print("Weighted raghavan p:", p_value )
+        p_value = exact_test(probability, weight, x)
+        print("exact p:", p_value )
+        # p_value = raghavan_upper_pvalue_bound(probability, x)
+        # print("Weighted raghavan p:", p_value )
 
         # correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
 
