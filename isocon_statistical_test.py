@@ -401,7 +401,8 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
                 nr_candidates_tested = len([c_acc for c_acc,  tuple_vals in new_significance_values_list if tuple_vals[0] != "not_tested"])
                 print("Number of unique candidates tested:",  nr_candidates_tested)
 
-                p_val_threshold = max(corrected_pvals_median, 1.0/float(nr_candidates_tested)) 
+                # p_val_threshold = max(corrected_pvals_median, 1.0/float(nr_candidates_tested)) 
+                p_val_threshold = max(corrected_pvals_median, 0.05) 
                 print("Filtering threshold (p_val*mult_correction_factor):",  p_val_threshold)
 
         previous_partition_of_X = copy.deepcopy(partition_of_X)

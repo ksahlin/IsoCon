@@ -393,19 +393,22 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         #TODO: do exact only if partition less than, say 200? Otherwise poisson approx
         # p_value = CLT_test(probability, weight, x)
         # p_value = poisson_approx_test(probability, weight, x)
-        p_value = exact_test(probability, weight, x)
-        print("exact p:", p_value )
-        # p_value = raghavan_upper_pvalue_bound(probability, x)
-        # print("Weighted raghavan p:", p_value )
+        # p_value = exact_test(probability, weight, x)
+        # print("exact p:", p_value )
+        p_value = raghavan_upper_pvalue_bound(probability, x)
+        print("Weighted raghavan p:", p_value )
 
-        correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
+        # correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
 
         delta_size = len(delta_t[c_acc])
         if delta_size == 0:
             print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
 
-        print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, correction_factor, p_value * correction_factor,  len(x), N_t, delta_size) )
-        significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
+        # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, correction_factor, p_value * correction_factor,  len(x), N_t, delta_size) )
+        # significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
+
+        print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, Delta_size:{3}, delta:{4}".format(p_value, len(x), N_t, delta_size, delta_t[c_acc]) )
+        significance_values[c_acc] = (p_value, 1.0, len(x), N_t, delta_size)
 
     return significance_values
 

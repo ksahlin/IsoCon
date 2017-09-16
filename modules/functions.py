@@ -63,7 +63,7 @@ def cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_end
     cut_end = len(target_alignment) - cut_end
 
 
-    print("cutting from", len(target_alignment), "positions to", len(target_alignment[ cut_start : cut_end ]) )
+    # print("cutting from", len(target_alignment), "positions to", len(target_alignment[ cut_start : cut_end ]) )
     for acc in alignment_matrix_to_t:
         alignment_matrix_to_t[acc] = alignment_matrix_to_t[acc][ cut_start : cut_end ]
     return  alignment_matrix_to_t
