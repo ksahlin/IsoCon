@@ -45,6 +45,7 @@ class CCS(object):
             # print("".join([n for n in ccs_alignment_vector if n != "-"])) #print(seq_piece)
             # print(self.seq ) #[ : len(seq_piece)])
         index = self.seq.index(seq_piece)
+        print("found at index:", index, "length piece:", len(seq_piece), ccs_alignment_vector[pos] == "-")
         if ccs_alignment_vector[pos] == "-": # the position is within a deletion in the ccs sequence, uncertainty need to be obtained from the base following the deletion
             
             if len(seq_piece) == len(self.seq): #deletion occurs after last base pair (corner case and base quality is NA)
