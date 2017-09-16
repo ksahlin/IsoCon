@@ -40,26 +40,32 @@ class CCS(object):
         #     coord_in_ccs += 1
 
         seq_piece = "".join([n for n in aln_piece if n != "-"])
-        # if len(seq_piece) > 5:
+        if len(seq_piece) > 20:
             # print(len(ccs_alignment_vector), pos+1)
             # print("".join([n for n in ccs_alignment_vector if n != "-"])) #print(seq_piece)
             # print(self.seq ) #[ : len(seq_piece)])
-        index = self.seq.index(seq_piece)
-        print("found at index:", index, "length piece:", len(seq_piece), ccs_alignment_vector[pos] == "-")
-        if ccs_alignment_vector[pos] == "-": # the position is within a deletion in the ccs sequence, uncertainty need to be obtained from the base following the deletion
-            
-            if len(seq_piece) == len(self.seq): #deletion occurs after last base pair (corner case and base quality is NA)
-                coord_in_ccs = index + len(seq_piece) - 1
+            index = self.seq.index(seq_piece)
+            # print("found at index:", index, "length piece:", len(seq_piece), ccs_alignment_vector[pos] == "-")
+            if ccs_alignment_vector[pos] == "-": # the position is within a deletion in the ccs sequence, uncertainty need to be obtained from the base following the deletion
+                
+                if (index + len(seq_piece) ) < len(self.seq):
+                    coord_in_ccs = index + len(seq_piece)  
+
+                elif (index + len(seq_piece) ) == len(self.seq): #deletion occurs after last base pair (corner case and base quality is NA)
+                    coord_in_ccs = index + len(seq_piece) - 1
+                else:
+                    print("Index error:", index, "length seq_piece:", len(seq_piece), "length sequence:", len(len(self.seq)), ccs_alignment_vector[pos] == "-")
+                    sys.exit()
+
             else:
-                coord_in_ccs = index + len(seq_piece)  
+                coord_in_ccs = index + len(seq_piece) - 1
+
         else:
-            coord_in_ccs = index + len(seq_piece) - 1
-        # else:
-        #     aln_piece_after = ccs_alignment_vector[pos:]        
-        #     seq_piece = "".join([n for n in aln_piece_after if n != "-"])
-        #     index = self.seq.index(seq_piece)
-        #     coord_in_ccs = index
-        #     print("Gah here")
+            aln_piece_after = ccs_alignment_vector[pos:]        
+            seq_piece = "".join([n for n in aln_piece_after if n != "-"])
+            index = self.seq.index(seq_piece)
+            coord_in_ccs = index
+            print("Gah here")
 
         # below code does not work if substitution within a homopolymenr region..
         # # verify that index is the left most if homopolymer region, otherwise shift left
@@ -138,6 +144,7 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
                 # if index >= 0:
                 #     print("reversed:",  ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
                 assert ccs_record.seq == X[q_acc]
+                assert len(ccs_record.seq) == len(ccs_record.qual)
 
             else:
                 ccs_record = ccs_dict_raw[q_id]
@@ -149,6 +156,8 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
                 # if index >= 0:
                 #     print(index, ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
                 assert ccs_record.seq == X[q_acc]
+                assert len(ccs_record.seq) == len(ccs_record.qual)
+
 
             # change bach the name of the ccs_record to match with the flnc reads 
             new_q_name = X_ids[q_id]

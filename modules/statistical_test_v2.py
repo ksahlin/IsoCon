@@ -352,8 +352,9 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
     reads_and_candidates = reads.union( [c_acc for c_acc in candidates]) 
     reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
 
-    for x_acc in X:
-        assert X[x_acc] == ccs_dict[x_acc].seq
+    # for x_acc in X:
+    #     assert X[x_acc] == ccs_dict[x_acc].seq
+
     # get multialignment matrix here
     alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_len)
 
@@ -379,24 +380,24 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
             min_uncertainty = functions.get_min_uncertainty_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
 
             ccs_probability = functions.get_ccs_position_prob_per_read(t_acc, alignment_matrix_to_t, candidate_accessions, delta_t, ccs_dict) 
-            weight = {q_acc : ccs_info.p_error_to_qual(ccs_probability[q_acc]) for q_acc in ccs_probability.keys()}
+            # weight = {q_acc : ccs_info.p_error_to_qual(ccs_probability[q_acc]) for q_acc in ccs_probability.keys()}
             # print("emp:", sum( list(empirical_probability.values()) ), candidate_accessions )
             print("ccs:", sum( list(ccs_probability.values()) ), candidate_accessions )
             print("Max:", sum( [ max(ccs_probability[q_acc], min_uncertainty[q_acc] ) for q_acc in ccs_probability] ), candidate_accessions )
             probability = {  q_acc : max(ccs_probability[q_acc], min_uncertainty[q_acc] ) for q_acc in ccs_probability }
         else:
             errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
-            weight = functions.get_weights_per_read(t_acc, len(t_seq), candidate_accessions, errors) 
+            # weight = functions.get_weights_per_read(t_acc, len(t_seq), candidate_accessions, errors) 
             invariant_factors_for_candidate = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
             probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
 
         #TODO: do exact only if partition less than, say 200? Otherwise poisson approx
         # p_value = CLT_test(probability, weight, x)
         # p_value = poisson_approx_test(probability, weight, x)
-        p_value = exact_test(probability, weight, x)
-        print("exact p:", p_value )
-        # p_value = raghavan_upper_pvalue_bound(probability, x)
-        # print("Weighted raghavan p:", p_value )
+        # p_value = exact_test(probability, weight, x)
+        # print("exact p:", p_value )
+        p_value = raghavan_upper_pvalue_bound(probability, x)
+        print("Weighted raghavan p:", p_value )
 
         # correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
 
