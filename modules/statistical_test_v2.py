@@ -445,8 +445,14 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
     # print("p-min: ",p_i_min, "nr supp:", len(x_equal_to_one), [weight[x_i] for x_i in x_equal_to_one ] )
     d = y / m - 1
     k = m*d
+    print(m, y, d, k)
     # if d > 10:
-    p_value_upper_bound = k.exp() / (d+1)**(k + k/d)
+    if d == 0:
+        p_value_upper_bound = 0.5
+    else:
+        p_value_upper_bound = k.exp() / (d+1)**(k + k/d)
+
+
 
     # else:
     #     p_value_upper_bound = (d.exp() / (d+1)**(d+1))**m
