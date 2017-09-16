@@ -445,17 +445,21 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
     # print("p-min: ",p_i_min, "nr supp:", len(x_equal_to_one), [weight[x_i] for x_i in x_equal_to_one ] )
     d = y / m - 1
     k = m*d
-    print(m, y, d, k)
+
     # if d > 10:
-    if d == 0:
+    if y == 0:
+        p_value_upper_bound = 1.0
+    elif d == 0:
         p_value_upper_bound = 0.5
     else:
-        p_value_upper_bound = k.exp() / (d+1)**(k + k/d)
+        try:
+            p_value_upper_bound = k.exp() / (d+1)**(k + k/d)
+        except:
+            print("Decimal computation error:")
+            print("Values: m:{0}, d:{1}, y:{2}, k :{3}, p_bound={4}".format(m, d, y, k) )
 
-
-
-    # else:
-    #     p_value_upper_bound = (d.exp() / (d+1)**(d+1))**m
+        # else:
+        #     p_value_upper_bound = (d.exp() / (d+1)**(d+1))**m
 
     print("m:{0}, d:{1}, y:{2}, k :{3}, p_bound={4}".format(round(m,20) , round(d,20),round(y,20), round(k,20), round(p_value_upper_bound,20) ) )
     return float(p_value_upper_bound)
