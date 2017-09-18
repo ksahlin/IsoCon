@@ -396,9 +396,9 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         # p_value = poisson_approx_test(probability, weight, x)
         # p_value = exact_test(probability, weight, x)
         # print("exact p:", p_value )
-        print()
-        print(sorted(errors.values()))
-        print(sorted(probability.values()))
+        # print()
+        # print(sorted(errors.values()))
+        # print(sorted(probability.values()))
         p_value = raghavan_upper_pvalue_bound(probability, x)
         # print("Weighted raghavan p:", p_value )
 
