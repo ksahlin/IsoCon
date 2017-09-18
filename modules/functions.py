@@ -244,12 +244,13 @@ def get_difference_coordinates_for_candidates(target_accession, candidate_access
     return position_differences
 
 
-def get_ccs_position_prob_per_read(target_accession, alignment_matrix, candidate_accessions, Delta_t, ccs_dict):
+def get_ccs_position_prob_per_read(target_accession, target_length, alignment_matrix, invariant_factors_for_candidate, candidate_accessions, Delta_t, ccs_dict):
     probability = {}
     assert len(candidate_accessions) == 1
     c_acc = list(candidate_accessions)[0]
     target_alignment = alignment_matrix[target_accession]
     candidate_alignment = alignment_matrix[c_acc]
+    delta_size = float(len(invariant_factors_for_candidate[c_acc]))
 
     # this looping needs re-writing
     # reads can have any basepair at given position.
@@ -268,7 +269,10 @@ def get_ccs_position_prob_per_read(target_accession, alignment_matrix, candidate
 
 
         print("q length:", len("".join([n for n in alignment_matrix[q_acc] if n != "-"])))
-
+        
+        empirical_min_uncertainty_S =  (delta_size / float(target_length) ) / 3.0   # p = 0.0 not allowed, min_p is 1/(3*len(seq))
+        empirical_min_uncertainty_I =  (delta_size / float(target_length) ) / 4.0   # p = 0.0 not allowed, min_p is 1/(4*len(seq))
+        empirical_min_uncertainty_D =  (delta_size / float(target_length) )         # p = 0.0 not allowed, min_p is 1/(len(seq))
 
         probability[q_acc] = 1.0
         ccs_alignment = alignment_matrix[q_acc]
@@ -278,15 +282,27 @@ def get_ccs_position_prob_per_read(target_accession, alignment_matrix, candidate
             t_nucl = target_alignment[pos]
             assert c_base != t_nucl
 
-            # if c_state == "S":
-            # elif c_state == "I":
 
-            # else:
+            ###############################
+            ### Empirical lower uncertainty 
+            u_v = invariant_factors_for_candidate[c_acc][pos][(c_state, c_base)]
+            if c_state == "S":
+                min_uncertainty = empirical_min_uncertainty_S*u_v # *(1.0/u_v)
+            elif c_state == "I":
+                min_uncertainty = empirical_min_uncertainty_I*u_v #**(1.0/u_v)
+            elif c_state == "D":
+                min_uncertainty = empirical_min_uncertainty_D*u_v #**(1.0/u_v)
 
+            ###############################
+
+            ###  base pair quality predictions ###
             ccs_coord = ccs_dict[q_acc].alignment_matrix_pos_to_ccs_coord(ccs_alignment, pos)
             print(ccs_coord, len(ccs_alignment), pos)
             p_error = ccs_dict[q_acc].get_p_error_in_base(ccs_coord)
-            probability[q_acc] *= p_error
+            
+            probability[q_acc] *= max(p_error, min_uncertainty)
+
+            # probability[q_acc] *= p_error
             # print("".join([n for n in target_alignment[pos-100:pos+100]]))
             # print("".join([n for n in candidate_alignment[pos-100:pos+100]]))
             # print("".join([n for n in ccs_alignment[pos-100:pos+100]]))
@@ -329,7 +345,7 @@ def get_min_uncertainty_per_read(target_accession, segment_length, candidate_acc
             continue
         if q_acc == c_acc:
             continue 
-             
+
     # for q_acc in errors:
         probability[q_acc] = 1.0
         p_S =  (delta_size / float(segment_length) ) / 3.0   # p = 0.0 not allowed, min_p is 1/(3*len(seq))

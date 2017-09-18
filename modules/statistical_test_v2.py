@@ -346,6 +346,15 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
 
     N_t = len(reads)
 
+    # no reads supporting neither the candidate nor the reference t
+    #  this can happen if after realignment of reads to candidates, all the reads 
+    # to noth c and t got assigned to other candidates -- based on minimizer graph 
+    # (should be rare) 
+    if N_t == 0: 
+        significance_values[t_acc] = (1.0, 1.0, len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
+        return significance_values
+    
+
     # print("N_t:", N_t, "reads in partition:", total_read_in_partition, "ref:", t_acc )
     # print("Nr candidates:", len(candidates), candidates)
     assert total_read_in_partition == N_t # each read should be uiquely assinged to a candidate
@@ -379,12 +388,12 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
             # empirical_probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
             min_uncertainty = functions.get_min_uncertainty_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t, invariant_factors_for_candidate) 
 
-            ccs_probability = functions.get_ccs_position_prob_per_read(t_acc, alignment_matrix_to_t, candidate_accessions, delta_t, ccs_dict) 
+            probability = functions.get_ccs_position_prob_per_read(t_acc, len(t_seq), alignment_matrix_to_t, invariant_factors_for_candidate, candidate_accessions, delta_t, ccs_dict) 
             # weight = {q_acc : ccs_info.p_error_to_qual(ccs_probability[q_acc]) for q_acc in ccs_probability.keys()}
             # print("emp:", sum( list(empirical_probability.values()) ), candidate_accessions )
-            print("ccs:", sum( list(ccs_probability.values()) ), candidate_accessions )
-            print("Max:", sum( [ max(ccs_probability[q_acc], min_uncertainty[q_acc] ) for q_acc in ccs_probability] ), candidate_accessions )
-            probability = {  q_acc : max(ccs_probability[q_acc], min_uncertainty[q_acc] ) for q_acc in ccs_probability }
+            print("ccs:", sum( list(probability.values()) ), candidate_accessions )
+            # print("Max:", sum( [ max(ccs_probability[q_acc], min_uncertainty[q_acc] ) for q_acc in ccs_probability] ), candidate_accessions )
+            # probability = {  q_acc : max(ccs_probability[q_acc], min_uncertainty[q_acc] ) for q_acc in ccs_probability }
         else:
             errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
             # weight = functions.get_weights_per_read(t_acc, len(t_seq), candidate_accessions, errors) 
@@ -472,9 +481,9 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
     # 2. Calculate probability that _any_ bernoilly event happens, i.e., Y > 0, 
     #     as P = 1 - (1 - p)^(N_t), This is less significant than k bernoilli sucesses where all p_i <= p.
     # therefore P is an upper bound on the p-value
-    p_ = Decimal(max(probability.values()))
-    our_bound = Decimal(1.0) - (Decimal(1.0) - p_ )**len(probability)
-    print("Our:{0}, Raghavan: {1}".format(our_bound, raghavan_bound))
+    # p_ = Decimal(max(probability.values()))
+    # our_bound = Decimal(1.0) - (Decimal(1.0) - p_ )**len(probability)
+    # print("Our:{0}, Raghavan: {1}".format(our_bound, raghavan_bound))
     ##### temporary check if this is a better bound #######
     # from Section "other properties" in "https://en.wikipedia.org/wiki/Moment-generating_function
     # M_t = sum([ Decimal(1) - Decimal(p_i) + Decimal(p_i)*Decimal(y).exp() for p_i in probability.values() ])
@@ -484,7 +493,8 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
     ########################################################
 
     # print("m:{0}, d:{1}, y:{2}, k :{3}, p_bound={4}".format(round(m,20) , round(d,20),round(y,20), round(k,20), round(p_value_upper_bound,20) ) )
-    return min(float(our_bound), float(raghavan_bound))
+    # return min(float(our_bound), float(raghavan_bound))
+    return float(raghavan_bound)
 
 def exact_test(probability, weight, x):
     probs = list(probability.values())
