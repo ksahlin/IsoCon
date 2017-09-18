@@ -318,13 +318,19 @@ def get_ccs_position_prob_per_read(target_accession, alignment_matrix, candidate
     return probability
 
 
-def get_min_uncertainty_per_read(target_accession, segment_length, candidate_accessions, errors, invariant_factors_for_candidate):
+def get_min_uncertainty_per_read(target_accession, segment_length, candidate_accessions, alignment_matrix, invariant_factors_for_candidate):
     probability = {}
     assert len(invariant_factors_for_candidate) == 1
     c_acc = list(invariant_factors_for_candidate.keys())[0]
     delta_size = float(len(invariant_factors_for_candidate[c_acc]))
 
-    for q_acc in errors:
+    for q_acc in alignment_matrix:
+        if q_acc == target_accession:
+            continue
+        if q_acc == c_acc:
+            continue 
+             
+    # for q_acc in errors:
         probability[q_acc] = 1.0
         p_S =  (delta_size / float(segment_length) ) / 3.0   # p = 0.0 not allowed, min_p is 1/(3*len(seq))
         p_I =  (delta_size / float(segment_length) ) / 4.0   # p = 0.0 not allowed, min_p is 1/(4*len(seq))
