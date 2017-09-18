@@ -190,7 +190,7 @@ if __name__ == '__main__':
     pipeline.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
     pipeline.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     pipeline.add_argument('--minimizer_search_depth', type=int, default=2**32, help='Maximum number of pairwise alignments in search matrix to find minimizer. [default =2**32]')
-    pipeline.add_argument('--minimizer_min_identity', type=float, default=0, help='Minimum identity between sequences to be considered. [default = 0.0, all identity levels considered]')
+    pipeline.add_argument('--p_value_threshold', type=float, default=0.01, help='Minimum identity between sequences to be considered. [default = 0.0, all identity levels considered]')
     pipeline.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
     pipeline.add_argument('--min_candidate_support', type=int, default=2, help='Required minimum number of reads converged to the same sequence to be included in statistical test.')
     # pipeline.add_argument('--minimap_bin_size', type=int, default=1000, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')

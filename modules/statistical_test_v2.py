@@ -374,7 +374,7 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         x = functions.reads_supporting_candidate(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
         
         if ccs_dict:
-            errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
+            # errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
             invariant_factors_for_candidate = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
             # empirical_probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
             min_uncertainty = functions.get_min_uncertainty_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
@@ -396,8 +396,11 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         # p_value = poisson_approx_test(probability, weight, x)
         # p_value = exact_test(probability, weight, x)
         # print("exact p:", p_value )
+        print()
+        print(sorted(errors.values()))
+        print(sorted(probability.values()))
         p_value = raghavan_upper_pvalue_bound(probability, x)
-        print("Weighted raghavan p:", p_value )
+        # print("Weighted raghavan p:", p_value )
 
         # correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
 
@@ -443,27 +446,45 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
 
     m = Decimal( sum([ weight[q_acc] * probability[q_acc]  for q_acc in probability.keys()]) )
     y = Decimal( sum([weight[x_i] for x_i in x_equal_to_one ]) )
-    # print("p-min: ",p_i_min, "nr supp:", len(x_equal_to_one), [weight[x_i] for x_i in x_equal_to_one ] )
+    print("p-min: ",p_i_min, "nr supp:", len(x_equal_to_one), sorted([weight[x_i] for x_i in x_equal_to_one ]) )
     d = y / m - 1
     k = m*d
 
     # if d > 10:
     if y == 0:
-        p_value_upper_bound = 1.0
+        raghavan_bound = 1.0
     elif d == 0:
-        p_value_upper_bound = 0.5
+        raghavan_bound = 0.5
     else:
         try:
-            p_value_upper_bound = k.exp() / (d+1)**(k + k/d)
+            raghavan_bound = k.exp() / (d+1)**(k + k/d)
         except:
             print("Decimal computation error:")
-            print("Values: m:{0}, d:{1}, y:{2}, k :{3}, p_bound={4}".format(m, d, y, k) )
+            print("Values: m:{0}, d:{1}, y:{2}, k :{3}".format(m, d, y, k) )
 
         # else:
-        #     p_value_upper_bound = (d.exp() / (d+1)**(d+1))**m
+        #     raghavan_bound = (d.exp() / (d+1)**(d+1))**m
+    # print("Values: m:{0}, d:{1}, y:{2}, k :{3}".format(m, d, y, k) )
 
-    print("m:{0}, d:{1}, y:{2}, k :{3}, p_bound={4}".format(round(m,20) , round(d,20),round(y,20), round(k,20), round(p_value_upper_bound,20) ) )
-    return float(p_value_upper_bound)
+    #### Our bound #####
+    # will give tighter bound if all probabilities are tiny (delta is large)
+    # 1. set p = max(p_i)
+    # 2. Calculate probability that _any_ bernoilly event happens, i.e., Y > 0, 
+    #     as P = 1 - (1 - p)^(N_t), This is less significant than k bernoilli sucesses where all p_i <= p.
+    # therefore P is an upper bound on the p-value
+    p_ = Decimal(max(probability.values()))
+    our_bound = Decimal(1.0) - (Decimal(1.0) - p_ )**len(probability)
+    print("Our:{0}, Raghavan: {1}".format(our_bound, raghavan_bound))
+    ##### temporary check if this is a better bound #######
+    # from Section "other properties" in "https://en.wikipedia.org/wiki/Moment-generating_function
+    # M_t = sum([ Decimal(1) - Decimal(p_i) + Decimal(p_i)*Decimal(y).exp() for p_i in probability.values() ])
+    # wiki_bound = Decimal(1).exp()*Decimal(-y**2).exp()*y*M_t
+    # # print("wiki_bound:{0}, M_t:{1}".format(wiki_bound, M_t))
+    # print(round(wiki_bound, 50), round(raghavan_bound,50))
+    ########################################################
+
+    # print("m:{0}, d:{1}, y:{2}, k :{3}, p_bound={4}".format(round(m,20) , round(d,20),round(y,20), round(k,20), round(p_value_upper_bound,20) ) )
+    return min(float(our_bound), float(raghavan_bound))
 
 def exact_test(probability, weight, x):
     probs = list(probability.values())

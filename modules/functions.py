@@ -322,12 +322,13 @@ def get_min_uncertainty_per_read(target_accession, segment_length, candidate_acc
     probability = {}
     assert len(invariant_factors_for_candidate) == 1
     c_acc = list(invariant_factors_for_candidate.keys())[0]
+    delta_size = float(len(invariant_factors_for_candidate[c_acc]))
 
     for q_acc in errors:
         probability[q_acc] = 1.0
-        p_S =  (1.0 / float(segment_length) ) / 3.0   # p = 0.0 not allowed, min_p is 1/(3*len(seq))
-        p_I =  (1.0 / float(segment_length) ) / 4.0   # p = 0.0 not allowed, min_p is 1/(4*len(seq))
-        p_D =  (1.0 / float(segment_length) )         # p = 0.0 not allowed, min_p is 1/(len(seq))
+        p_S =  (delta_size / float(segment_length) ) / 3.0   # p = 0.0 not allowed, min_p is 1/(3*len(seq))
+        p_I =  (delta_size / float(segment_length) ) / 4.0   # p = 0.0 not allowed, min_p is 1/(4*len(seq))
+        p_D =  (delta_size / float(segment_length) )         # p = 0.0 not allowed, min_p is 1/(len(seq))
 
         for pos in invariant_factors_for_candidate[c_acc]:
             for (state, char) in invariant_factors_for_candidate[c_acc][pos]:
@@ -345,12 +346,13 @@ def get_prob_of_support_per_read(target_accession, segment_length, candidate_acc
     probability = {}
     assert len(invariant_factors_for_candidate) == 1
     c_acc = list(invariant_factors_for_candidate.keys())[0]
+    delta_size = float(len(invariant_factors_for_candidate[c_acc]))
 
     for q_acc in errors:
         probability[q_acc] = 1.0
-        p_S = ( max(errors[q_acc]["S"], 1.0) / float(segment_length) ) / 3.0   # p = 0.0 not allowed, min_p is 1/(3*len(seq))
-        p_I = ( max(errors[q_acc]["I"], 1.0) / float(segment_length) ) / 4.0   # p = 0.0 not allowed, min_p is 1/(4*len(seq))
-        p_D = ( max(errors[q_acc]["D"], 1.0) / float(segment_length) )         # p = 0.0 not allowed, min_p is 1/(len(seq))
+        p_S = ( max(errors[q_acc], delta_size) / float(segment_length) ) / 3.0   # p = 0.0 not allowed, min_p is 1/(3*len(seq))
+        p_I = ( max(errors[q_acc], delta_size) / float(segment_length) ) / 4.0   # p = 0.0 not allowed, min_p is 1/(4*len(seq))
+        p_D = ( max(errors[q_acc], delta_size) / float(segment_length) )         # p = 0.0 not allowed, min_p is 1/(len(seq))
 
         for pos in invariant_factors_for_candidate[c_acc]:
             for (state, char) in invariant_factors_for_candidate[c_acc][pos]:
@@ -364,40 +366,67 @@ def get_prob_of_support_per_read(target_accession, segment_length, candidate_acc
     return probability
 
 
-def get_weights_per_read(target_accession, segment_length, candidate_accessions, errors):
-    sum_of_inverse_errors = {}
-    sum_of_inverse_errors["I"] = sum([ 1.0/errors[q_acc]["I"] for q_acc in errors if errors[q_acc]["I"] > 0])
-    sum_of_inverse_errors["D"] = sum([ 1.0/errors[q_acc]["D"] for q_acc in errors if errors[q_acc]["D"] > 0])
-    sum_of_inverse_errors["S"] = sum([ 1.0/errors[q_acc]["S"] for q_acc in errors if errors[q_acc]["S"] > 0])
+# def get_prob_of_support_per_read(target_accession, segment_length, candidate_accessions, errors, invariant_factors_for_candidate):
+#     probability = {}
+#     assert len(invariant_factors_for_candidate) == 1
+#     c_acc = list(invariant_factors_for_candidate.keys())[0]
 
-    sum_of_inverse_errors = sum([sum_of_inverse_errors["I"], sum_of_inverse_errors["D"], sum_of_inverse_errors["S"]])
+#     for q_acc in errors:
+#         probability[q_acc] = 1.0
+#         p_S = ( max(errors[q_acc]["S"], 1.0) / float(segment_length) ) / 3.0   # p = 0.0 not allowed, min_p is 1/(3*len(seq))
+#         p_I = ( max(errors[q_acc]["I"], 1.0) / float(segment_length) ) / 4.0   # p = 0.0 not allowed, min_p is 1/(4*len(seq))
+#         p_D = ( max(errors[q_acc]["D"], 1.0) / float(segment_length) )         # p = 0.0 not allowed, min_p is 1/(len(seq))
 
-    weight = {}
-    for q_acc in errors:
-        assert q_acc != target_accession and q_acc not in candidate_accessions
-        read_errors = (errors[q_acc]["I"] + errors[q_acc]["D"] + errors[q_acc]["S"])
-        if read_errors > 0:
-            q_errors_inverse =  1.0 / (errors[q_acc]["I"] + errors[q_acc]["D"] + errors[q_acc]["S"])
-        else:
-            q_errors_inverse = 0
+#         for pos in invariant_factors_for_candidate[c_acc]:
+#             for (state, char) in invariant_factors_for_candidate[c_acc][pos]:
+#                 u_v = invariant_factors_for_candidate[c_acc][pos][(state, char)]
+#                 if state == "S":
+#                     probability[q_acc] *= p_S*u_v # *(1.0/u_v)
+#                 elif state == "I":
+#                     probability[q_acc] *= p_I*u_v #**(1.0/u_v)
+#                 elif state == "D":
+#                     probability[q_acc] *= p_D*u_v #**(1.0/u_v)
+#     return probability
+
+
+# def get_weights_per_read(target_accession, segment_length, candidate_accessions, errors):
+#     sum_of_inverse_errors = {}
+#     sum_of_inverse_errors["I"] = sum([ 1.0/errors[q_acc]["I"] for q_acc in errors if errors[q_acc]["I"] > 0])
+#     sum_of_inverse_errors["D"] = sum([ 1.0/errors[q_acc]["D"] for q_acc in errors if errors[q_acc]["D"] > 0])
+#     sum_of_inverse_errors["S"] = sum([ 1.0/errors[q_acc]["S"] for q_acc in errors if errors[q_acc]["S"] > 0])
+
+#     sum_of_inverse_errors = sum([sum_of_inverse_errors["I"], sum_of_inverse_errors["D"], sum_of_inverse_errors["S"]])
+
+#     weight = {}
+#     for q_acc in errors:
+#         assert q_acc != target_accession and q_acc not in candidate_accessions
+#         read_errors = (errors[q_acc]["I"] + errors[q_acc]["D"] + errors[q_acc]["S"])
+#         if read_errors > 0:
+#             q_errors_inverse =  1.0 / (errors[q_acc]["I"] + errors[q_acc]["D"] + errors[q_acc]["S"])
+#         else:
+#             q_errors_inverse = 0
         
-        if q_errors_inverse == 0:
-             weight[q_acc] = 1.0 / sum_of_inverse_errors
-        else:
-            weight[q_acc] = q_errors_inverse / sum_of_inverse_errors
+#         if q_errors_inverse == 0:
+#              weight[q_acc] = 1.0 / sum_of_inverse_errors
+#         else:
+#             weight[q_acc] = q_errors_inverse / sum_of_inverse_errors
 
 
-        # weights[q_acc] = {}
-        # for error_type in ["I", "S", "D"]:
-        #     weights[q_acc][error_type] = errors[q_acc][error_type] / float(sum_of_errors[error_type])
+#         # weights[q_acc] = {}
+#         # for error_type in ["I", "S", "D"]:
+#         #     weights[q_acc][error_type] = errors[q_acc][error_type] / float(sum_of_errors[error_type])
 
-    return weight
+#     return weight
+
 
 
 def get_errors_per_read(target_accession, segment_length, candidate_accessions, alignment_matrix):
+    assert len(candidate_accessions) == 1
+    c_acc = list(candidate_accessions)[0]
+
     errors = {}
     target_alignment = alignment_matrix[target_accession]
-    ed_poisson_i, ed_poisson_s, ed_poisson_d = 0, 0, 0
+    candidate_alignment = alignment_matrix[c_acc]
     
     for q_acc in alignment_matrix:
         if q_acc == target_accession:
@@ -405,43 +434,62 @@ def get_errors_per_read(target_accession, segment_length, candidate_accessions, 
         if q_acc in candidate_accessions:
             continue  
 
-        errors[q_acc] = {}
-        query_alignment = alignment_matrix[q_acc]
-        ed_i, ed_s, ed_d = 0.0, 0.0, 0.0
+        read_alignment = alignment_matrix[q_acc]
+        errors_to_t = sum( [1 for pos in range(len(target_alignment)) if  target_alignment[pos] != read_alignment[pos] ] )
+        errors_to_c = sum( [1 for pos in range(len(target_alignment)) if  candidate_alignment[pos] != read_alignment[pos] ] )
+        errors[q_acc] = min(errors_to_t, errors_to_c)
 
-        for j in range(len(query_alignment)):
-            q_base = query_alignment[j]
-            t_base = target_alignment[j]
-            if q_base != t_base:
-                if t_base == "-":
-                    ed_i += 1
-                elif q_base == "-":
-                    ed_d += 1
-                else:
-                    ed_s += 1
+    return errors
+
+
+# def get_errors_per_read(target_accession, segment_length, candidate_accessions, alignment_matrix):
+#     errors = {}
+#     target_alignment = alignment_matrix[target_accession]
+#     ed_poisson_i, ed_poisson_s, ed_poisson_d = 0, 0, 0
+    
+#     for q_acc in alignment_matrix:
+#         if q_acc == target_accession:
+#             continue
+#         if q_acc in candidate_accessions:
+#             continue  
+
+#         errors[q_acc] = {}
+#         query_alignment = alignment_matrix[q_acc]
+#         ed_i, ed_s, ed_d = 0.0, 0.0, 0.0
+
+#         for j in range(len(query_alignment)):
+#             q_base = query_alignment[j]
+#             t_base = target_alignment[j]
+#             if q_base != t_base:
+#                 if t_base == "-":
+#                     ed_i += 1
+#                 elif q_base == "-":
+#                     ed_d += 1
+#                 else:
+#                     ed_s += 1
  
 
-        # get poisson counts on all positions
-        for j in range(len(query_alignment)):
-            target_alignment = alignment_matrix[target_accession]
-            # candidate_alignment = alignment_matrix[x_to_c_acc[q_acc]]
-            # if j not in forbidden:
-            q_base = query_alignment[j]
-            t_base = target_alignment[j]
-            if q_base != t_base:
-                if t_base == "-":
-                    ed_poisson_i += 1
-                elif q_base == "-":
-                    ed_poisson_d += 1
-                else:
-                    ed_poisson_s += 1      
+#         # get poisson counts on all positions
+#         for j in range(len(query_alignment)):
+#             target_alignment = alignment_matrix[target_accession]
+#             # candidate_alignment = alignment_matrix[x_to_c_acc[q_acc]]
+#             # if j not in forbidden:
+#             q_base = query_alignment[j]
+#             t_base = target_alignment[j]
+#             if q_base != t_base:
+#                 if t_base == "-":
+#                     ed_poisson_i += 1
+#                 elif q_base == "-":
+#                     ed_poisson_d += 1
+#                 else:
+#                     ed_poisson_s += 1      
 
-        errors[q_acc]["I"] = ed_i
-        errors[q_acc]["S"] = ed_s
-        errors[q_acc]["D"] = ed_d
+#         errors[q_acc]["I"] = ed_i
+#         errors[q_acc]["S"] = ed_s
+#         errors[q_acc]["D"] = ed_d
 
-    # print(errors)
-    return errors
+#     # print(errors)
+#     return errors
 
 def reads_supporting_candidate(target_accession, candidate_accessions, alignment_matrix, Delta_t, partition_of_X):
     assert len(candidate_accessions) == 1
