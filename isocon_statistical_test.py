@@ -185,7 +185,8 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
     print("Reads included in statistical testing:", len(X))
     if os.stat(candidate_file).st_size == 0:
         out_file_name = os.path.join(params.outfolder, "final_candidates.fa")
-        write_output.print_candidates(out_file_name, {}, {}, {}, {}, final = True)
+        tsv_info = os.path.join(params.outfolder, "cluster_info.tsv")
+        write_output.print_candidates(out_file_name, {}, {}, {}, {}, final = True, reads_to_consensus_tsv = tsv_info)
         print("Candidate file is empty!")
         sys.exit(0)
     else:
