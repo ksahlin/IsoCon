@@ -188,12 +188,21 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
             if nr_pos_to_correct  == 0:
                 print("Edit distance to minimizer:", partition[s][0], "is minimizer:", s ==m, "Minority positions:", minority_positions)
                 continue
+            if len(minority_positions_correctable) == 0:
+                print("no unambiguous majority positions")
+                continue
 
-            minority_positions_to_correct = sorted(minority_positions_correctable, key=lambda x: x[1])[:nr_pos_to_correct]  # sorted list with the smallest probabilities first
+            minority_positions_correctable.sort(key=lambda x: x[1])
+            print(len(minority_positions_correctable) ,minority_positions_correctable)
+            _, quality_threshold_to_correct = minority_positions_correctable[ nr_pos_to_correct - 1 ]
+            minority_positions_to_correct = [ (j, qual_j) for j, qual_j in minority_positions_correctable if qual_j <= quality_threshold_to_correct ]
+            print(len(minority_positions_to_correct))
+            # minority_positions_to_correct = sorted(minority_positions_correctable, key=lambda x: x[1])[:nr_pos_to_correct]  # sorted list with the smallest probabilities first
+
             # print(minority_positions_to_correct)
             s_new = alignment_matrix[s]
             s_qual_new = alignment_matrix_of_qualities[s]
-            for j, prob_j in minority_positions_to_correct:
+            for j, qual_j in minority_positions_to_correct:
                 highest_prob_character_at_j = majority_vector[j]
                 assert len(majority_vector[j]) == 1
                 s_new[j] = highest_prob_character_at_j
