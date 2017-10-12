@@ -115,13 +115,6 @@ def annotate_with_quality_values(alignment_matrix, seq_to_acc, ccs_dict):
                 if current_pos_in_s < len(sum_quals_vector) - 1:
                     current_pos_in_s += 1 
 
-            # if char_at_pos == "-":
-            #     list_sum_quals.append(current_quality)
-            #     list_max_quals.append(current_max_quality)
-            # else:
-            #     list_sum_quals.append(current_quality)
-            #     current_pos_in_s += 1
-
         alignment_matrix_of_qualities[s] = list_sum_quals
         alignment_matrix_of_max_qualities[s] = list_max_quals
 
@@ -139,7 +132,32 @@ def annotate_with_quality_values(alignment_matrix, seq_to_acc, ccs_dict):
             PFM_max_qualities[j][nucl] += max_quality_at_position
 
 
-    return alignment_matrix_of_qualities, PFM_qualities, PFM_max_qualities
+
+    # get all the differences to majority here  
+    list_of_majority_nucleotides = []
+    for j in range(len(PFM_qualities)):
+        max_v_j = max(PFM_qualities[j], key = lambda x: PFM_qualities[j][x] )
+        majority_count =  PFM_qualities[j][max_v_j]
+        max_v_j_set = set([v for v in PFM_qualities[j] if PFM_qualities[j][v] == majority_count ])
+        all_major = "".join(max_v_j_set)
+        list_of_majority_nucleotides.append(all_major)
+
+    assert len(list_of_majority_nucleotides) == len(PFM_qualities)
+    global_all_difference_qualities = []    
+    for s in alignment_matrix:
+        s_aligned_vector = alignment_matrix[s]
+        for j in range(len(s_aligned_vector)):
+            if s_aligned_vector[j] not in list_of_majority_nucleotides[j] and len(list_of_majority_nucleotides[j]) == 1:
+                global_all_difference_qualities.append(alignment_matrix_of_qualities[s][j])
+
+    global_all_difference_qualities.sort()
+    if len(global_all_difference_qualities) > 0:
+        global_correction_threshold = global_all_difference_qualities[ int( math.ceil( len(global_all_difference_qualities)/2.0) ) - 1 ]
+    else:
+        global_correction_threshold = -1
+        print("nothing to correct!")
+    print("GLOBAL QUAL THRESH:", global_correction_threshold)
+    return alignment_matrix_of_qualities, PFM_qualities, PFM_max_qualities, global_correction_threshold
 
 
 
@@ -154,10 +172,12 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
         for s_before in partition:
             s_after = "".join([n for n in alignment_matrix[s_before] if n != "-"])
             assert s_before == s_after
-
-        alignment_matrix_of_qualities, PFM_qualities, PFM_max_qualities = annotate_with_quality_values(alignment_matrix, seq_to_acc, ccs_dict)
+        # print(len(partition), N_t)
+        alignment_matrix_of_qualities, PFM_qualities, PFM_max_qualities, global_correction_threshold = annotate_with_quality_values(alignment_matrix, seq_to_acc, ccs_dict)
 
         assert len(alignment_matrix_of_qualities) == len(alignment_matrix)
+        if global_correction_threshold < 0:
+            return S_prime_partition, S_prime_quality_vector
 
         majority_vector = []
         for j in range(len(PFM_qualities)):
@@ -193,10 +213,12 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
                 continue
 
             minority_positions_correctable.sort(key=lambda x: x[1])
-            print(len(minority_positions_correctable) ,minority_positions_correctable)
+            # print(len(minority_positions_correctable) ,minority_positions_correctable)
             _, quality_threshold_to_correct = minority_positions_correctable[ nr_pos_to_correct - 1 ]
             minority_positions_to_correct = [ (j, qual_j) for j, qual_j in minority_positions_correctable if qual_j <= quality_threshold_to_correct ]
-            print(len(minority_positions_to_correct))
+            # print(len(minority_positions_to_correct))
+            minority_positions_to_correct = [ (j, qual_j) for j, qual_j in minority_positions_correctable if qual_j <= global_correction_threshold ]
+            # print("actual:", len(minority_positions_to_correct))
             # minority_positions_to_correct = sorted(minority_positions_correctable, key=lambda x: x[1])[:nr_pos_to_correct]  # sorted list with the smallest probabilities first
 
             # print(minority_positions_to_correct)
