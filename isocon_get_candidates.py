@@ -5,10 +5,13 @@
 """
 import os
 import unittest
-
 import copy
 from time import time
 import re
+from collections import defaultdict
+from collections import Counter
+
+import pysam
 
 from modules.functions import transpose,create_position_probability_matrix
 from modules.partitions import highest_reachable_with_edge_degrees
@@ -17,8 +20,8 @@ from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_se
 from modules.input_output import fasta_parser, write_output
 from modules import correct_sequence_to_minimizer
 from modules import end_invariant_functions
-from collections import defaultdict
-from collections import Counter
+from modules import ccs_info
+
 
 
 def get_unique_seq_accessions(S):
@@ -103,6 +106,17 @@ def find_candidate_transcripts(read_file, params):
                     and the sequence as the read
     """ 
     S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
+    
+    if params.ccs:
+        ccs_file = pysam.AlignmentFile(params.ccs, "rb", check_sq=False)
+        ccs_dict_raw = ccs_info.get_ccs(ccs_file)
+        X_ids = {  x_acc.split("/")[1] : x_acc for x_acc in S} 
+        ccs_dict = ccs_info.modify_strings_and_acc(ccs_dict_raw, X_ids, S)
+        for x_acc in S:
+            assert S[x_acc] == ccs_dict[x_acc].seq
+    else:
+        ccs_dict = {}
+
 
     lenghts = [len(seq) for seq in S.values()]
     C = Counter(lenghts)
@@ -135,36 +149,6 @@ def find_candidate_transcripts(read_file, params):
         edit_distances = [ partition_alignments[s1][s2][0] for s1 in partition_alignments for s2 in partition_alignments[s1]  ] 
         edit_distances.sort()
         print("edit distances from SSW:", edit_distances) 
-
-        #################################################
-        ###### temp check for isoform collapse###########
-        # import re
-        # pattern = r"[-]{20,}"
-        # cccntr = 0
-        # out_file = open(os.path.join(params.outfolder, "exon_difs.fa"), "w")
-        # if params.barcodes:
-        #     for s1, s1_dict in list(partition_alignments.items()): 
-        #         part_size = sum([s1_dict[s_2][3] for s_2 in s1_dict])
-        #         for s2, alignment_tuple in list(s1_dict.items()):
-        #             if re.search(pattern, alignment_tuple[1][20: -20]) or re.search(pattern, alignment_tuple[2][20: -20]): # [20: -20] --> ignore this if-statement if missing or truncated barcode
-        #                 # del partition_alignments[s1][s2]
-        #                 print("Exon diff on >=20bp:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0], "in partition of size:", part_size)
-        #                 cccntr += 1
-        #                 out_file.write(">{0}\n{1}\n".format(seq_to_acc[s2],s2))
-        # else:
-        #     for s1, s1_dict in list(partition_alignments.items()): 
-        #         part_size = sum([s1_dict[s_2][3] for s_2 in s1_dict])
-        #         for s2, alignment_tuple in list(s1_dict.items()):
-        #             if re.search(pattern, alignment_tuple[1]) or  re.search(pattern, alignment_tuple[2]):
-        #                 # del partition_alignments[s1][s2]
-        #                 print("Exon diff on >=20bp:", len(s2)," minimizer length:", len(s1), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0], "in partition of size:", part_size)
-        #                 cccntr += 1        
-        #                 out_file.write(">{0}\n{1}\n".format(seq_to_acc[s2],s2))
-
-        # print("Number of alignments containing exon difference in this pass:", cccntr)
-        # sys.exit()
-        ########################################################
-
 
         ###### Different convergence criterion #########
 
@@ -204,13 +188,15 @@ def find_candidate_transcripts(read_file, params):
             #     homopolymer_mode = True
         #######################################################
 
-
-        # TODO: Parallelize this part over partitions: sent in the partition and return a dict s_acc : modified string
-        S_prime = correct_sequence_to_minimizer.correct_strings(partition_alignments, seq_to_acc, step, single_core = params.single_core)
-        # sys.exit()
+        # if params.ccs:
+        #     S_prime = correct_sequence_to_minimizer.correct_strings_with_ccs(partition_alignments, ccs_dict, seq_to_acc, step, single_core = params.single_core)
+        # else:
+        S_prime, S_prime_quality_vector = correct_sequence_to_minimizer.correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, single_core = params.single_core)
 
         for acc, s_prime in S_prime.items():
             S[acc] = s_prime
+            if ccs_dict:
+                ccs_dict[acc].qual = S_prime_quality_vector[acc]
 
         print("Tot seqs:", len(S))
         seq_to_acc = get_unique_seq_accessions(S)

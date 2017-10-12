@@ -28,7 +28,7 @@ def print_candidates(out_file_name, C, significance_test_values, partition_of_X,
     for c_acc, seq in C.items():
         p_value, correction_factor, support, N_t, delta_size = significance_test_values[c_acc] 
         
-        print(c_acc, "Support:", support, "P-value:", p_value, "correction factor:", correction_factor, "delta size:", delta_size)
+        print(c_acc, "Support:", support, "P-value:", p_value, "correction factor:", correction_factor, "delta size:", delta_size, "partition size:", N_t)
 
         if final:
             out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) + "_" + str(delta_size) , seq))

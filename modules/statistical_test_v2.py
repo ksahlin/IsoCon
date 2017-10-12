@@ -499,6 +499,12 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
     return float(raghavan_bound)
 
 def exact_test(probability, weight, x):
+    """
+        This is for unweighted sum of Bernoullis only!
+        https://stats.stackexchange.com/questions/5347/how-can-i-efficiently-model-the-sum-of-bernoulli-random-variables
+        Could be optimized with this answer:
+            https://stats.stackexchange.com/a/5482
+    """
     probs = list(probability.values())
     tmp_distr1 = [Decimal(1.0) - Decimal(probs[0]), Decimal(probs[0])]
     for i in range(1, len(probs)):

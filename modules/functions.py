@@ -268,7 +268,7 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
             continue  
 
 
-        print("q length:", len("".join([n for n in alignment_matrix[q_acc] if n != "-"])))
+        # print("q length:", len("".join([n for n in alignment_matrix[q_acc] if n != "-"])))
         
         empirical_min_uncertainty_S =  (delta_size / float(target_length) ) / 3.0   # p = 0.0 not allowed, min_p is 1/(3*len(seq))
         empirical_min_uncertainty_I =  (delta_size / float(target_length) ) / 4.0   # p = 0.0 not allowed, min_p is 1/(4*len(seq))
@@ -297,7 +297,7 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
 
             ###  base pair quality predictions ###
             ccs_coord = ccs_dict[q_acc].alignment_matrix_pos_to_ccs_coord(ccs_alignment, pos)
-            print(ccs_coord, len(ccs_alignment), pos)
+            # print(ccs_coord, len(ccs_alignment), pos)
             p_error = ccs_dict[q_acc].get_p_error_in_base(ccs_coord)
             
             probability[q_acc] *= max(p_error, min_uncertainty)

@@ -14,7 +14,7 @@ from itertools import combinations
 
 from scipy.stats import poisson
 from time import time
-
+import pysam
 
 from modules.functions import transpose, create_position_probability_matrix
 from modules import functions
@@ -26,6 +26,8 @@ from modules.input_output import fasta_parser, write_output
 from modules import statistical_test_v2
 from modules import correct_sequence_to_minimizer
 from modules import end_invariant_functions
+from modules import ccs_info
+
 
 def vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C):
     import networkx as nx
@@ -200,8 +202,6 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
 
     ### IF CCS file is provided ####
     if params.ccs:
-        from modules import ccs_info
-        import pysam
         ccs_file = pysam.AlignmentFile(params.ccs, "rb", check_sq=False)
         ccs_dict_raw = ccs_info.get_ccs(ccs_file)
         X_ids = {  x_acc.split("/")[1] : x_acc for x_acc in X} 
@@ -390,7 +390,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         if len(new_significance_values_list) > 0:
             corrected_pvals = [p_value*mult_factor_inv for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in new_significance_values_list if p_value != "not_tested" ]
             if len(corrected_pvals) == 0:
-                p_val_threshold = 1.0
+                p_val_threshold = params.p_value_threshold #1.0
             else:
                 corrected_pvals.sort()
                 if len(corrected_pvals) %2 == 0:
@@ -403,7 +403,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
                 print("Number of unique candidates tested:",  nr_candidates_tested)
 
                 # p_val_threshold = max(corrected_pvals_median, 1.0/float(nr_candidates_tested)) 
-                p_val_threshold = max(corrected_pvals_median, params.p_value_threshold) 
+                p_val_threshold = corrected_pvals_median if corrected_pvals_median > params.p_value_threshold else params.p_value_threshold
                 print("Filtering threshold (p_val*mult_correction_factor):",  params.p_value_threshold)
 
         previous_partition_of_X = copy.deepcopy(partition_of_X)
@@ -421,7 +421,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
             #         del partition_of_X[c_acc]
 
             # else:
-            elif p_value * mult_factor_inv > p_val_threshold:
+            elif p_value * mult_factor_inv >= p_val_threshold:
                 print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "delta_size:", delta_size )
                 del C[c_acc] 
                 modified = True
