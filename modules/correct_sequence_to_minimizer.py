@@ -201,7 +201,8 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
             s_quals = alignment_matrix_of_qualities[s]
             # ALL POSITIONS with sum of probabilities lower than the largest probability
             minority_positions = [ (j,majority_vector[j], s_alignment_in_matrix[j]) for j in range(len(majority_vector)) if s_alignment_in_matrix[j] not in majority_vector[j] ]
-            minority_positions_correctable = [ (j, s_quals[j])  for j in range(len(majority_vector)) if (len(majority_vector[j]) == 1 and majority_vector[j] != s_alignment_in_matrix[j] ) ]
+            minority_positions_correctable = [ j  for j in range(len(majority_vector)) if (len(majority_vector[j]) == 1 and majority_vector[j] != s_alignment_in_matrix[j] ) ]
+            minority_positions_correctable = [ (j, PFM_qualities[j][ s_alignment_in_matrix[j] ])  for j in minority_positions_correctable ]
             nr_pos_to_correct = int(math.ceil( len(minority_positions_correctable) * 0.5)) # (step/ float(step +1)) ))
             # print("positions to correct:", nr_pos_to_correct) 
 
@@ -213,11 +214,11 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
                 continue
 
             minority_positions_correctable.sort(key=lambda x: x[1])
-            # print(len(minority_positions_correctable) ,minority_positions_correctable)
+            print(len(minority_positions_correctable) ,minority_positions_correctable)
             _, quality_threshold_to_correct = minority_positions_correctable[ nr_pos_to_correct - 1 ]
             minority_positions_to_correct = [ (j, qual_j) for j, qual_j in minority_positions_correctable if qual_j <= quality_threshold_to_correct ]
-            # print(len(minority_positions_to_correct))
-            minority_positions_to_correct = [ (j, qual_j) for j, qual_j in minority_positions_correctable if qual_j <= global_correction_threshold ]
+            print(quality_threshold_to_correct, len(minority_positions_to_correct))
+            # minority_positions_to_correct = [ (j, qual_j) for j, qual_j in minority_positions_correctable if qual_j <= global_correction_threshold ]
             # print("actual:", len(minority_positions_to_correct))
             # minority_positions_to_correct = sorted(minority_positions_correctable, key=lambda x: x[1])[:nr_pos_to_correct]  # sorted list with the smallest probabilities first
 
