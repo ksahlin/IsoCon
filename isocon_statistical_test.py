@@ -287,7 +287,6 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
                     print(c_acc, "removed as it has no supporting reads")
                     del C[c_acc]
                     del partition_of_X[c_acc]
-                    del 
                 else:
                     print(c_acc, "Now has {0} reads assigned to it, after aligning reads that are not assigned.".format(len(partition_of_X[c_acc])))
 
