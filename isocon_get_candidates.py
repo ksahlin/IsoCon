@@ -87,6 +87,8 @@ def get_partition_alignments(graph_partition, M, G_star, params):
             continue
         else:
             for s in exact_alignments[m]:
+                # if s[10:len(s)-10] in m:
+                #     print("LOOOOL", len(s), len(m))
                 aln_m, aln_s, (matches, mismatches, indels) = exact_alignments[m][s]
                 edit_dist = mismatches + indels
                 # indegree =  1 if s not in G_star[m] else G_star[m][s]
@@ -107,7 +109,7 @@ def find_candidate_transcripts(read_file, params):
     """ 
     S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
     
-    if params.ccs:
+    if False: #params.ccs:
         ccs_file = pysam.AlignmentFile(params.ccs, "rb", check_sq=False)
         ccs_dict_raw = ccs_info.get_ccs(ccs_file)
         X_ids = {  x_acc.split("/")[1] : x_acc for x_acc in S} 
@@ -188,9 +190,6 @@ def find_candidate_transcripts(read_file, params):
             #     homopolymer_mode = True
         #######################################################
 
-        # if params.ccs:
-        #     S_prime = correct_sequence_to_minimizer.correct_strings_with_ccs(partition_alignments, ccs_dict, seq_to_acc, step, single_core = params.single_core)
-        # else:
         S_prime, S_prime_quality_vector = correct_sequence_to_minimizer.correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, single_core = params.single_core)
 
         for acc, s_prime in S_prime.items():

@@ -398,7 +398,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
                 p_val_threshold = params.p_value_threshold #1.0
             else:
                 corrected_pvals.sort()
-                if len(corrected_pvals) %2 == 0:
+                if len(corrected_pvals) % 2 == 0:
                     corrected_pvals_median = (corrected_pvals[int(len(corrected_pvals)/2)-1] + corrected_pvals[int(len(corrected_pvals)/2)]) / 2.0
                 else:
                     corrected_pvals_median = corrected_pvals[int(len(corrected_pvals)/2)]
@@ -409,7 +409,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
 
                 # p_val_threshold = max(corrected_pvals_median, 1.0/float(nr_candidates_tested)) 
                 p_val_threshold = corrected_pvals_median if corrected_pvals_median > params.p_value_threshold else params.p_value_threshold
-                print("Filtering threshold (p_val*mult_correction_factor):",  params.p_value_threshold)
+                print("Filtering threshold (p_val*mult_correction_factor):",  p_val_threshold)
 
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}
