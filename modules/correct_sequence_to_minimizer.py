@@ -198,9 +198,20 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
                 continue
 
             s_alignment_in_matrix = alignment_matrix[s]
+            # s_min = 0
+            for i, p in enumerate(s_alignment_in_matrix):
+                if p != "-":
+                    s_min = i
+                    break
+            for i, p in enumerate(s_alignment_in_matrix[::-1]):
+                if p != "-":
+                    s_max = len(s_alignment_in_matrix) - i
+                    break
+
+            print("S", s_min, s_max)
             s_quals = alignment_matrix_of_qualities[s]
             # ALL POSITIONS with sum of probabilities lower than the largest probability
-            minority_positions = [ (j,majority_vector[j], s_alignment_in_matrix[j]) for j in range(len(majority_vector)) if s_alignment_in_matrix[j] not in majority_vector[j] ]
+            minority_positions = [ (j,majority_vector[j], s_alignment_in_matrix[j]) for j in range(len(majority_vector)) if s_alignment_in_matrix[j] not in majority_vector[j] and s_min <= j <= s_max ]
             minority_positions_correctable = [ j  for j in range(len(majority_vector)) if (len(majority_vector[j]) == 1 and majority_vector[j] != s_alignment_in_matrix[j] ) ]
             minority_positions_correctable = [ (j, PFM_qualities[j][ s_alignment_in_matrix[j] ])  for j in minority_positions_correctable ]
             nr_pos_to_correct = int(math.ceil( len(minority_positions_correctable) * 0.5)) # (step/ float(step +1)) ))

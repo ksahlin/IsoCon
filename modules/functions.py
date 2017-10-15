@@ -299,8 +299,12 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
             ccs_coord = ccs_dict[q_acc].alignment_matrix_pos_to_ccs_coord(ccs_alignment, pos)
             # print(ccs_coord, len(ccs_alignment), pos)
             p_error = ccs_dict[q_acc].get_p_error_in_base(ccs_coord)
-            
-            probability[q_acc] *= max(p_error, min_uncertainty)
+            q_qual = ccs_dict[q_acc].qual[ccs_coord]
+            # To map quality values
+            # [A, B] --> [a, b]  [3, 93] --> [3, 33]
+            q_qual_mapped = (q_qual - 3)*(30)/(90.0) + 3
+            p_error =  10**(-q_qual_mapped/10.0)
+            probability[q_acc] *= p_error #max(p_error, min_uncertainty)
 
             # probability[q_acc] *= p_error
             # print("".join([n for n in target_alignment[pos-100:pos+100]]))
@@ -310,7 +314,7 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
             # print("ccs bam seq:", ccs_dict[q_acc].seq)
             # print(candidate_alignment[pos-10:pos+10], pos, ccs_coord)
             # print('pos:', ccs_dict[q_acc].seq.find("GTCACTGCTGGATATCA"), "pred coord:", ccs_coord)
-            # print(pos, c_state, c_base, ccs_alignment[pos], ccs_dict[q_acc].seq[ccs_coord],   ccs_alignment[pos-10:pos+10],  ccs_dict[q_acc].seq[ccs_coord-6:ccs_coord +11], p_error, ccs_dict[q_acc].np)
+            print(pos, c_state, c_base, ccs_alignment[pos], ccs_dict[q_acc].seq[ccs_coord],   ccs_alignment[pos-10:pos+10],  ccs_dict[q_acc].seq[ccs_coord-6:ccs_coord +11], p_error, ccs_dict[q_acc].np, q_acc)
 
             # ccs_nucl = ccs_alignment[pos]            
             # if ccs_nucl == t_nucl:

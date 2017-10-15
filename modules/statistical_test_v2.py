@@ -412,17 +412,18 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         # print("Weighted raghavan p:", p_value )
 
         delta_size = len(delta_t[c_acc])
+        variant_types = [ delta_t[c_acc][j][0] for j in  delta_t[c_acc] ]
         if delta_size == 0:
             print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
 
         # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, correction_factor, p_value * correction_factor,  len(x), N_t, delta_size) )
         # significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
         if ccs_dict:
-            print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, Delta_size:{3}, delta:{4}".format(p_value, len(x), N_t, delta_size, delta_t[c_acc]) )
+            print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, Delta_size:{3}, delta:{4}".format(p_value, len(x), N_t, variant_types, delta_t[c_acc]) )
             significance_values[c_acc] = (p_value, 1.0, len(x), N_t, delta_size)
         else:
             correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
-            print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, Delta_size:{3}, delta:{4}".format(p_value, len(x), N_t, delta_size, delta_t[c_acc]) )
+            print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, Delta_size:{3}, delta:{4}".format(p_value, len(x), N_t, variant_types, delta_t[c_acc]) )
             significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
 
     return significance_values
@@ -457,7 +458,7 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
 
     m = Decimal( sum([ weight[q_acc] * probability[q_acc]  for q_acc in probability.keys()]) )
     y = Decimal( sum([weight[x_i] for x_i in x_equal_to_one ]) )
-    print("p-min: ",p_i_min, "nr supp:", len(x_equal_to_one), sorted([weight[x_i] for x_i in x_equal_to_one ]) )
+    print(m, y, "p-min: ",p_i_min, "nr supp:", len(x_equal_to_one), sorted([(weight[x_i], x_i) for x_i in x_equal_to_one ], key = lambda x: x[0]) )
     d = y / m - 1
     k = m*d
 
