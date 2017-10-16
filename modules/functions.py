@@ -301,9 +301,16 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
             p_error = ccs_dict[q_acc].get_p_error_in_base(ccs_coord)
             q_qual = ccs_dict[q_acc].qual[ccs_coord]
             # To map quality values
-            # [A, B] --> [a, b]  [3, 93] --> [3, 33]
-            q_qual_mapped = (q_qual - 3)*(30)/(90.0) + 3
-            p_error =  10**(-q_qual_mapped/10.0)
+            # [A, B] --> [a, b]  [3, 93] --> [3, 43]
+            # (x - A)*(b-a)/(B-A) + a
+            q_qual_mapped = (q_qual - 3)*(40)/(90.0) + 3
+            if c_state == "S":
+                p_error =  10**(-q_qual_mapped/10.0)/3.0
+            elif  c_state == "I":
+                p_error =  10**(-q_qual_mapped/10.0)/4.0
+            else:
+                p_error =  10**(-q_qual_mapped/10.0)
+
             probability[q_acc] *= p_error #max(p_error, min_uncertainty)
 
             # probability[q_acc] *= p_error

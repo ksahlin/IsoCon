@@ -372,7 +372,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, ccs_dict, params )
 
         # updating if previously identical test had higher p_val than the highest new one, substitute with the stored test.
-        for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in new_significance_values.items():
+        for c_acc, (p_value, mult_factor_inv, k, N_t, variants) in new_significance_values.items():
             if c_acc in previous_significance_values:
                 print("HERE!!")
                 prev_p_val, prev_mult_factor_inv = previous_significance_values[c_acc][0], previous_significance_values[c_acc][1]
@@ -382,7 +382,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
                         print("new:", new_significance_values[c_acc])
                         new_significance_values[c_acc] = previous_significance_values[c_acc]
         # updating with previously stored identical tests
-        for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in previous_significance_values.items():
+        for c_acc, (p_value, mult_factor_inv, k, N_t, variants) in previous_significance_values.items():
             if c_acc not in new_significance_values:
                 print("HERE22!!")
                 new_significance_values[c_acc] = previous_significance_values[c_acc]            
@@ -393,7 +393,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
 
         new_significance_values_list = list(new_significance_values.items())
         if len(new_significance_values_list) > 0:
-            corrected_pvals = [p_value*mult_factor_inv for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in new_significance_values_list if p_value != "not_tested" ]
+            corrected_pvals = [p_value*mult_factor_inv for c_acc, (p_value, mult_factor_inv, k, N_t, variants) in new_significance_values_list if p_value != "not_tested" ]
             if len(corrected_pvals) == 0:
                 p_val_threshold = params.p_value_threshold #1.0
             else:
@@ -413,12 +413,12 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
 
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}
-        for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in new_significance_values_list:
+        for c_acc, (p_value, mult_factor_inv, k, N_t, variants) in new_significance_values_list:
             if p_value == "not_tested":
                 print("Did not test", c_acc)
             # elif prefilter:
             #     if p_value > 0.01:
-            #         print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "delta_size:", delta_size )
+            #         print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "variants:", variants )
             #         del C[c_acc] 
             #         modified = True
             #         for x_acc in partition_of_X[c_acc]:
@@ -427,7 +427,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
 
             # else:
             elif p_value * mult_factor_inv >= p_val_threshold:
-                print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "delta_size:", delta_size )
+                print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "variants:", variants )
                 del C[c_acc] 
                 modified = True
                 for x_acc in partition_of_X[c_acc]:

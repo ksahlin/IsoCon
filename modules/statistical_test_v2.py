@@ -45,23 +45,23 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
             for c_acc in minimizer_graph_transposed[t_acc]:
                 p_vals = statistical_test_CLT(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len, ccs_dict)
 
-                for tested_cand_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in p_vals.items():
+                for tested_cand_acc, (p_value, mult_factor_inv, k, N_t, variants) in p_vals.items():
                     if p_value == "not_tested":
                         assert tested_cand_acc not in p_values # should only be here once
-                        p_values[tested_cand_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+                        p_values[tested_cand_acc] = (p_value, mult_factor_inv, k, N_t, variants)
 
                     elif tested_cand_acc in p_values: # new most insignificant p_value
                         actual_tests += 1
                         if p_value * mult_factor_inv > p_values[tested_cand_acc][0] * p_values[tested_cand_acc][1]:
-                            p_values[tested_cand_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+                            p_values[tested_cand_acc] = (p_value, mult_factor_inv, k, N_t, variants)
 
                     else: # not tested before
                         actual_tests += 1
-                        p_values[tested_cand_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+                        p_values[tested_cand_acc] = (p_value, mult_factor_inv, k, N_t, variants)
 
         for t_acc in minimizer_graph_transposed:
             if t_acc not in p_values:
-                p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
+                p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), "" )
     else:
         ####### parallelize statistical tests #########
         # pool = Pool(processes=mp.cpu_count())
@@ -81,22 +81,22 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
         pool.join()
 
         for all_tests_to_a_given_target in statistical_test_results:
-            for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in list(all_tests_to_a_given_target.items()): 
+            for c_acc, (p_value, mult_factor_inv, k, N_t, variants) in list(all_tests_to_a_given_target.items()): 
                 if p_value ==  "not_tested":
                     assert c_acc not in p_values # should only be here once
-                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, variants)
 
                 elif c_acc in p_values: # new most insignificant p_value
                     actual_tests += 1
                     if p_value * mult_factor_inv > p_values[c_acc][0] * p_values[c_acc][1]:
-                        p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+                        p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, variants)
                 else: # not tested before
                     actual_tests += 1
-                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, variants)
 
         for t_acc in minimizer_graph_transposed:
             if t_acc not in p_values:
-                p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
+                p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), "" )
 
     print("Total number of tests performed this round:", actual_tests)
 
@@ -412,19 +412,19 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         # print("Weighted raghavan p:", p_value )
 
         delta_size = len(delta_t[c_acc])
-        variant_types = [ delta_t[c_acc][j][0] for j in  delta_t[c_acc] ]
+        variant_types = "".join([ str(delta_t[c_acc][j][0]) for j in  delta_t[c_acc] ])
         if delta_size == 0:
             print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
 
         # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, correction_factor, p_value * correction_factor,  len(x), N_t, delta_size) )
         # significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
         if ccs_dict:
-            print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, Delta_size:{3}, delta:{4}".format(p_value, len(x), N_t, variant_types, delta_t[c_acc]) )
-            significance_values[c_acc] = (p_value, 1.0, len(x), N_t, delta_size)
+            print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
+            significance_values[c_acc] = (p_value, 1.0, len(x), N_t, variant_types)
         else:
             correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
-            print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, Delta_size:{3}, delta:{4}".format(p_value, len(x), N_t, variant_types, delta_t[c_acc]) )
-            significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
+            print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
+            significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, variant_types)
 
     return significance_values
 
@@ -453,12 +453,16 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
                 (B) Rewrite RHS in (*) as e^(d*k/d) / (1+d)^(k(1+d)/d)  =  e^k / (1+d)^(k + k/d)
         4. p_value is now bounded above (no greater than) the computed value.
     """
-    p_i_min = min(probability.values())
-    weight = {q_acc : p_i_min / probability[q_acc]  for q_acc in probability.keys()}
+    log_probabilities = { acc: -math.log(p_i) for acc, p_i in probability.items()}
+    log_p_i_max = max(log_probabilities.values())
+    weight = {q_acc : log_probabilities[q_acc] / log_p_i_max  for q_acc in log_probabilities.keys()}
+
+    # p_i_min = min(probability.values())
+    # weight = {q_acc : p_i_min / probability[q_acc]  for q_acc in probability.keys()}
 
     m = Decimal( sum([ weight[q_acc] * probability[q_acc]  for q_acc in probability.keys()]) )
     y = Decimal( sum([weight[x_i] for x_i in x_equal_to_one ]) )
-    print(m, y, "p-min: ",p_i_min, "nr supp:", len(x_equal_to_one), sorted([(weight[x_i], x_i) for x_i in x_equal_to_one ], key = lambda x: x[0]) )
+    print(m, y, "log_p_max: ",log_p_i_max, "nr supp:", len(x_equal_to_one), sorted([(weight[x_i], x_i) for x_i in x_equal_to_one ], key = lambda x: x[0]) )
     d = y / m - 1
     k = m*d
 
