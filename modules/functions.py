@@ -312,7 +312,7 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
             else:
                 p_error =  10**(-q_qual_mapped/10.0)
             print(p_error, q_qual_mapped, q_qual)
-            assert 0.0 <= p_error <= 1.0
+            assert 0.0 < p_error < 1.0
             probability[q_acc] *= p_error #max(p_error, min_uncertainty)
 
             # probability[q_acc] *= p_error
