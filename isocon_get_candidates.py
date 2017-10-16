@@ -372,7 +372,7 @@ def filter_candidates(alignments_of_x_to_c, C, params):
 
     m_to_acc = {}
 
-    for i, (m, support) in enumerate(list(C.items())):
+    for i, (m, support) in enumerate(list(sorted(C.items(), key=lambda x: x[0]))):
         m_acc = "transcript_" + str(i) + "_support_" + str(support)
         m_to_acc[m] = m_acc
         

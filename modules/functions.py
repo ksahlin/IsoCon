@@ -290,7 +290,7 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
 
             ###############################
             ### Empirical lower uncertainty 
-            # u_v = invariant_factors_for_candidate[c_acc][pos][(c_state, c_base)]
+            u_v = invariant_factors_for_candidate[c_acc][pos][(c_state, c_base)]
             # if c_state == "S":
             #     min_uncertainty = empirical_min_uncertainty_S*u_v # *(1.0/u_v)
             # elif c_state == "I":
@@ -315,7 +315,7 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
             elif  c_state == "I":
                 p_error =  ((10**(-q_qual_mapped/10.0))*ins_ratio)/4.0 # probability that its an identical insertion error from a base call uncertainty
             else:
-                p_error =  (10**(-q_qual_mapped/10.0)) # probability that its a delation error from a base call uncertainty
+                p_error =  (10**(-q_qual_mapped/10.0)) * min(del_ratio* u_v, 1.0) # probability that its a delation error from a base call uncertainty, homopolymers of length u has u possible positions to get deletion on
             # print(p_error, q_qual_mapped, q_qual)
             assert 0.0 < p_error < 1.0
             probability[q_acc] *= p_error #max(p_error, min_uncertainty)
