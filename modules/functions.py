@@ -303,7 +303,7 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
             # To map quality values
             # [A, B] --> [a, b]  [3, 93] --> [3, 43]
             # (x - A)*(b-a)/(B-A) + a
-            q_qual_mapped = (q_qual - 3)*(40)/(90.0) + 3
+            q_qual_mapped = (q_qual - 3)*(40.0)/(90.0) + 3
             if c_state == "S":
                 p_error =  10**(-q_qual_mapped/10.0)/3.0
             elif  c_state == "I":
