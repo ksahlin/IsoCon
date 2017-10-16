@@ -109,6 +109,7 @@ def find_candidate_transcripts(read_file, params):
     """ 
     S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
     
+    # still beta to use quaity values for correction, inactivated for now
     if False: #params.ccs:
         ccs_file = pysam.AlignmentFile(params.ccs, "rb", check_sq=False)
         ccs_dict_raw = ccs_info.get_ccs(ccs_file)
@@ -266,7 +267,7 @@ def find_candidate_transcripts(read_file, params):
     if params.ignore_ends_len > 0:
         C_temp_accession_to_support = {}
         C_temp_accession_to_seq = {}
-        for i, (seq, support) in enumerate(C.items()):
+        for i, (seq, support) in enumerate(sorted(C.items(), key=lambda x: x[0])): # to assure consisent naming, sort lexocographically on candidates
             c_acc = "transcript_" + str(i) + "_support_" + str(support)
             C_temp_accession_to_support[c_acc] = support
             C_temp_accession_to_seq[c_acc] = seq

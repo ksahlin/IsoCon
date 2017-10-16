@@ -298,7 +298,8 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
             ###  base pair quality predictions ###
             ccs_coord = ccs_dict[q_acc].alignment_matrix_pos_to_ccs_coord(ccs_alignment, pos)
             # print(ccs_coord, len(ccs_alignment), pos)
-            p_error = ccs_dict[q_acc].get_p_error_in_base(ccs_coord)
+            
+            # p_error = ccs_dict[q_acc].get_p_error_in_base(ccs_coord)
             q_qual = ccs_dict[q_acc].qual[ccs_coord]
             # To map quality values
             # [A, B] --> [a, b]  [3, 93] --> [3, 43]
@@ -310,7 +311,8 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
                 p_error =  10**(-q_qual_mapped/10.0)/4.0
             else:
                 p_error =  10**(-q_qual_mapped/10.0)
-
+            print(p_error, q_qual_mapped, q_qual)
+            assert 0.0 <= p_error <= 1.0
             probability[q_acc] *= p_error #max(p_error, min_uncertainty)
 
             # probability[q_acc] *= p_error
