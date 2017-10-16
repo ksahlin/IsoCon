@@ -461,6 +461,9 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
     print(sorted(probability.values()))
     log_probabilities = { acc: -math.log(p_i, 10) for acc, p_i in probability.items()}
     log_p_i_max = max(log_probabilities.values())
+    print(log_probabilities.values())
+    print("log_p_i_max:", log_p_i_max, )
+    assert log_p_i_max > 0
     weight = {q_acc : log_probabilities[q_acc] / log_p_i_max  for q_acc in log_probabilities.keys()}
 
     # p_i_min = min(probability.values())
