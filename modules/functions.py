@@ -422,6 +422,9 @@ def get_prob_of_support_per_read(target_accession, segment_length, candidate_acc
                     probability[q_acc] *= p_I*u_v #**(1.0/u_v)
                 elif state == "D":
                     probability[q_acc] *= p_D*u_v #**(1.0/u_v)
+        if probability[q_acc] >= 1.0:
+            probability[q_acc] = 0.99999
+
     return probability
 
 

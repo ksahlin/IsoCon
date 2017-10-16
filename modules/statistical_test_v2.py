@@ -408,13 +408,16 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         # print()
         # print(sorted(errors.values()))
         # print(sorted(probability.values()))
-        p_value = raghavan_upper_pvalue_bound(probability, x)
         # print("Weighted raghavan p:", p_value )
 
         delta_size = len(delta_t[c_acc])
         variant_types = "".join([ str(delta_t[c_acc][j][0]) for j in  delta_t[c_acc] ])
         if delta_size == 0:
             print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
+            p_value = 0.0
+        else:
+            p_value = raghavan_upper_pvalue_bound(probability, x)
+
 
         # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, correction_factor, p_value * correction_factor,  len(x), N_t, delta_size) )
         # significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
