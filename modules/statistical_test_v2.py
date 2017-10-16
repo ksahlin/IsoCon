@@ -383,12 +383,12 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         x = functions.reads_supporting_candidate(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
         
         if ccs_dict:
-            # errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
+            insertions, deletions, substitutions = functions.get_errors_for_partitions(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
             invariant_factors_for_candidate = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
             # empirical_probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
             min_uncertainty = functions.get_min_uncertainty_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t, invariant_factors_for_candidate) 
 
-            probability = functions.get_ccs_position_prob_per_read(t_acc, len(t_seq), alignment_matrix_to_t, invariant_factors_for_candidate, candidate_accessions, delta_t, ccs_dict) 
+            probability = functions.get_ccs_position_prob_per_read(t_acc, len(t_seq), alignment_matrix_to_t, invariant_factors_for_candidate, candidate_accessions, delta_t, ccs_dict, insertions, deletions, substitutions) 
             # weight = {q_acc : ccs_info.p_error_to_qual(ccs_probability[q_acc]) for q_acc in ccs_probability.keys()}
             # print("emp:", sum( list(empirical_probability.values()) ), candidate_accessions )
             print("ccs:", sum( list(probability.values()) ), candidate_accessions )
