@@ -42,7 +42,7 @@ def print_candidates(out_file_name, C, significance_test_values, partition_of_X,
     out_file.close()
 
 
-def print_candidates_from_minimizers(out_file_candidates_name, M, m_to_acc, params):
+def print_candidates_from_nearest_neighbors(out_file_candidates_name, M, m_to_acc, params):
     """
         alignments_of_x_to_c has format
         {x_acc : {y_acc : (x_alignment, y_alignment, (matches, mismatches, indels)) } }

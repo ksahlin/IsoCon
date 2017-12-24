@@ -39,9 +39,9 @@ def find_best_matches(approximate_matches, params, edge_creating_min_treshold = 
 
     ## filter best exact edit distances here
     for s1 in list(best_exact_edit_distances.keys()):
-        s1_minimizer = min(best_exact_edit_distances[s1], key = lambda x: best_exact_edit_distances[s1][x])
-        # print(s1_minimizer)
-        min_edit_distance = best_exact_edit_distances[s1][s1_minimizer]
+        s1_nearest_neighbor = min(best_exact_edit_distances[s1], key = lambda x: best_exact_edit_distances[s1][x])
+        # print(s1_nearest_neighbor)
+        min_edit_distance = best_exact_edit_distances[s1][s1_nearest_neighbor]
         for s2 in list(best_exact_edit_distances[s1].keys()):
             ed =  best_exact_edit_distances[s1][s2]
             # print(ed, min_edit_distance)
@@ -89,8 +89,8 @@ def find_best_matches(approximate_matches, params, edge_creating_min_treshold = 
 
     ## filter best exact matches here
     for s1 in list(best_exact_matches.keys()):
-        s1_minimizer = min(best_exact_matches[s1], key = lambda x: best_exact_matches[s1][x][0])
-        min_edit_distance = best_exact_matches[s1][s1_minimizer][0]
+        s1_nearest_neighbor = min(best_exact_matches[s1], key = lambda x: best_exact_matches[s1][x][0])
+        min_edit_distance = best_exact_matches[s1][s1_nearest_neighbor][0]
         for s2 in list(best_exact_matches[s1].keys()):
             ed =  best_exact_matches[s1][s2][0]
             if ed > min_edit_distance:
@@ -150,8 +150,8 @@ def find_best_matches_2set(highest_paf_scores, X, C, params):
 
     ## filter best exact edit distances here
     for s1_acc in list(best_exact_edit_distances.keys()):
-        s1_minimizer = min(best_exact_edit_distances[s1_acc], key = lambda x: best_exact_edit_distances[s1_acc][x][2])
-        min_edit_distance = best_exact_edit_distances[s1_acc][s1_minimizer][2]
+        s1_nearest_neighbor = min(best_exact_edit_distances[s1_acc], key = lambda x: best_exact_edit_distances[s1_acc][x][2])
+        min_edit_distance = best_exact_edit_distances[s1_acc][s1_nearest_neighbor][2]
         # print("ed:", min_edit_distance,  s1_acc)
         for s2_acc in list(best_exact_edit_distances[s1_acc].keys()):
             ed =  best_exact_edit_distances[s1_acc][s2_acc][2]
@@ -169,12 +169,12 @@ def find_best_matches_2set(highest_paf_scores, X, C, params):
             edit_distance = mismatches + indels
 
             if x_acc in best_exact_matches:
-                x_minimizer = list(best_exact_matches[x_acc].keys())[0]
+                x_nearest_neighbor = list(best_exact_matches[x_acc].keys())[0]
 
-                if edit_distance < best_exact_matches[x_acc][x_minimizer][0]:
+                if edit_distance < best_exact_matches[x_acc][x_nearest_neighbor][0]:
                     best_exact_matches[x_acc] = {}
                     best_exact_matches[x_acc][c_acc] = (edit_distance, x_alignment, c_alignment)
-                elif edit_distance == best_exact_matches[x_acc][x_minimizer][0]:
+                elif edit_distance == best_exact_matches[x_acc][x_nearest_neighbor][0]:
                     best_exact_matches[x_acc][c_acc] = (edit_distance, x_alignment, c_alignment)
                 else:
                     pass

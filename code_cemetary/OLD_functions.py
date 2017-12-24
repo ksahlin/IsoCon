@@ -2,13 +2,13 @@
 
 
 
-# def construct_exact_minimizer_graph(S, params):
+# def construct_exact_nearest_neighbor_graph(S, params):
 
 #     """
 #         input: a dict of strings, not necesarily unique
 #         output: a directed graph implemented as a dict of dicts. Each edge has a weight assosiated to them.
 #                 self edges has a weight > 1 (identical sequences) and all other edges has weight 1.
-#                 Note, a node can be isolated! An isolated node will point at itself, effectively having itself as a minimizer.
+#                 Note, a node can be isolated! An isolated node will point at itself, effectively having itself as a nearest_neighbor.
 
 #     """
 
@@ -42,20 +42,20 @@
 
 #     unique_strings = {seq : acc for acc, seq in S.items()}
 #     S_prime = {acc : seq for seq, acc in unique_strings.items()}
-#     all_internode_edges_in_minimizer_graph, isolated_nodes = minimizer_graph.compute_minimizer_graph(S_prime, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
+#     all_internode_edges_in_nearest_neighbor_graph, isolated_nodes = nearest_neighbor_graph.compute_nearest_neighbor_graph(S_prime, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
  
 
 #     # TODO: implement already_converged to skip redundant calculations, the more important for more comverged stings we have!! 
-#     # minimizer_graph, isolated_nodes = compute_minimizer_graph(S, already_converged, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
-#     for s1_acc in all_internode_edges_in_minimizer_graph:
+#     # nearest_neighbor_graph, isolated_nodes = compute_nearest_neighbor_graph(S, already_converged, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
+#     for s1_acc in all_internode_edges_in_nearest_neighbor_graph:
 #         s1 = S[s1_acc]
-#         if s1 in G_star[s1]: # the minimizer had already identical minimizer (ed = 0)
+#         if s1 in G_star[s1]: # the nearest_neighbor had already identical nearest_neighbor (ed = 0)
 #             continue
-#         # elif len(G_star[s1]) >= 2: # already has identical homopolymer minimizers ( at least 2 for meaningful correction)
+#         # elif len(G_star[s1]) >= 2: # already has identical homopolymer nearest_neighbors ( at least 2 for meaningful correction)
 #         #     print("Homopolymer partition")
 #         #     continue
 #         else:
-#             for s2_acc in all_internode_edges_in_minimizer_graph[s1_acc]:
+#             for s2_acc in all_internode_edges_in_nearest_neighbor_graph[s1_acc]:
 #                 s2 = S[s2_acc]
 #                 G_star[s1][s2] = 1 
 
@@ -521,7 +521,7 @@ def check_if_consensus(c_acc, C, X, partition_of_X):
 #     for acc1 in homopolymer_edges:
 #         s1 = S[acc1]
 #         for acc2 in homopolymer_edges[acc1]:
-#             # Do individual minimizer component graphs of the homopolymenr equivalence classes here!
+#             # Do individual nearest_neighbor component graphs of the homopolymenr equivalence classes here!
 #             s2 = S[acc2]
 #             G_star[s1][s2] = 1
 #             G_star[s2][s1] = 1
@@ -532,7 +532,7 @@ def check_if_consensus(c_acc, C, X, partition_of_X):
 #     S_prime_transformed = {acc : seq for seq, acc in unique_strings.items()}
 #     # Send homopolymer components to this function!
 #     # Keep in mind. Isolated nodes are not neccesarily isolated!
-#     all_internode_edges_in_minimizer_graph, isolated_nodes = minimizer_graph.compute_minimizer_graph(S_prime_transformed, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
+#     all_internode_edges_in_nearest_neighbor_graph, isolated_nodes = nearest_neighbor_graph.compute_nearest_neighbor_graph(S_prime_transformed, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
 
 #     #############################################################
 #     #############################################################
@@ -540,14 +540,14 @@ def check_if_consensus(c_acc, C, X, partition_of_X):
 
 
 # def highest_reachable_with_edge_degrees_NEW(S, params):
-#     G_star, converged = graphs.construct_exact_minimizer_graph_improved(S, params)
+#     G_star, converged = graphs.construct_exact_nearest_neighbor_graph_improved(S, params)
 #     unique_start_strings = set(G_star.nodes())
 #     from operator import itemgetter
 #     print("len G_star:", len(G_star))
 #     partition_sizes = []
 #     nr_consensus = 0
 #     G_transpose = nx.reverse(G_star)
-#     print("len G_star_transposed (minimizers):", len(G_transpose))
+#     print("len G_star_transposed (nearest_neighbors):", len(G_transpose))
 #     print(sorted([len(G_transpose.neighbors(n)) for n in G_transpose], reverse=True))
 #     M = {}
 #     partition = {}
@@ -561,9 +561,9 @@ def check_if_consensus(c_acc, C, X, partition_of_X):
 #             m, number_nbrs = sorted(subgraph.out_degree_iter(),key=itemgetter(1),reverse=True)[0]
 #             print("NN:", number_nbrs)
 #             ####################################################
-#             # cut at all nodes with more than 2 minimizers
+#             # cut at all nodes with more than 2 nearest_neighbors
 #             ####################################################
-#             # minimizer_w_more_than_2_support = set()
+#             # nearest_neighbor_w_more_than_2_support = set()
 #             nbrs_to_visit = set(subgraph.neighbors(m))        
 #             print("to visit", len(nbrs_to_visit))
 #             visited = set([m])
@@ -609,10 +609,10 @@ def check_if_consensus(c_acc, C, X, partition_of_X):
 #     #     print("min:", len(m))
 #     #     for p in sorted(partition[m]):
 #     #         print(len(p))
-#     minimizer_lenghts = [len(m) for m in sorted(partition)]
-#     print(sorted(minimizer_lenghts))
+#     nearest_neighbor_lenghts = [len(m) for m in sorted(partition)]
+#     print(sorted(nearest_neighbor_lenghts))
 #     print("NR CONSENSUS:", nr_consensus)
-#     print("NR minimizers:", len(M), len(partition))
+#     print("NR nearest_neighbors:", len(M), len(partition))
 #     print("partition sizes(identical strings counted once): ", sorted([len(partition[p]) +1 for p in  partition], reverse = True))
 #     # sys.exit()
 
@@ -641,8 +641,8 @@ def check_if_consensus(c_acc, C, X, partition_of_X):
 
 # def partition_strings_paths(S, params):
 
-#     G_star, converged = graphs.construct_exact_minimizer_graph(S, params)
-#     # G_star, converged = graphs.construct_minimizer_graph_approximate(S, params, edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold)
+#     G_star, converged = graphs.construct_exact_nearest_neighbor_graph(S, params)
+#     # G_star, converged = graphs.construct_nearest_neighbor_graph_approximate(S, params, edge_creating_min_treshold = edge_creating_min_treshold, edge_creating_max_treshold = edge_creating_max_treshold)
 
 #     unique_start_strings = set(G_star.keys())
 #     partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
@@ -717,7 +717,7 @@ def check_if_consensus(c_acc, C, X, partition_of_X):
 #                         nbrs_to_visit.add(u)
 
 #         # print("Center count = ", m_count)
-#     print("Chosen minimizers:", len(M))
+#     print("Chosen nearest_neighbors:", len(M))
 
 
 #     total_strings_in_partition = sum([ len(partition[p]) +1 for p in  partition])

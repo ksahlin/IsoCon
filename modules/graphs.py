@@ -1,5 +1,5 @@
 """
-    minimizer_graph(S): creates the minimizer graph defined in..
+    nearest_neighbor_graph(S): creates the nearest_neighbor graph defined in..
     partition_graph(S): creates the partition of a graph defined in..
 
 """
@@ -14,7 +14,7 @@ import networkx as nx
 from modules import get_best_alignments
 from modules import minimap_alignment_module
 from modules import functions
-from modules import minimizer_graph
+from modules import nearest_neighbor_graph
 
 def transform(read):
     transformed_seq = []
@@ -26,12 +26,12 @@ def transform(read):
 
     return "".join(transformed_seq)
 
-def construct_exact_minimizer_graph(S, params):
+def construct_exact_nearest_neighbor_graph(S, params):
 
     """
         input: a dict of strings, not necesarily unique
         output: a directed graph implemented as a dict of dicts. A node has a weight associated as the number of identical sequences.
-            An edge from a node n1 to a node n2, n1 !+n2 means that n1 has weight 1 and it's minimizer is n2. 
+            An edge from a node n1 to a node n2, n1 !+n2 means that n1 has weight 1 and it's nearest_neighbor is n2. 
     """
 
     predicted_seq_to_acc = defaultdict(list)
@@ -55,24 +55,24 @@ def construct_exact_minimizer_graph(S, params):
     
     unique_strings = {seq : acc for acc, seq in S.items()}
     S_prime = {acc : seq for seq, acc in unique_strings.items()}
-    all_internode_edges_in_minimizer_graph, isolated_nodes = minimizer_graph.compute_minimizer_graph(S_prime, has_converged, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
+    all_internode_edges_in_nearest_neighbor_graph, isolated_nodes = nearest_neighbor_graph.compute_nearest_neighbor_graph(S_prime, has_converged, params) # send in a list of nodes that already has converged, hence avoid unnnecessary computation
  
 
-    for s1_acc in all_internode_edges_in_minimizer_graph:
+    for s1_acc in all_internode_edges_in_nearest_neighbor_graph:
         s1 = S[s1_acc]
         if G.node[s1]["degree"] > 1:
             continue
         else:
-            for s2_acc in all_internode_edges_in_minimizer_graph[s1_acc]:
+            for s2_acc in all_internode_edges_in_nearest_neighbor_graph[s1_acc]:
                 s2 = S[s2_acc]
-                ed = all_internode_edges_in_minimizer_graph[s1_acc][s2_acc]
+                ed = all_internode_edges_in_nearest_neighbor_graph[s1_acc][s2_acc]
                 G.add_edge(s1, s2, edit_distance=ed)
 
-    was_assigned_to_a_minimizer = set([s for s in G.nodes() if len(G.neighbors(s)) > 0 ])
+    was_assigned_to_a_nearest_neighbor = set([s for s in G.nodes() if len(G.neighbors(s)) > 0 ])
     strings_converged = set([s for s in G.nodes() if G.node[s]["degree"] > 1 ])
-    isolated_nodes = set(unique_strings.keys()) - (was_assigned_to_a_minimizer | strings_converged)
-    print("{0} strings was not converged and did not find a minimizer when aligning.".format(len(isolated_nodes)))
-    print("{0} edges in minimizer graph".format(len(G.edges())))
+    isolated_nodes = set(unique_strings.keys()) - (was_assigned_to_a_nearest_neighbor | strings_converged)
+    print("{0} strings was not converged and did not find a nearest_neighbor when aligning.".format(len(isolated_nodes)))
+    print("{0} edges in nearest_neighbor graph".format(len(G.edges())))
 
     for s in isolated_nodes:
         assert s in G
@@ -80,7 +80,7 @@ def construct_exact_minimizer_graph(S, params):
     return G, converged  
 
 
-def construct_approximate_minimizer_graph(S, params, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
+def construct_approximate_nearest_neighbor_graph(S, params, edge_creating_min_treshold = -1, edge_creating_max_treshold = 2**30):
 
     """
         input: a dict of strings, not necesarily unique
@@ -164,11 +164,11 @@ def construct_approximate_minimizer_graph(S, params, edge_creating_min_treshold 
                 ed = best_exact_matches[s1][s2][0]
                 G.add_edge(s1, s2, edit_distance=ed)
 
-    was_assigned_to_a_minimizer = set([s for s in G.nodes() if len(G.neighbors(s)) > 0 ])
+    was_assigned_to_a_nearest_neighbor = set([s for s in G.nodes() if len(G.neighbors(s)) > 0 ])
     strings_converged = set([s for s in G.nodes() if G.node[s]["degree"] > 1 ])
-    isolated_nodes = unique_strings - (was_assigned_to_a_minimizer | strings_converged)
-    print("{0} strings was not converged and did not find a minimizer when aligning.".format(len(isolated_nodes)))
-    print("{0} edges in minimizer graph".format(len(G.edges())))
+    isolated_nodes = unique_strings - (was_assigned_to_a_nearest_neighbor | strings_converged)
+    print("{0} strings was not converged and did not find a nearest_neighbor when aligning.".format(len(isolated_nodes)))
+    print("{0} edges in nearest_neighbor graph".format(len(G.edges())))
     for s in isolated_nodes:
         assert s in G
 
@@ -190,7 +190,7 @@ def construct_approximate_minimizer_graph(S, params, edge_creating_min_treshold 
     # # finally, nodes here are the one where we didn't find any alignments to another sequence, point these isolated nodes to themself
     # # with indegree 1
     # # we also check that theu are not "leaves" in G^* 
-    # # that is, a sequence that has no minimizer but is a minimizer to some other sequence, this should not happen in G^*
+    # # that is, a sequence that has no nearest_neighbor but is a nearest_neighbor to some other sequence, this should not happen in G^*
     # G_star_transposed = functions.transpose(G_star)
 
     # for s in G_star:
@@ -206,9 +206,9 @@ def construct_approximate_minimizer_graph(S, params, edge_creating_min_treshold 
     return G, graph_has_converged
 
 
-def construct_exact_2set_minimizer_bipartite_graph(X, C, X_file, C_file, params):
+def construct_exact_2set_nearest_neighbor_bipartite_graph(X, C, X_file, C_file, params):
 
-    best_exact_matches = minimizer_graph.compute_2set_minimizer_graph(X, C, params)
+    best_exact_matches = nearest_neighbor_graph.compute_2set_nearest_neighbor_graph(X, C, params)
     read_layer =  best_exact_matches.keys()
     candidate_layer = set([cand for read in best_exact_matches for cand in best_exact_matches[read]])
     # G_star = {}
@@ -229,7 +229,7 @@ def construct_exact_2set_minimizer_bipartite_graph(X, C, X_file, C_file, params)
     return G
 
 
-# def construct_approximate_2set_minimizer_bipartite_graph(X, C, X_file, C_file, params):
+# def construct_approximate_2set_nearest_neighbor_bipartite_graph(X, C, X_file, C_file, params):
 #     """
 #         X: a string pointing to a fasta file with reads  ## a dict containing original reads and their accession
 #         C: a string pointing to a fasta file with candidates  ## a dict containing consensus transcript candidates
@@ -279,12 +279,12 @@ class TestFunctions(unittest.TestCase):
             minimap_result += line
         self.assertEqual(minimap_result, expected_result)
 
-    def test_construct_minimizer_graph(self):
+    def test_construct_nearest_neighbor_graph(self):
         S = {"1": "AAAAAAAAAAAGGGGGGGGGGAAAAAAAAAAATTTTTTTTTTTTTCCCCCCCCCCCCCCAAAAAAAAAAACCCCCCCCCCCCCGAGGAGAGAGAGAGAGAGATTTTTTTTTTTTCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
              "2": "AAAAATAAAAAGGGGGGGGGGAAAAAAAAAAATTTTTTTTTTTTTCCCCCCCCCCCCCCAAAAAAAAAACCCCCCCCCCCCCGAGGAGAGAGAGAGAGAGATTTTTGTTTTTTCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
              "3": "AAAAAAAAAAAGGGGAGGGGGAAAAAAAAAAATTTTTTTTTTTTTCCCCCCCCCCCCCAAAAAAAAAAACCCCCCCCCCCCCGAGGAGAGAGAGAGAGAGATTTTTTTCTTTTTCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
              "4": "AAAAAAAAAAAGGGGGGGGGGAAATAAAAAAATTTTTTTTTTTTTCCCCCCCCCCCCCAAAAAAAAAAACCCCCCCCCCCCCGAGGAGAGACAGAGAGAGATTTTTTTTTTTTCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"} 
-        G_star, alignment_graph, converged = construct_minimizer_graph(S)
+        G_star, alignment_graph, converged = construct_nearest_neighbor_graph(S)
         # print(G_star)
         # print(alignment_graph)
         # self.assertEqual(G_star, G_star)
@@ -297,13 +297,13 @@ class TestFunctions(unittest.TestCase):
         except:
             print("test file not found:",fasta_file_name)
             return
-        G_star, alignment_graph, converged = construct_minimizer_graph(S)
+        G_star, alignment_graph, converged = construct_nearest_neighbor_graph(S)
         edit_distances = []
-        nr_unique_minimizers = []
+        nr_unique_nearest_neighbors = []
         for s1 in alignment_graph:
-            # print("nr minimizers:", len(alignment_graph[s1]))
-            # nr_minimizers.append(sum([ count for nbr, count in  G_star[s1].items()]))
-            nr_unique_minimizers.append(len(G_star[s1].items()))
+            # print("nr nearest_neighbors:", len(alignment_graph[s1]))
+            # nr_nearest_neighbors.append(sum([ count for nbr, count in  G_star[s1].items()]))
+            nr_unique_nearest_neighbors.append(len(G_star[s1].items()))
             # if len(alignment_graph[s1]) > 20:
             #     for s2 in alignment_graph[s1]:
             #         print(alignment_graph[s1][s2][0])
@@ -317,7 +317,7 @@ class TestFunctions(unittest.TestCase):
                 #     print("perfect match of :", G_star[s1][s2], "seqs" )
             assert len(alignment_graph[s1]) == len(G_star[s1])
 
-        print(sorted(nr_unique_minimizers, reverse = True))
+        print(sorted(nr_unique_nearest_neighbors, reverse = True))
         print(sorted(edit_distances))
         # print(G_star)
         # print(alignment_graph)

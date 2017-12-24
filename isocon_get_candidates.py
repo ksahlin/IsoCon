@@ -18,7 +18,7 @@ from modules.partitions import highest_reachable_with_edge_degrees
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession, edlib_traceback
 from modules.input_output import fasta_parser, write_output
-from modules import correct_sequence_to_minimizer
+from modules import correct_sequence_to_nearest_neighbor
 from modules import end_invariant_functions
 from modules import ccs_info
 
@@ -83,7 +83,7 @@ def get_partition_alignments(graph_partition, M, G_star, params):
         selfdegree = G_star.node[m]["degree"]
         partition_alignments[m] = { m : (0, m, m, selfdegree) }
         if m not in exact_alignments:
-            # print("Minimizer did not have any anlignments, length:", M[m], "self-degree:", selfdegree)
+            # print("nearest_neighbor did not have any anlignments, length:", M[m], "self-degree:", selfdegree)
             continue
         else:
             for s in exact_alignments[m]:
@@ -132,12 +132,12 @@ def find_candidate_transcripts(read_file, params):
 
     seq_to_acc = get_unique_seq_accessions(S)
 
-    minimizer_start = time() 
+    nearest_neighbor_start = time() 
     G_star, graph_partition, M, converged = highest_reachable_with_edge_degrees(S, params)
     partition_alignments = get_partition_alignments(graph_partition, M, G_star, params)       
 
-    minimizer_elapsed = time() - minimizer_start
-    write_output.logger('Time for minimizers and partition, step 1:{0}'.format(str(minimizer_elapsed)), params.logfile)
+    nearest_neighbor_elapsed = time() - nearest_neighbor_start
+    write_output.logger('Time for nearest_neighbors and partition, step 1:{0}'.format(str(nearest_neighbor_elapsed)), params.logfile)
 
     step = 1
     prev_edit_distances_2steps_ago = [2**28,2**28,2**28] # prevents 2-cycles
@@ -191,7 +191,7 @@ def find_candidate_transcripts(read_file, params):
             #     homopolymer_mode = True
         #######################################################
 
-        S_prime, S_prime_quality_vector = correct_sequence_to_minimizer.correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, single_core = params.single_core)
+        S_prime, S_prime_quality_vector = correct_sequence_to_nearest_neighbor.correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, single_core = params.single_core)
 
         for acc, s_prime in S_prime.items():
             S[acc] = s_prime
@@ -215,7 +215,7 @@ def find_candidate_transcripts(read_file, params):
         prev_edit_distances = edit_distances
 
         correction_elapsed = time() - correction_start
-        write_output.logger('Time for correction, minimizers and partition, step {0}:{1}'.format(step, str(correction_elapsed)), params.logfile)
+        write_output.logger('Time for correction, nearest_neighbors and partition, step {0}:{1}'.format(step, str(correction_elapsed)), params.logfile)
         
         # sys.exit()
    
@@ -231,7 +231,7 @@ def find_candidate_transcripts(read_file, params):
     for (acc, seq) in original_reads.items():
         original_reads_seq_to_accs[seq].append(acc)
     # original_reads_seq_to_acc = { seq : acc for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
-    reads_to_minimizers = {}
+    reads_to_nearest_neighbors = {}
     # [for m, partition in partition_alignments.items() for s in partition]
 
     not_converged_reads = open(os.path.join(params.outfolder, "not_converged.fa"), "w")
@@ -240,14 +240,14 @@ def find_candidate_transcripts(read_file, params):
         corrected_s = S[read_acc]
         if corrected_s in C:
             if C[corrected_s] >= params.min_candidate_support:
-                reads_to_minimizers[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
+                reads_to_nearest_neighbors[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
             else:
-                print("Minimizer did not pass threshold. It had support of {0} reads.".format(C[corrected_s]))
+                print("nearest_neighbor did not pass threshold. It had support of {0} reads.".format(C[corrected_s]))
                 print(read_acc)
                 del C[corrected_s]
         else:
             if corrected_s in original_reads_seq_to_accs:
-                print("Read neither converged nor was it corrected (local pair r1 <---> r2 minimizer or a isolated alignment with exon difference filtered out before each correction)")
+                print("Read neither converged nor was it corrected (local pair r1 <---> r2 nearest_neighbor or a isolated alignment with exon difference filtered out before each correction)")
                 print(read_acc)
                 not_converged_reads.write(">{0}_not_corrected_not_converged\n{1}\n".format(read_acc, seq))
                 not_converged.add(read_acc)
@@ -260,7 +260,7 @@ def find_candidate_transcripts(read_file, params):
                 not_converged_reads.write(">{0}_corrected_but_not_converged_version\n{1}\n".format(read_acc, corrected_s))
 
     not_converged_reads.close()
-    edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_minimizers, single_core = params.single_core)
+    edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_nearest_neighbors, single_core = params.single_core)
     alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m, single_core = params.single_core)
 
 
@@ -295,7 +295,7 @@ def find_candidate_transcripts(read_file, params):
     alignments_of_x_to_m_filtered, m_to_acc, C_filtered, partition_of_X = filter_candidates(alignments_of_x_to_m, C, params)
         
     candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
-    write_output.print_candidates_from_minimizers(candidates_file_name, C_filtered, m_to_acc, params)
+    write_output.print_candidates_from_nearest_neighbors(candidates_file_name, C_filtered, m_to_acc, params)
 
     to_realign = {}
     for acc, seq in original_reads.items():
@@ -308,7 +308,7 @@ def find_candidate_transcripts(read_file, params):
 
 
 # def collapse_contained_sequences(alignments_of_x_to_m, C, params):
-#     print("Number minimizers before collapsing identical super strings of a string:", len(C))
+#     print("Number nearest_neighbors before collapsing identical super strings of a string:", len(C))
 
 #     alignments_of_x_to_m_transposed = transpose(alignments_of_x_to_m)   
 #     m_to_acc = {}
@@ -338,7 +338,7 @@ def find_candidate_transcripts(read_file, params):
 #             print("seq was a superstring") 
 
 #     alignments_of_x_to_m = transpose(alignments_of_x_to_m_transposed)
-#     print("Number minimizers after collapsing identical super strings of a string:", len(C))
+#     print("Number nearest_neighbors after collapsing identical super strings of a string:", len(C))
 #     return alignments_of_x_to_m, C
 
 
@@ -416,7 +416,7 @@ def filter_candidates(alignments_of_x_to_c, C, params):
 
     partition_of_X = { m_to_acc[c] : set(alignments_of_x_to_c_transposed[c].keys()) for c in  alignments_of_x_to_c_transposed}
 
-    # we now have an accession of minimizer, change to this accession insetad of storing sequence
+    # we now have an accession of nearest_neighbor, change to this accession insetad of storing sequence
     alignments_of_x_to_m_filtered = transpose(alignments_of_x_to_c_transposed)
     for x_acc in list(alignments_of_x_to_m_filtered.keys()):
         for m in list(alignments_of_x_to_m_filtered[x_acc].keys()):

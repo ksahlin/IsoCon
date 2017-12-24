@@ -9,7 +9,7 @@ Codecov branch:     https://img.shields.io/codecov/c/github/codecov/example-pyth
 IsoCon is a tool for deriving *finished transcript sequences* from *Iso-Seq* reads. Input is a set of full-length-non-chimeric reads and output is a set of predicted transcripts. IsoCon can be run as follows
 
 ```
-IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output>
+IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --ccs </path/to/filename.ccs.bam>
 ```
 
 predicted transcripts is found in file */path/to/output/final_candidates.fa*. Reads that could not be corrected or clustered (e.g., due to chimeric products or less than three reads sequenced from the transcript) are found in */path/to/output/not_converged.fa*. For more instructions see below.
@@ -18,7 +18,7 @@ Please cite [1] when using IsoCon.
 
 1. Kristoffer Sahlin*, Marta Tomaszkiewicz*, Kateryna D. Makova†, Paul Medvedev† (2017) "Title." Journal (bioRxiv for now?)(17), 2215-2222 [Link](here)
 
-Table of Contents
+<!-- Table of Contents
 =================
     * [INSTALLATION](#installation)
         * [Using pip (recommended)](#using-pip-recommended)
@@ -29,7 +29,7 @@ Table of Contents
     * [Detailed usage](#detailed-usage)
         * [Commands](#commands)
 
-TOC created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
+TOC created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc) -->
 
 INSTALLATION
 ----------------
@@ -60,19 +60,30 @@ cd IsoCon
 Usage
 -------
 
-Running IsoCon end-to-end (preffered)
+Running IsoCon end-to-end with base call quality values (preffered)
+```
+IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --ccs </path/to/filename.ccs.bam>
+```
+
+IsoCon takes two input files: (1) a fasta file of full length non-chimeric (flnc) CCS reads and (2) the bam file of CCS reads containing predicted base call quality values. IsoCon also supports taking only the fasta read file as input. Without the base call quality values, IsoCon will use an empirically estimated error model. The ability to take only the flnc fasta file as input is useful when the reads have been altered after the CCS base calling algorithm, \emph{e.g.}, from correction using illumina reads. We highly recommend supplying the quality values to IsoCon if CCS reads has not gone through any additional correction. IsoCon is available at \url{[https://github.com/ksahlin/IsoCon]} and distributed as a python package for Unix and OSX based systems.
+
+Running IsoCon end-to-end without base call quality values (e.g., if CCS reads have been altered after they were constructed such as Illumina corrected)
 ```
 IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output>
 ```
 
+Output
+-------
 
-IsoCon on general Iso-Seq datasets
+The final high quality transcripts are written to the file `final_candidates.fa` in the output folder. If there was only one read coming from a transcript, which is sufficiently different from other reads (exon difference), it will be output in the file `not_converged.fa`. This file may also contain other erroneous CCS reads such as chimeras.
+
+<!-- IsoCon on general Iso-Seq datasets
 -----------------------------------
 
 IsoCon has been evaluated on targeted Iso-Seq data [cite], but the algorithm makes no explicit assumptions, or depends on the data being targeted. Therefore it also runs on any general Iso-Seq data. To demonstrate this We ran IsoCon on the publicly availabe datasets from pacbio [MCF7](link) and [Alzheimer](link) using the following command
 
 ```
-IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --minimizer_search_depth 100
+IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --neighbor_search_depth 100
 ```
 
 | Dataset | runtime  | peak memory | final_candidates | corr | not_corr | *TOFU* | *nr original CCS* | 
@@ -87,7 +98,7 @@ IsoCon predicted 2169 and Y transcripts and had a runtime of 24h43m and Y, for M
 
 Manual BLAT of 20 sequences from the "corrected_but_not_converged" predictions to human show an alignment identity increase from 94-98% of the ccs reads up to 99.5-99.9% for the corrected reads.
 
-<a name="footnote_not_converged">1</a>: Footnote content goes here
+<a name="footnote_not_converged">1</a>: Footnote content goes here -->
 
 Detailed usage
 ----------------
@@ -109,8 +120,8 @@ positional arguments:
                         CCS full length reads 3. stat_filter() to filter
                         candidates and only output significant ones
     remove_barcodes     Remove barcodes from sequences.
-    get_candidates      Get candidate transcripts with minimizer approach.
-    stat_filter         Get candidate transcripts with minimizer approach.
+    get_candidates      Get candidate transcripts with nearest_neighbor approach.
+    stat_filter         Get candidate transcripts with nearest_neighbor approach.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -123,7 +134,7 @@ optional arguments:
     $ ./IsoCon pipeline --help
 usage: Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads. pipeline
        [-h] -fl_reads FL_READS -outfolder OUTFOLDER [--barcodes BARCODES]
-       [--develop_mode] [--minimizer_search_depth MINIMIZER_SEARCH_DEPTH]
+       [--develop_mode] [--neighbor_search_depth neighbor_search_depth]
        [--single_core] [--min_candidate_support MIN_CANDIDATE_SUPPORT]
        [--ignore_ends_len IGNORE_ENDS_LEN] [--cleanup]
        [--prefilter_candidates]
@@ -134,9 +145,9 @@ optional arguments:
                         search for in ends of transcripts.
   --develop_mode        This will print more information abount workflow and
                         provide plots of similarity network etc.
-  --minimizer_search_depth MINIMIZER_SEARCH_DEPTH
+  --neighbor_search_depth neighbor_search_depth
                         Maximum number of pairwise alignments in search matrix
-                        to find minimizer. [default =2**32]
+                        to find nearest_neighbor. [default =2**32]
   --single_core         Force working on single core.
   --min_candidate_support MIN_CANDIDATE_SUPPORT
                         Required minimum number of reads converged to the same
@@ -145,7 +156,7 @@ optional arguments:
                         Number of bp to ignore in ends. If two candidates are
                         identical expept in ends of this size, they are
                         collapses and the longest common substing is chosen to
-                        represent them. In statistical test step, minimizers
+                        represent them. In statistical test step, nearest_neighbors
                         are found based on ignoring the ends of this size.
                         Also indels in ends will not be tested. [default
                         ignore_ends_len=15].

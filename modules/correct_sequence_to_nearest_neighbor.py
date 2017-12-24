@@ -76,7 +76,7 @@ def correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, single_cor
 
 # def correct_to_minimzer_helper(arguments):
 #     args, kwargs = arguments
-#     return correct_to_minimizer(*args, **kwargs)
+#     return correct_to_nearest_neighbor(*args, **kwargs)
 
 def correct_to_consensus_helper(arguments):
     args, kwargs = arguments
@@ -193,7 +193,7 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
 
 
         for s in sorted(partition):
-            if partition[s][3] > 1: # at least 2 identical sequences --> its a minimizer of the partition, has converged, and should not be corrected
+            if partition[s][3] > 1: # at least 2 identical sequences --> its a nearest_neighbor of the partition, has converged, and should not be corrected
                 print("not correcting converged sequence!")
                 continue
 
@@ -218,7 +218,7 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
             # print("positions to correct:", nr_pos_to_correct) 
 
             if nr_pos_to_correct  == 0:
-                print("Edit distance to minimizer:", partition[s][0], "is minimizer:", s ==m, "Minority positions:", minority_positions)
+                print("Edit distance to nearest_neighbor:", partition[s][0], "is nearest_neighbor:", s ==m, "Minority positions:", minority_positions)
                 continue
             if len(minority_positions_correctable) == 0:
                 print("no unambiguous majority positions")
@@ -257,7 +257,7 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
     return S_prime_partition, S_prime_quality_vector
 
 
-# def correct_to_minimizer(m, partition, seq_to_acc):
+# def correct_to_nearest_neighbor(m, partition, seq_to_acc):
 #     S_prime_partition = {}
 
 #     N_t = sum([container_tuple[3] for s, container_tuple in partition.items()]) # total number of sequences in partition
@@ -269,9 +269,9 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
 #         # all strings has not converged
 #         alignment_matrix, PFM = create_position_probability_matrix(m, partition) 
         
-#         # print("minimizer errors:",  math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)  )
-#         # minimizer_errors = min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ])
-#         # minimizer_errors = math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)
+#         # print("nearest_neighbor errors:",  math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)  )
+#         # nearest_neighbor_errors = min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ])
+#         # nearest_neighbor_errors = math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)
 
 #         ### TEST LOG ERROR TYPES #######
 #         # c = Counter()
@@ -304,11 +304,11 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
 #         ############################
 
 #         for s in partition:
-#             # if minimizer_errors < partition[s][0]:
-#             #     nr_pos_to_correct = int( partition[s][0] - minimizer_errors ) #decide how many errors we should correct here
+#             # if nearest_neighbor_errors < partition[s][0]:
+#             #     nr_pos_to_correct = int( partition[s][0] - nearest_neighbor_errors ) #decide how many errors we should correct here
 #             # else:
 #             #     nr_pos_to_correct = int(math.ceil(partition[s][0] / 2.0)) #decide how many errors we should correct here
-#             # nr_pos_to_correct = max(int( partition[s][0] - minimizer_errors ), int(math.ceil(partition[s][0] / 2.0)))
+#             # nr_pos_to_correct = max(int( partition[s][0] - nearest_neighbor_errors ), int(math.ceil(partition[s][0] / 2.0)))
 #             nr_pos_to_correct = int(math.ceil(partition[s][0] / 2.0)) #decide how many errors we should correct here
 
 #             # print("positions to correct for sequence s:", nr_pos_to_correct, s ==m)
@@ -336,7 +336,7 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
 
 
 
-#             ########### TEST WEIGHTING EACH MINORITY POSITION BY IT'S OBSERVED FREQUENCY THROUGHOUT THE ALIGNMENTS TO THE MINIMIZER ################
+#             ########### TEST WEIGHTING EACH MINORITY POSITION BY IT'S OBSERVED FREQUENCY THROUGHOUT THE ALIGNMENTS TO THE nearest_neighbor ################
 #             # pos_freqs_for_s_mod = []
 #             # for j in range(len(PFM)):
 #             #     v_j = s_alignment_in_matrix[j]
@@ -369,7 +369,7 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
 #             # J = random.sample(minority_positions_for_s, nr_pos_to_correct)
 #             ##############################################
 
-#             ########### TEST WEIGHTING EACH MINORITY POSITION BY IT'S OBSERVED FREQUENCY THROUGHOUT THE ALIGNMENTS TO THE MINIMIZER ################
+#             ########### TEST WEIGHTING EACH MINORITY POSITION BY IT'S OBSERVED FREQUENCY THROUGHOUT THE ALIGNMENTS TO THE nearest_neighbor ################
 #             pos_freqs_for_s_mod = []
 #             for j in range(len(PFM)):
 #                 max_v_j = max(PFM[j], key = lambda x: PFM[j][x] )
@@ -445,7 +445,7 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
             assert s_before == s_after
 
         # consensus_alignment = [ max(PFM[j], key=lambda k: PFM[j][k]) for j in range(len(PFM))]
-        # print("minimizer errors:",  math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)  )
+        # print("nearest_neighbor errors:",  math.ceil(min([ partition[s][0] for s in partition if partition[s][3] > 1 or s !=m ]) / 2.0)  )
         # frozen_positions = get_frozen_positions(alignment_matrix[m])
         ## TEST LOG ERROR TYPES #######
         c_del = 0
@@ -483,7 +483,7 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
         ############################
 
         for s in sorted(partition):
-            if partition[s][3] > 1: # at least 2 identical sequences --> its a minimizer of the partition, has converged, and should not be corrected
+            if partition[s][3] > 1: # at least 2 identical sequences --> its a nearest_neighbor of the partition, has converged, and should not be corrected
                 continue
 
             print(len(s))
@@ -496,10 +496,10 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
             # print("positions to correct:", nr_pos_to_correct)
 
             if nr_pos_to_correct == 0:
-                print("Edit distance to minimizer:", partition[s][0], "is minimizer:", s ==m, "Minority positions:", minority_positions)
+                print("Edit distance to nearest_neighbor:", partition[s][0], "is nearest_neighbor:", s ==m, "Minority positions:", minority_positions)
 
             if nr_pos_to_correct2 > 0 and nr_pos_to_correct == 0:
-                print("Edit distance to minimizer: {0}, {1} minority positions, correcting no position. Length partition (unique): {2}, total seqs: {3}".format(partition[s][0], len(minority_positions), len(partition), N_t))
+                print("Edit distance to nearest_neighbor: {0}, {1} minority positions, correcting no position. Length partition (unique): {2}, total seqs: {3}".format(partition[s][0], len(minority_positions), len(partition), N_t))
                 # for s in partition:
                 #     print(s)
                 # print([ (j,majority_vector[j], s_alignment_in_matrix[j], PFM[j]) for j in range(len(majority_vector)) if majority_vector[j] != s_alignment_in_matrix[j] ])
@@ -528,7 +528,7 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
             ############################################################
             ############################################################
 
-            ########### TEST WEIGHTING EACH MINORITY POSITION BY IT'S OBSERVED FREQUENCY THROUGHOUT THE ALIGNMENTS TO THE MINIMIZER ################
+            ########### TEST WEIGHTING EACH MINORITY POSITION BY IT'S OBSERVED FREQUENCY THROUGHOUT THE ALIGNMENTS TO THE nearest_neighbor ################
             pos_freqs_for_s_mod = []
             for j in range(len(PFM)):
                 majority_variant = majority_vector[j]
@@ -616,7 +616,7 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
 
 # def get_frozen_positions(m_in_alignment_matrix):
 #     """
-#         positions in Multialingment matrix where there are insels longer than 2 bp w.r.t. minimizer, these regions are prone to errors in alingments and
+#         positions in Multialingment matrix where there are insels longer than 2 bp w.r.t. nearest_neighbor, these regions are prone to errors in alingments and
 #         we wait to correct these in another partition where they are hopefully split into several true partitions.
 #     """
 #     frozen_pos = set()

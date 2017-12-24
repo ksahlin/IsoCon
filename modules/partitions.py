@@ -11,9 +11,9 @@ from modules import functions
 
 def highest_reachable_with_edge_degrees(S, params):
     # if params.nontargeted:
-    #     G_star, converged = graphs.construct_approximate_minimizer_graph(S, params)
+    #     G_star, converged = graphs.construct_approximate_nearest_neighbor_graph(S, params)
     # else:
-    G_star, converged = graphs.construct_exact_minimizer_graph(S, params)
+    G_star, converged = graphs.construct_exact_nearest_neighbor_graph(S, params)
 
     unique_start_strings = set(G_star.nodes())
 
@@ -21,7 +21,7 @@ def highest_reachable_with_edge_degrees(S, params):
     partition_sizes = []
     nr_consensus = 0
     G_transpose = nx.reverse(G_star)
-    print("len G_star_transposed (minimizers):", len(G_transpose))
+    print("len G_star_transposed (nearest_neighbors):", len(G_transpose))
 
     print(sorted([len(G_transpose.neighbors(n)) for n in G_transpose], reverse=True))
     M = {}
@@ -40,7 +40,7 @@ def highest_reachable_with_edge_degrees(S, params):
             biggest_reachable_comp_size = 0
             biggest_reachable_comp_weight = 0
             biggest_reachable_comp_nodes = set()
-            biggest_reachable_comp_minimizer = "XXXXX"
+            biggest_reachable_comp_nearest_neighbor = "XXXXX"
 
 
             for m in subgraph:
@@ -79,45 +79,45 @@ def highest_reachable_with_edge_degrees(S, params):
                     biggest_reachable_comp_weight = reachable_comp_weight
                     biggest_reachable_comp_nodes = set(reachable_comp)
                     biggest_reachable_comp_size = len(reachable_comp)
-                    biggest_reachable_comp_minimizer = m
+                    biggest_reachable_comp_nearest_neighbor = m
 
                 elif reachable_comp_weight >= biggest_reachable_comp_weight:
                     if reachable_comp_weight > biggest_reachable_comp_weight:
                         biggest_reachable_comp_weight = reachable_comp_weight
                         biggest_reachable_comp_nodes = set(reachable_comp)
                         biggest_reachable_comp_size = len(reachable_comp)
-                        biggest_reachable_comp_minimizer = m
+                        biggest_reachable_comp_nearest_neighbor = m
 
                     elif reachable_comp_weight == biggest_reachable_comp_weight:
-                        if edit_distances_to_m[m] < edit_distances_to_m[biggest_reachable_comp_minimizer]:
-                            # print("tie but smaller edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_minimizer])
+                        if edit_distances_to_m[m] < edit_distances_to_m[biggest_reachable_comp_nearest_neighbor]:
+                            # print("tie but smaller edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_nearest_neighbor])
                             biggest_reachable_comp_nodes = set(reachable_comp)
                             biggest_reachable_comp_size = len(reachable_comp)
-                            biggest_reachable_comp_minimizer = m
+                            biggest_reachable_comp_nearest_neighbor = m
 
-                        elif edit_distances_to_m[m] > edit_distances_to_m[biggest_reachable_comp_minimizer]:
-                            # print("tie but bigger edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_minimizer])
+                        elif edit_distances_to_m[m] > edit_distances_to_m[biggest_reachable_comp_nearest_neighbor]:
+                            # print("tie but bigger edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_nearest_neighbor])
                             pass
                         else:
                             if biggest_reachable_comp_weight > 1:
-                                # print("tie both in weighted partition size and total edit distance. Choosing lexographically smaller minimizer")
+                                # print("tie both in weighted partition size and total edit distance. Choosing lexographically smaller nearest_neighbor")
                                 # print(" weighted partition size:", biggest_reachable_comp_weight, " total edit distance:", edit_distances_to_m[m])
                                 pass
                             
-                            if m < biggest_reachable_comp_minimizer:
+                            if m < biggest_reachable_comp_nearest_neighbor:
                                 biggest_reachable_comp_nodes = set(reachable_comp)
-                                biggest_reachable_comp_minimizer = m
+                                biggest_reachable_comp_nearest_neighbor = m
                             else:
                                 pass
 
                     else:
                         print("BUG!")
 
-            if biggest_reachable_comp_weight == 0: # if there were no edges! partition is minimizer itself
+            if biggest_reachable_comp_weight == 0: # if there were no edges! partition is nearest_neighbor itself
                 M[m] = 0 
                 partition[m] = set()
             else:
-                minimizer = biggest_reachable_comp_minimizer # "XXXXXX" #biggest_reachable_comp_minimizer #
+                nearest_neighbor = biggest_reachable_comp_nearest_neighbor # "XXXXXX" #biggest_reachable_comp_nearest_neighbor #
                 max_direct_weight = 0
                 # print("total nodes searched in this pass:", len(biggest_reachable_comp_nodes))
                 for n in biggest_reachable_comp_nodes:
@@ -129,13 +129,13 @@ def highest_reachable_with_edge_degrees(S, params):
                     # print("direct weight:", direct_weight)
                     if direct_weight > max_direct_weight:
                         max_direct_weight = direct_weight
-                        minimizer = n
+                        nearest_neighbor = n
                     elif direct_weight == max_direct_weight:
-                        minimizer = min(minimizer, n)
-                # print("minimizer direct weight:", max_direct_weight, "nodes in reachable:", len(biggest_reachable_comp_nodes))
-                M[minimizer] = biggest_reachable_comp_weight   
-                partition[minimizer] = biggest_reachable_comp_nodes.difference(set([minimizer]))
-                assert minimizer in biggest_reachable_comp_nodes
+                        nearest_neighbor = min(nearest_neighbor, n)
+                # print("nearest_neighbor direct weight:", max_direct_weight, "nodes in reachable:", len(biggest_reachable_comp_nodes))
+                M[nearest_neighbor] = biggest_reachable_comp_weight   
+                partition[nearest_neighbor] = biggest_reachable_comp_nodes.difference(set([nearest_neighbor]))
+                assert nearest_neighbor in biggest_reachable_comp_nodes
 
             # vizualize_test_graph(subgraph)
             # if len(biggest_reachable_comp_nodes) == 65:
@@ -150,10 +150,10 @@ def highest_reachable_with_edge_degrees(S, params):
     #     print("min:", len(m))
     #     for p in sorted(partition[m]):
     #         print(len(p))
-    minimizer_lenghts = [len(m) for m in sorted(partition)]
-    print(sorted(minimizer_lenghts))
+    nearest_neighbor_lenghts = [len(m) for m in sorted(partition)]
+    print(sorted(nearest_neighbor_lenghts))
     print("NR CONSENSUS:", nr_consensus)
-    print("NR minimizers:", len(M), len(partition))
+    print("NR nearest_neighbors:", len(M), len(partition))
     print("partition sizes(identical strings counted once): ", sorted([len(partition[p]) +1 for p in  partition], reverse = True))
 
     total_strings_in_partition = sum([ len(partition[p]) +1 for p in  partition])
@@ -185,8 +185,8 @@ def partition_strings_2set(X, C, X_file, C_file, params):
 
     """
 
-    G_star = graphs.construct_exact_2set_minimizer_bipartite_graph(X, C, X_file, C_file, params)
-    # G_star, alignment_graph = graphs.construct_2set_minimizer_bipartite_graph(X, C, X_file, C_file)
+    G_star = graphs.construct_exact_2set_nearest_neighbor_bipartite_graph(X, C, X_file, C_file, params)
+    # G_star, alignment_graph = graphs.construct_2set_nearest_neighbor_bipartite_graph(X, C, X_file, C_file)
     G_star_transposed = nx.reverse(G_star) #functions.transpose(G_star)
     partition = {} # dict with a center as key and a set containing all sequences chosen to this partition
     

@@ -47,7 +47,7 @@ def paf_to_best_matches_2set(paf_file_path):
                 continue
 
             n_min = int(row_info[12].split(":")[-1])
-            #   \frac{\min \{ |q|, |t| \} } {\max \{ |q|,|t| \} }  n^{\text{minimizers}}
+            #   \frac{\min \{ |q|, |t| \} } {\max \{ |q|,|t| \} }  n^{\text{nearest_neighbors}}
             ## paf_similarity_score = math.sqrt(n_min) * min(q_len, t_len)/float(max(q_len, t_len))
             paf_similarity_score = n_min - ( max(q_len, t_len) - min(q_len, t_len))
 
@@ -109,7 +109,7 @@ def paf_to_best_matches(paf_files, acc_to_strings):
                     continue
 
                 n_min = int(row_info[12].split(":")[-1])
-                #   \frac{\min \{ |q|, |t| \} } {\max \{ |q|,|t| \} }  n^{\text{minimizers}}
+                #   \frac{\min \{ |q|, |t| \} } {\max \{ |q|,|t| \} }  n^{\text{nearest_neighbors}}
                 # paf_similarity_score = math.sqrt(n_min) * min(q_len, t_len)/float(max(q_len, t_len))
                 # paf_similarity_score = nr_match - ( nr_match_w_gap - nr_match )
                 paf_similarity_score = n_min - ( max(q_len, t_len) - min(q_len, t_len))

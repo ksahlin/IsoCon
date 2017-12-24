@@ -70,13 +70,13 @@ def run_get_candidates(params):
     total_start = time()
     initialize_logger(params)
     params.read_file = params.fl_reads
-    if params.barcodes:
-        # need to redirect path to reads to the new path with modified reads as well
-        filtered_file = identify_barcodes.remove_barcodes_fcn(params.read_file, params)
-        params.read_file = filtered_file
+    # if params.barcodes:
+    #     # need to redirect path to reads to the new path with modified reads as well
+    #     filtered_file = identify_barcodes.remove_barcodes_fcn(params.read_file, params)
+    #     params.read_file = filtered_file
     candidate_file = isocon_get_candidates.find_candidate_transcripts(params.read_file, params)
     total_elapsed = time() - total_start
-    write_output.logger('TOTAL TIME ELAPSED FOR MINIMIZER APPROACH:{0}'.format(str(total_elapsed)), params.logfile)
+    write_output.logger('TOTAL TIME ELAPSED FOR nearest_neighbor APPROACH:{0}'.format(str(total_elapsed)), params.logfile)
 
     if params.cleanup:
         clean_dir(params)
@@ -137,24 +137,23 @@ def initialize_logger(params):
 def run_pipeline(params):
     """
         runs:
-            1. remove_barcodes() if --barcodes is specified
-            2. get_candidates() to find candidate transcripts out of CCS full length reads
-            3. stat_filter() to filter candidates and only output significant ones
+            1. get_candidates() to find candidate transcripts out of CCS full length reads
+            2. stat_filter() to filter candidates and only output significant ones
     """
     total_start = time()
     initialize_logger(params)
     params.read_file = params.fl_reads
-    if params.barcodes:
-        # need to redirect path to reads to the new path with modified reads as well
-        filtered_file = identify_barcodes.remove_barcodes_fcn(params.read_file, params)
-        params.read_file = filtered_file
+    # if params.barcodes:
+    #     # need to redirect path to reads to the new path with modified reads as well
+    #     filtered_file = identify_barcodes.remove_barcodes_fcn(params.read_file, params)
+    #     params.read_file = filtered_file
 
-    minimizer_start = time() 
+    nearest_neighbor_start = time() 
     candidate_file, partition_of_X, to_realign = isocon_get_candidates.find_candidate_transcripts(params.read_file, params)
     # for x_acc in alignments_of_reads_to_candidates:
     #     assert len(alignments_of_reads_to_candidates[x_acc]) == 1
-    minimizer_elapsed = time() - minimizer_start
-    write_output.logger('TIME ELAPSED FOR FINDING CANDIDATES WITH MINIMIZERS:{0}'.format(str(minimizer_elapsed)), params.logfile)
+    nearest_neighbor_elapsed = time() - nearest_neighbor_start
+    write_output.logger('TIME ELAPSED FOR FINDING CANDIDATES WITH nearest_neighborS:{0}'.format(str(nearest_neighbor_elapsed)), params.logfile)
 
     stats_start = time()
     # original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.fl_reads, 'r'))}
@@ -185,40 +184,40 @@ if __name__ == '__main__':
     pipeline_required = pipeline.add_argument_group('required arguments')
     pipeline_required.add_argument('-fl_reads', required=True, type=str, help='Fast<a/q> file pacbio Reads of Insert. ')
     pipeline_required.add_argument('-outfolder', required=True, type=str, help='Outfolder. ')
-    # pipeline.add_argument('--nontargeted', action='store_true', help='Uses minimap to find minimizers instead of our exact approach disigned for targeted sequnecing. ')
+    # pipeline.add_argument('--nontargeted', action='store_true', help='Uses minimap to find nearest_neighbors instead of our exact approach disigned for targeted sequnecing. ')
     pipeline.add_argument('--ccs', type=str, help='BAM/SAM file with CCS sequence predictions. ')
-    pipeline.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
+    # pipeline.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ') 
     pipeline.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
-    pipeline.add_argument('--minimizer_search_depth', type=int, default=2**32, help='Maximum number of pairwise alignments in search matrix to find minimizer. [default =2**32]')
+    pipeline.add_argument('--neighbor_search_depth', type=int, default=2**32, help='Maximum number of pairwise alignments in search matrix to find nearest_neighbor. [default =2**32]')
     pipeline.add_argument('--p_value_threshold', type=float, default=0.01, help='Minimum identity between sequences to be considered. [default = 0.0, all identity levels considered]')
     pipeline.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
     pipeline.add_argument('--min_candidate_support', type=int, default=2, help='Required minimum number of reads converged to the same sequence to be included in statistical test.')
-    # pipeline.add_argument('--minimap_bin_size', type=int, default=1000, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
-    # pipeline.add_argument('--statistical_test_editdist', type=int, default=0, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
-    pipeline.add_argument('--ignore_ends_len', type=int, default=15, help='Number of bp to ignore in ends. If two candidates are identical expept in ends of this size, they are collapses and the longest common substing is chosen to represent them. In statistical test step, minimizers are found based on ignoring the ends of this size. Also indels in ends will not be tested. [default ignore_ends_len=15].')
+    # pipeline.add_argument('--minimap_bin_size', type=int, default=1000, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if nearest_neighbor is smaller).')
+    # pipeline.add_argument('--statistical_test_editdist', type=int, default=0, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if nearest_neighbor is smaller).')
+    pipeline.add_argument('--ignore_ends_len', type=int, default=15, help='Number of bp to ignore in ends. If two candidates are identical expept in ends of this size, they are collapses and the longest common substing is chosen to represent them. In statistical test step, nearest_neighbors are found based on ignoring the ends of this size. Also indels in ends will not be tested. [default ignore_ends_len=15].')
     pipeline.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
     pipeline.add_argument('--prefilter_candidates', action='store_true', help='Filter candidates if they are not consensus over at least one base pair, this can reduce runtime without significant loss in true candidates.')
     pipeline.set_defaults(which='pipeline')
 
 
-    # create the parser for the "remove_barcodes" command
-    remove_barcodes = subparsers.add_parser('remove_barcodes', help='Remove barcodes from sequences.')
-    remove_barcodes.add_argument('-fl_reads', type=str, help='Path to the consensus fasta file')
-    remove_barcodes.add_argument('outfolder', type=str, help='Output folder to results')
-    remove_barcodes.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
-    remove_barcodes.set_defaults(which='remove_barcodes')
+    # # create the parser for the "remove_barcodes" command
+    # remove_barcodes = subparsers.add_parser('remove_barcodes', help='Remove barcodes from sequences.')
+    # remove_barcodes.add_argument('-fl_reads', type=str, help='Path to the consensus fasta file')
+    # remove_barcodes.add_argument('outfolder', type=str, help='Output folder to results')
+    # remove_barcodes.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
+    # remove_barcodes.set_defaults(which='remove_barcodes')
 
     # create the parser for the "get_candidates" command
-    get_candidates = subparsers.add_parser('get_candidates', help='Get candidate transcripts with minimizer approach.')
+    get_candidates = subparsers.add_parser('get_candidates', help='Get candidate transcripts with nearest_neighbor approach.')
     get_candidates_required = get_candidates.add_argument_group('required arguments')
     get_candidates_required.add_argument('-fl_reads', type=str, required=True, help='Full length RoIs. ')
     get_candidates_required.add_argument('-outfolder', type=str, required=True, help='Outfolder. ')
-    get_candidates.add_argument('--minimizer_search_depth', type=int, default=2**32, help='Maximum number of pairwise alignments in search matrix to find minimizer. [default =2**32]')
-    get_candidates.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
+    get_candidates.add_argument('--neighbor_search_depth', type=int, default=2**32, help='Maximum number of pairwise alignments in search matrix to find nearest_neighbor. [default =2**32]')
+    # get_candidates.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
     get_candidates.add_argument('--min_candidate_support', type=int, default=2, help='Required minimum number of reads converged to the same sequence to be included in statistical test.')
-    # get_candidates.add_argument('--minimap_bin_size', type=int, default=1000, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
+    # get_candidates.add_argument('--minimap_bin_size', type=int, default=1000, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if nearest_neighbor is smaller).')
     get_candidates.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
-    get_candidates.add_argument('--ignore_ends_len', type=int, default=15, help='Number of bp to ignore in ends. If two candidates are identical expept in ends of this size, they are collapses and the longest common substing is chosen to represent them. In statistical test step, minimizers are found based on ignoring the ends of this size. Also indels in ends will not be tested. [default ignore_ends_len=15].')
+    get_candidates.add_argument('--ignore_ends_len', type=int, default=15, help='Number of bp to ignore in ends. If two candidates are identical expept in ends of this size, they are collapses and the longest common substing is chosen to represent them. In statistical test step, nearest_neighbors are found based on ignoring the ends of this size. Also indels in ends will not be tested. [default ignore_ends_len=15].')
     get_candidates.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
     get_candidates.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
     get_candidates.add_argument('--prefilter_candidates', action='store_true', help='Filter candidates if they are not consensus over at least one base pair, this can reduce runtime without significant loss in true candidates.')
@@ -226,7 +225,7 @@ if __name__ == '__main__':
 
 
     # create the parser for the "stat_filter" command
-    stat_filter = subparsers.add_parser('stat_filter', help='Get candidate transcripts with minimizer approach.')
+    stat_filter = subparsers.add_parser('stat_filter', help='Get candidate transcripts with nearest_neighbor approach.')
     stat_filter_required = stat_filter.add_argument_group('required arguments')
     stat_filter_required.add_argument('-fl_reads', type=str, required=True, help='Full length RoIs. ')
     stat_filter_required.add_argument('-candidates', type=str, help='Already generated candidates. ')
@@ -235,13 +234,13 @@ if __name__ == '__main__':
     stat_filter.add_argument('--develop_mode', dest='develop_mode', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     stat_filter.add_argument('--min_candidate_support', type=int, default=2, help='Required minimum number of reads converged to the same sequence to be included in statistical test. Can only be applies if fasta accessions comes from previous step in pipline')
     stat_filter.add_argument('--single_core', dest='single_core', action='store_true', help='Force working on single core. ')
-    stat_filter.add_argument('--statistical_test_editdist', type=int, default=0, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
-    # stat_filter.add_argument('--minimap_bin_size', type=int, default=400, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if minimizer is smaller).')
-    stat_filter.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
+    stat_filter.add_argument('--statistical_test_editdist', type=int, default=0, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if nearest_neighbor is smaller).')
+    # stat_filter.add_argument('--minimap_bin_size', type=int, default=400, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if nearest_neighbor is smaller).')
+    # stat_filter.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
     stat_filter.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
     stat_filter.set_defaults(which='stat_filter')
 
-    # stat_filter.add_argument('--consensus', type=str, help='Additional canditates supplied by user (This still runs the minimizer step, but additional candidates can help with guidance). ')
+    # stat_filter.add_argument('--consensus', type=str, help='Additional canditates supplied by user (This still runs the nearest_neighbor step, but additional candidates can help with guidance). ')
 
 
     args = parent_parser.parse_args()

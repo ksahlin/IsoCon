@@ -25,15 +25,15 @@ import re
 
 import edlib
 
-def get_minimizers_helper(arguments):
+def get_nearest_neighbors_helper(arguments):
     args, kwargs = arguments
-    return get_minimizers(*args, **kwargs)
+    return get_nearest_neighbors(*args, **kwargs)
 
-def get_exact_minimizer_graph(seq_to_acc_list_sorted, has_converged, params):
+def get_exact_nearest_neighbor_graph(seq_to_acc_list_sorted, has_converged, params):
     if params.single_core:
-        best_edit_distances = get_minimizers(seq_to_acc_list_sorted, 0, 0, seq_to_acc_list_sorted, has_converged, params.minimizer_search_depth)
+        best_edit_distances = get_nearest_neighbors(seq_to_acc_list_sorted, 0, 0, seq_to_acc_list_sorted, has_converged, params.neighbor_search_depth)
 
-        # implement check here to se that all seqs got a minimizer, if not, print which noes that did not get a minimizer computed.!
+        # implement check here to se that all seqs got a nearest_neighbor, if not, print which noes that did not get a nearest_neighbor computed.!
 
     else:
         ####### parallelize alignment #########
@@ -44,7 +44,7 @@ def get_exact_minimizer_graph(seq_to_acc_list_sorted, has_converged, params):
 
         # here we split the input into chunks
         chunk_size = max(int(len(seq_to_acc_list_sorted) / (10*mp.cpu_count())), 20 )
-        ref_seq_chunks = [ ( max(0, i - params.minimizer_search_depth -1), seq_to_acc_list_sorted[max(0, i - params.minimizer_search_depth -1) : i + chunk_size + params.minimizer_search_depth +1 ]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size) ]
+        ref_seq_chunks = [ ( max(0, i - params.neighbor_search_depth -1), seq_to_acc_list_sorted[max(0, i - params.neighbor_search_depth -1) : i + chunk_size + params.neighbor_search_depth +1 ]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size) ]
         print([j for j, ch in ref_seq_chunks])
         print("reference chunks:", [len(ch) for j,ch in ref_seq_chunks])
 
@@ -61,13 +61,13 @@ def get_exact_minimizer_graph(seq_to_acc_list_sorted, has_converged, params):
             already_converged_chunks.append(already_converged_chunk)
         print("already converged chunks:", [len(ch) for ch in already_converged_chunks])
 
-        # get minimizers takes thre sub containers: 
+        # get nearest_neighbors takes thre sub containers: 
         #  chunk - a container with (sequences, accesions)-tuples to be aligned (queries)
         #  ref_seq_chunks - a container with (sequences, accesions)-tuples to be aligned to (references)
         #  already_converged_chunks - a set of query sequences that has already converged 
 
         try:
-            res = pool.map_async(get_minimizers_helper, [ ((chunks[i][1],  chunks[i][0], chunks[i][0] - ref_seq_chunks[i][0], ref_seq_chunks[i][1], already_converged_chunks[i], params.minimizer_search_depth), {}) for i in range(len(chunks))] )
+            res = pool.map_async(get_nearest_neighbors_helper, [ ((chunks[i][1],  chunks[i][0], chunks[i][0] - ref_seq_chunks[i][0], ref_seq_chunks[i][1], already_converged_chunks[i], params.neighbor_search_depth), {}) for i in range(len(chunks))] )
             best_edit_distances_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -140,7 +140,7 @@ def edlib_traceback(x, y, mode="NW", task="path", k=1):
     return ed, locations, cigar
 
 
-def get_minimizers(batch_of_queries, global_index_in_matrix, start_index, seq_to_acc_list_sorted, has_converged, minimizer_search_depth):
+def get_nearest_neighbors(batch_of_queries, global_index_in_matrix, start_index, seq_to_acc_list_sorted, has_converged, neighbor_search_depth):
     best_edit_distances = {}
     lower_target_edit_distances = {}
     print("Processing global index:" , global_index_in_matrix)
@@ -220,7 +220,7 @@ def get_minimizers(batch_of_queries, global_index_in_matrix, start_index, seq_to
             if stop_down and stop_up:
                 break
 
-            if j >= minimizer_search_depth:
+            if j >= neighbor_search_depth:
                 break
             j += 1
 
@@ -230,7 +230,7 @@ def get_minimizers(batch_of_queries, global_index_in_matrix, start_index, seq_to
         #     print(best_ed, "for seq with length", len(seq1), seq1)
     return best_edit_distances
 
-def compute_2set_minimizer_graph(X, C, params):
+def compute_2set_nearest_neighbor_graph(X, C, params):
     seq_to_acc_queries = [(seq, acc) for (acc, seq) in X.items()] #{seq: acc for (acc, seq) in  read_fasta(open(args.consensus_transcripts, 'r'))}
     # seq_to_acc_list_queries = list(seq_to_acc_queries.items())
 
@@ -239,7 +239,7 @@ def compute_2set_minimizer_graph(X, C, params):
     
     seq_to_acc_list_sorted_all = sorted(seq_to_acc_queries + seq_to_acc_targets, key= lambda x: len(x[0]))
 
-    minimizer_graph_x_to_c = get_exact_minimizer_graph_2set(seq_to_acc_list_sorted_all, set(C.keys()), params)
+    nearest_neighbor_graph_x_to_c = get_exact_nearest_neighbor_graph_2set(seq_to_acc_list_sorted_all, set(C.keys()), params)
 
     # TAKE CARE OF UNALIGNED READS HERE?
 
@@ -247,22 +247,22 @@ def compute_2set_minimizer_graph(X, C, params):
     tot_ed = 0
     edit_hist =[]
     neighbors = []
-    for x in  minimizer_graph_x_to_c:
-        for c in minimizer_graph_x_to_c[x]:
+    for x in  nearest_neighbor_graph_x_to_c:
+        for c in nearest_neighbor_graph_x_to_c[x]:
             edges += 1
-            tot_ed += minimizer_graph_x_to_c[x][c]
-            edit_hist.append(minimizer_graph_x_to_c[x][c])
+            tot_ed += nearest_neighbor_graph_x_to_c[x][c]
+            edit_hist.append(nearest_neighbor_graph_x_to_c[x][c])
 
-        neighbors.append(len(minimizer_graph_x_to_c[x]))
+        neighbors.append(len(nearest_neighbor_graph_x_to_c[x]))
 
     print("Number of edges:", edges)
     print("Total edit distance:", tot_ed)
     print("Avg ed (ed/edges):", tot_ed/ float(edges))
-    # histogram(edit_hist, args, name='edit_distances.png', x='x-axis', y='y-axis', x_cutoff=100, title="Edit distances in minimizer graph")
-    # histogram(edit_hist, args, name='edit_distances_zoomed.png', x='x-axis', y='y-axis', x_cutoff=5, title="Edit distances in minimizer graph")
-    # histogram(neighbors, args, name='neighbours.png', x='x-axis', y='y-axis', title="Number of neighbours in minimizer graph")
-    # histogram(neighbors, args, name='neighbours_zoomed.png', x='x-axis', y='y-axis', x_cutoff=20, title="Number of neighbours in minimizer graph")
-    return minimizer_graph_x_to_c
+    # histogram(edit_hist, args, name='edit_distances.png', x='x-axis', y='y-axis', x_cutoff=100, title="Edit distances in nearest_neighbor graph")
+    # histogram(edit_hist, args, name='edit_distances_zoomed.png', x='x-axis', y='y-axis', x_cutoff=5, title="Edit distances in nearest_neighbor graph")
+    # histogram(neighbors, args, name='neighbours.png', x='x-axis', y='y-axis', title="Number of neighbours in nearest_neighbor graph")
+    # histogram(neighbors, args, name='neighbours_zoomed.png', x='x-axis', y='y-axis', x_cutoff=20, title="Number of neighbours in nearest_neighbor graph")
+    return nearest_neighbor_graph_x_to_c
 
 # def reverse_complement(string):
 #     #rev_nuc = {'A':'T', 'C':'G', 'G':'C', 'T':'A', 'N':'N', 'X':'X'}
@@ -273,7 +273,7 @@ def compute_2set_minimizer_graph(X, C, params):
 #     return(rev_comp)
 
 
-def compute_minimizer_graph(S, has_converged, params):
+def compute_nearest_neighbor_graph(S, has_converged, params):
     """
         strings S are all unique here.
     """
@@ -301,10 +301,10 @@ def compute_minimizer_graph(S, has_converged, params):
 
     collapsed_consensus_transcripts =  { acc : seq for (seq, acc) in  seq_to_acc.items() }
     print("Number of collapsed consensus:", len(collapsed_consensus_transcripts))
-    minimizer_graph = get_exact_minimizer_graph(seq_to_acc_list_sorted, has_converged, params)
+    nearest_neighbor_graph = get_exact_nearest_neighbor_graph(seq_to_acc_list_sorted, has_converged, params)
 
     s1 = set()
-    for acc1 in minimizer_graph:
+    for acc1 in nearest_neighbor_graph:
         s1.add(S[acc1])
 
     s2 = set([seq for seq in seq_to_acc] )
@@ -316,31 +316,31 @@ def compute_minimizer_graph(S, has_converged, params):
     tot_ed = 0
     edit_hist =[]
     neighbors = []
-    for r1 in  minimizer_graph:
-        for r2 in minimizer_graph[r1]:
+    for r1 in  nearest_neighbor_graph:
+        for r2 in nearest_neighbor_graph[r1]:
             edges += 1
-            tot_ed += minimizer_graph[r1][r2]
-            edit_hist.append(minimizer_graph[r1][r2])
+            tot_ed += nearest_neighbor_graph[r1][r2]
+            edit_hist.append(nearest_neighbor_graph[r1][r2])
 
-        neighbors.append(len(minimizer_graph[r1]))
+        neighbors.append(len(nearest_neighbor_graph[r1]))
 
     print("Number of edges:", edges)
     print("Total edit distance:", tot_ed)
     print("Avg ed (ed/edges):", tot_ed/ float(edges))
-    # histogram(edit_hist, params, name='edit_distances.png', x='x-axis', y='y-axis', x_cutoff=100, title="Edit distances in minimizer graph")
-    # histogram(neighbors, params, name='neighbours.png', x='x-axis', y='y-axis', title="Number of neighbours in minimizer graph")
-    # histogram(neighbors, params, name='neighbours_zoomed.png', x='x-axis', y='y-axis', x_cutoff=20, title="Number of neighbours in minimizer graph")
+    # histogram(edit_hist, params, name='edit_distances.png', x='x-axis', y='y-axis', x_cutoff=100, title="Edit distances in nearest_neighbor graph")
+    # histogram(neighbors, params, name='neighbours.png', x='x-axis', y='y-axis', title="Number of neighbours in nearest_neighbor graph")
+    # histogram(neighbors, params, name='neighbours_zoomed.png', x='x-axis', y='y-axis', x_cutoff=20, title="Number of neighbours in nearest_neighbor graph")
 
-    return minimizer_graph, isolated
+    return nearest_neighbor_graph, isolated
 
 
 
-def get_exact_minimizer_graph_2set(seq_to_acc_list_sorted_all, target_accessions, params):
+def get_exact_nearest_neighbor_graph_2set(seq_to_acc_list_sorted_all, target_accessions, params):
 
     if params.single_core:
-        best_edit_distances = get_minimizers_2set(seq_to_acc_list_sorted_all, 0, seq_to_acc_list_sorted_all, target_accessions, params.minimizer_search_depth)
+        best_edit_distances = get_nearest_neighbors_2set(seq_to_acc_list_sorted_all, 0, seq_to_acc_list_sorted_all, target_accessions, params.neighbor_search_depth)
 
-        # implement check here to se that all seqs got a minimizer, if not, print which noes that did not get a minimizer computed.!
+        # implement check here to se that all seqs got a nearest_neighbor, if not, print which noes that did not get a nearest_neighbor computed.!
 
     else:
         ####### parallelize alignment #########
@@ -353,7 +353,7 @@ def get_exact_minimizer_graph_2set(seq_to_acc_list_sorted_all, target_accessions
         print([i for i in range(0, len(seq_to_acc_list_sorted_all), chunk_size)])
         print([len(ch) for i,ch in chunks])
         try:
-            res = pool.map_async(get_minimizers_2set_helper, [ ((chunk, i , seq_to_acc_list_sorted_all, target_accessions, params.minimizer_search_depth), {}) for i,chunk in chunks] )
+            res = pool.map_async(get_nearest_neighbors_2set_helper, [ ((chunk, i , seq_to_acc_list_sorted_all, target_accessions, params.neighbor_search_depth), {}) for i,chunk in chunks] )
             best_edit_distances_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -372,11 +372,11 @@ def get_exact_minimizer_graph_2set(seq_to_acc_list_sorted_all, target_accessions
     return best_edit_distances
 
 
-def get_minimizers_2set_helper(arguments):
+def get_nearest_neighbors_2set_helper(arguments):
     args, kwargs = arguments
-    return get_minimizers_2set(*args, **kwargs)
+    return get_nearest_neighbors_2set(*args, **kwargs)
 
-def get_minimizers_2set(batch, start_index, seq_to_acc_list_sorted, target_accessions, minimizer_search_depth):
+def get_nearest_neighbors_2set(batch, start_index, seq_to_acc_list_sorted, target_accessions, neighbor_search_depth):
     best_edit_distances = {}
     error_types = {"D":0, "S": 0, "I": 0}
     for i in range(start_index, start_index + len(batch)):
@@ -448,7 +448,7 @@ def get_minimizers_2set(batch, start_index, seq_to_acc_list_sorted, target_acces
             if stop_down and stop_up:
                 break
 
-            if j >= minimizer_search_depth:
+            if j >= neighbor_search_depth:
                 break
 
             j += 1
@@ -469,9 +469,9 @@ def main(args):
     seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
     collapsed_consensus_transcripts =  { acc : seq for (seq, acc) in  seq_to_acc.items() }
     print("Number of collapsed consensus:", len(collapsed_consensus_transcripts))
-    minimizer_graph = get_exact_minimizer_graph(seq_to_acc_list_sorted, params)
+    nearest_neighbor_graph = get_exact_nearest_neighbor_graph(seq_to_acc_list_sorted, params)
 
-    s1 = set( [ collapsed_consensus_transcripts[acc2] for acc1 in minimizer_graph for acc2 in minimizer_graph[acc1] ])
+    s1 = set( [ collapsed_consensus_transcripts[acc2] for acc1 in nearest_neighbor_graph for acc2 in nearest_neighbor_graph[acc1] ])
     s2 = set([seq for seq in seq_to_acc] )
     isolated = s2.difference(s1)
     print("isolated:", len(isolated))
@@ -480,20 +480,20 @@ def main(args):
     tot_ed = 0
     edit_hist =[]
     neighbors = []
-    for r1 in  minimizer_graph:
-        for r2 in minimizer_graph[r1]:
+    for r1 in  nearest_neighbor_graph:
+        for r2 in nearest_neighbor_graph[r1]:
             edges += 1
-            tot_ed += minimizer_graph[r1][r2]
-            edit_hist.append(minimizer_graph[r1][r2])
+            tot_ed += nearest_neighbor_graph[r1][r2]
+            edit_hist.append(nearest_neighbor_graph[r1][r2])
 
-        neighbors.append(len(minimizer_graph[r1]))
+        neighbors.append(len(nearest_neighbor_graph[r1]))
 
     print("Number of edges:", edges)
     print("Total edit distance:", tot_ed)
     print("Avg ed (ed/edges):", tot_ed/ float(edges))
-    histogram(edit_hist, args, name='edit_distances.png', x='x-axis', y='y-axis', x_cutoff=100, title="Edit distances in minimizer graph")
-    histogram(neighbors, args, name='neighbours.png', x='x-axis', y='y-axis', title="Number of neighbours in minimizer graph")
-    histogram(neighbors, args, name='neighbours_zoomed.png', x='x-axis', y='y-axis', x_cutoff=20, title="Number of neighbours in minimizer graph")
+    histogram(edit_hist, args, name='edit_distances.png', x='x-axis', y='y-axis', x_cutoff=100, title="Edit distances in nearest_neighbor graph")
+    histogram(neighbors, args, name='neighbours.png', x='x-axis', y='y-axis', title="Number of neighbours in nearest_neighbor graph")
+    histogram(neighbors, args, name='neighbours_zoomed.png', x='x-axis', y='y-axis', x_cutoff=20, title="Number of neighbours in nearest_neighbor graph")
 
 
 if __name__ == '__main__':

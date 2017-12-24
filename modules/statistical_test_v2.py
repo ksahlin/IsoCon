@@ -14,35 +14,35 @@ from modules.edlib_alignment_module import edlib_align_sequences_keeping_accessi
 from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, adjust_probability_of_candidate_to_alignment_invariant
 from modules import ccs_info
 
-def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, ccs_dict, params):
+def do_statistical_tests_per_edge(nearest_neighbor_graph_transposed, C, X, partition_of_X, ccs_dict, params):
     p_values = {}
     actual_tests = 0
     
-    # separate partition_of_X and X, C here into subsets for each t in minimizer graph to speed up parallelization when lots of reads
+    # separate partition_of_X and X, C here into subsets for each t in nearest_neighbor graph to speed up parallelization when lots of reads
     partition_of_X_per_candidate = {}
     all_X_in_partition = {}
     C_for_minmizer = {}
     candidates_to = {}
-    for t_acc in minimizer_graph_transposed:
+    for t_acc in nearest_neighbor_graph_transposed:
         candidates_to[t_acc] = {}
         partition_of_X_per_candidate[t_acc] = {}
         C_for_minmizer[t_acc] = {}
         all_X_in_partition[t_acc] = {}
-        for c_acc in minimizer_graph_transposed[t_acc]:
-            candidates_to[t_acc][c_acc] = {c_acc : minimizer_graph_transposed[t_acc][c_acc] }
+        for c_acc in nearest_neighbor_graph_transposed[t_acc]:
+            candidates_to[t_acc][c_acc] = {c_acc : nearest_neighbor_graph_transposed[t_acc][c_acc] }
             partition_of_X_per_candidate[t_acc][c_acc] = {acc : set([x_acc for x_acc in partition_of_X[acc]]) for acc in [c_acc, t_acc]}
             C_for_minmizer[t_acc][c_acc] = { acc : C[acc] for acc in [c_acc, t_acc] }
             all_X_in_partition[t_acc][c_acc] = { x_acc : X[x_acc] for acc in [t_acc, c_acc] for x_acc in partition_of_X[acc]}
 
 
     if params.single_core:
-        for t_acc in minimizer_graph_transposed:
-        #     if len(minimizer_graph_transposed[t_acc]) == 0:
+        for t_acc in nearest_neighbor_graph_transposed:
+        #     if len(nearest_neighbor_graph_transposed[t_acc]) == 0:
         #         p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
         #         continue
         #     print("t", t_acc)
             
-            for c_acc in minimizer_graph_transposed[t_acc]:
+            for c_acc in nearest_neighbor_graph_transposed[t_acc]:
                 p_vals = statistical_test_CLT(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len, ccs_dict)
 
                 for tested_cand_acc, (p_value, mult_factor_inv, k, N_t, variants) in p_vals.items():
@@ -59,7 +59,7 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
                         actual_tests += 1
                         p_values[tested_cand_acc] = (p_value, mult_factor_inv, k, N_t, variants)
 
-        for t_acc in minimizer_graph_transposed:
+        for t_acc in nearest_neighbor_graph_transposed:
             if t_acc not in p_values:
                 p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), "" )
     else:
@@ -69,7 +69,7 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
         try:
-            res = pool.map_async(statistical_test_helper, [ ( (t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len, ccs_dict), {}) for t_acc in minimizer_graph_transposed for c_acc in minimizer_graph_transposed[t_acc]  ] )
+            res = pool.map_async(statistical_test_helper, [ ( (t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len, ccs_dict), {}) for t_acc in nearest_neighbor_graph_transposed for c_acc in nearest_neighbor_graph_transposed[t_acc]  ] )
             statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -94,7 +94,7 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
                     actual_tests += 1
                     p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, variants)
 
-        for t_acc in minimizer_graph_transposed:
+        for t_acc in nearest_neighbor_graph_transposed:
             if t_acc not in p_values:
                 p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), "" )
 
@@ -103,23 +103,23 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
     return p_values
 
 
-# def do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, params):
+# def do_statistical_tests_all_c_to_t(nearest_neighbor_graph_transposed, C, X, partition_of_X, params):
 #     p_values = {}
 #     actual_tests = 0
     
-#     # separate partition_of_X and X, C here into subsets for each t in minimizer graph to speed up parallelization when lots of reads
+#     # separate partition_of_X and X, C here into subsets for each t in nearest_neighbor graph to speed up parallelization when lots of reads
 #     partition_of_X_for_minmizer = {}
 #     X_for_minmizer = {}
 #     C_for_minmizer = {}
 #     candidates_to = {}
-#     for t_acc in minimizer_graph_transposed:
-#         candidates_to[t_acc] = minimizer_graph_transposed[t_acc]
-#         partition_of_X_for_minmizer[t_acc] = {c_acc : set([x_acc for x_acc in partition_of_X[c_acc]]) for c_acc in list(minimizer_graph_transposed[t_acc].keys()) + [t_acc]}
-#         C_for_minmizer[t_acc] = { c_acc : C[c_acc] for c_acc in list(minimizer_graph_transposed[t_acc].keys()) + [t_acc] }
+#     for t_acc in nearest_neighbor_graph_transposed:
+#         candidates_to[t_acc] = nearest_neighbor_graph_transposed[t_acc]
+#         partition_of_X_for_minmizer[t_acc] = {c_acc : set([x_acc for x_acc in partition_of_X[c_acc]]) for c_acc in list(nearest_neighbor_graph_transposed[t_acc].keys()) + [t_acc]}
+#         C_for_minmizer[t_acc] = { c_acc : C[c_acc] for c_acc in list(nearest_neighbor_graph_transposed[t_acc].keys()) + [t_acc] }
 #         X_for_minmizer[t_acc] = { x_acc : X[x_acc] for c_acc in partition_of_X_for_minmizer[t_acc] for x_acc in partition_of_X_for_minmizer[t_acc][c_acc]}
 
 #     if params.single_core:
-#         for t_acc in minimizer_graph_transposed:
+#         for t_acc in nearest_neighbor_graph_transposed:
 #             p_vals = statistical_test(t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc], params.ignore_ends_len)
 #             for c_acc, (p_value, mult_factor_inv, k, N_t, delta_size) in p_vals.items():
 #                 if p_value == "not_tested":
@@ -142,7 +142,7 @@ def do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of
 #         signal.signal(signal.SIGINT, original_sigint_handler)
 #         pool = Pool(processes=mp.cpu_count())
 #         try:
-#             res = pool.map_async(statistical_test_helper, [ ( (t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc], params.ignore_ends_len), {}) for t_acc in minimizer_graph_transposed  ] )
+#             res = pool.map_async(statistical_test_helper, [ ( (t_acc, X_for_minmizer[t_acc], C_for_minmizer[t_acc], partition_of_X_for_minmizer[t_acc], candidates_to[t_acc], params.ignore_ends_len), {}) for t_acc in nearest_neighbor_graph_transposed  ] )
 #             statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
 #         except KeyboardInterrupt:
 #             print("Caught KeyboardInterrupt, terminating workers")
@@ -348,7 +348,7 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
 
     # no reads supporting neither the candidate nor the reference t
     #  this can happen if after realignment of reads to candidates, all the reads 
-    # to noth c and t got assigned to other candidates -- based on minimizer graph 
+    # to noth c and t got assigned to other candidates -- based on nearest_neighbor graph 
     # (should be rare) 
     if N_t == 0: 
         significance_values[t_acc] = (1.0, 1.0, len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )

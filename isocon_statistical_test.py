@@ -24,7 +24,7 @@ from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_k
 from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession, edlib_traceback
 from modules.input_output import fasta_parser, write_output
 from modules import statistical_test_v2
-from modules import correct_sequence_to_minimizer
+from modules import correct_sequence_to_nearest_neighbor
 from modules import end_invariant_functions
 from modules import ccs_info
 
@@ -99,7 +99,7 @@ def get_homopolymer_invariants(candidate_transcripts):
 
     return edges
 
-def get_minimizer_graph_transposed(candidate_transcripts):
+def get_nearest_neighbor_graph_transposed(candidate_transcripts):
     best_edit_distances = {}
     no_ref_to_test_to = set()
     for i, (c1, seq1) in enumerate(candidate_transcripts.items()):
@@ -132,18 +132,18 @@ def get_minimizer_graph_transposed(candidate_transcripts):
             no_ref_to_test_to.add(c1)
 
     # print(best_edit_distances["transcript_62_support_6"]) 
-    minimizer_graph_transposed = transpose(best_edit_distances)
+    nearest_neighbor_graph_transposed = transpose(best_edit_distances)
     print("isolated:", no_ref_to_test_to)
     for c_isolated in no_ref_to_test_to:
-        minimizer_graph_transposed[c_isolated] = {}
+        nearest_neighbor_graph_transposed[c_isolated] = {}
 
-    # print(minimizer_graph_transposed["transcript_46_support_430"])
-    # print(minimizer_graph_transposed["transcript_62_support_6"])
+    # print(nearest_neighbor_graph_transposed["transcript_46_support_430"])
+    # print(nearest_neighbor_graph_transposed["transcript_62_support_6"])
 
     # sys.exit()
 
     assert len(best_edit_distances) == len(candidate_transcripts)
-    return minimizer_graph_transposed
+    return nearest_neighbor_graph_transposed
 
 def check_exon_diffs(alignments_of_x_to_c, params):
     #################################################################
@@ -158,7 +158,7 @@ def check_exon_diffs(alignments_of_x_to_c, params):
             for s2, alignment_tuple in list(s1_dict.items()):
                 if re.search(pattern, alignment_tuple[1][20: -20]) or  re.search(pattern, alignment_tuple[2][20: -20]): # [20: -20] --> ignore this if-statement if missing or truncated barcode
                     # del alignments_of_x_to_c[s1][s2]
-                    # print("Deleted:", len(s1)," minimizer length:", len(s2), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0])
+                    # print("Deleted:", len(s1)," nearest_neighbor length:", len(s2), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0])
                     # print(s2)
                     cccntr += 1
                     out_file.write(">{0}\n{1}\n".format(s1, alignment_tuple[1].replace("-", "") ))
@@ -303,73 +303,73 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         ############# GET THE CLOSES HIGHEST SUPPORTED REFERENCE TO TEST AGAINST FOR EACH CANDIDATE ############
 
         # print("NEW")
-        # minimizer_graph_transposed = end_invariant_functions.get_minimizers_graph_transposed_under_ignored_ends(C, params)
-        # for t in minimizer_graph_transposed:
-        #     print(t, "nr candidates:", len(minimizer_graph_transposed[t]), "deltas:", [minimizer_graph_transposed[t][c] for c in minimizer_graph_transposed[t]])
+        # nearest_neighbor_graph_transposed = end_invariant_functions.get_nearest_neighbors_graph_transposed_under_ignored_ends(C, params)
+        # for t in nearest_neighbor_graph_transposed:
+        #     print(t, "nr candidates:", len(nearest_neighbor_graph_transposed[t]), "deltas:", [nearest_neighbor_graph_transposed[t][c] for c in nearest_neighbor_graph_transposed[t]])
         # print("OLD")
-        # minimizer_graph_transposed2 = get_minimizer_graph_transposed(C)
-        # for t in minimizer_graph_transposed2:
-        #     print(t, "nr candidates:", len(minimizer_graph_transposed2[t]), "deltas:", [minimizer_graph_transposed2[t][c] for c in minimizer_graph_transposed2[t]])
+        # nearest_neighbor_graph_transposed2 = get_nearest_neighbor_graph_transposed(C)
+        # for t in nearest_neighbor_graph_transposed2:
+        #     print(t, "nr candidates:", len(nearest_neighbor_graph_transposed2[t]), "deltas:", [nearest_neighbor_graph_transposed2[t][c] for c in nearest_neighbor_graph_transposed2[t]])
         # sys.exit()
 
         if params.ignore_ends_len > 0:
-            minimizer_graph_transposed = end_invariant_functions.get_minimizers_graph_transposed_under_ignored_ends(C, params)
+            nearest_neighbor_graph_transposed = end_invariant_functions.get_nearest_neighbors_graph_transposed_under_ignored_ends(C, params)
         else:
-            minimizer_graph_transposed = get_minimizer_graph_transposed(C)
+            nearest_neighbor_graph_transposed = get_nearest_neighbor_graph_transposed(C)
 
         # extra_edges_from_collapsed_homopolymers = get_homopolymer_invariants(C)
         # homopol_extra_added = 0
         # for acc1 in extra_edges_from_collapsed_homopolymers:
         #     for acc2 in extra_edges_from_collapsed_homopolymers[acc1]:
-        #         if acc1 in minimizer_graph_transposed:
-        #             if acc2 not in minimizer_graph_transposed[acc1]:
-        #                 minimizer_graph_transposed[acc1][acc2] = "homopolymer_identical"
+        #         if acc1 in nearest_neighbor_graph_transposed:
+        #             if acc2 not in nearest_neighbor_graph_transposed[acc1]:
+        #                 nearest_neighbor_graph_transposed[acc1][acc2] = "homopolymer_identical"
         #                 homopol_extra_added += 1
         #         else:
-        #             minimizer_graph_transposed[acc1] = {}
-        #             minimizer_graph_transposed[acc1][acc2] = "homopolymer_identical"
+        #             nearest_neighbor_graph_transposed[acc1] = {}
+        #             nearest_neighbor_graph_transposed[acc1][acc2] = "homopolymer_identical"
         #             homopol_extra_added += 1
 
         # print("EXTRA EDGES FROM HOMOPOLYMER IDENTICAL:", homopol_extra_added)
 
 
-        ## save time if the minimizer and all cantidates in a component has identical reads assignmed to them as previous step
+        ## save time if the nearest_neighbor and all cantidates in a component has identical reads assignmed to them as previous step
         # or heuristically: if candidate hase more than 2x more support than the reference itself (will give highly significant p-value anyway) to save computation time
         # Since indata is the same, the test is guaranteed to give same siginficance values as previous step
         previous_significance_values = {}
         if realignment_to_avoid_local_max != 1:
-            for t_acc in list(minimizer_graph_transposed.keys()):
+            for t_acc in list(nearest_neighbor_graph_transposed.keys()):
                 # skip to test candidates with more reads than their respective references, because its redundant computation that will lead to significant values anyway..
-                # for c_acc in minimizer_graph_transposed[t_acc].keys():
+                # for c_acc in nearest_neighbor_graph_transposed[t_acc].keys():
                 #     if len(partition_of_X[c_acc]) >= 2*len(partition_of_X[t_acc]):
                 #         print("skipping test for dominant candidate {0} to ref {1}".format(c_acc, t_acc))
-                #         del minimizer_graph_transposed[t_acc][c_acc]
+                #         del nearest_neighbor_graph_transposed[t_acc][c_acc]
 
-                accessions_in_component_to_test = set([c_acc for c_acc in minimizer_graph_transposed[t_acc].keys()] + [t_acc])
+                accessions_in_component_to_test = set([c_acc for c_acc in nearest_neighbor_graph_transposed[t_acc].keys()] + [t_acc])
                 # print(accessions_in_component_to_test)
                 if (accessions_in_component_to_test == previous_components[t_acc]) and all([ len(previous_partition_of_X[acc]) == len(partition_of_X[acc]) for acc in accessions_in_component_to_test]):
                     print("TEST IDENTICAL TO PREVIOUS STEP, SKIPPING FOR", t_acc)
                     for acc in accessions_in_component_to_test:
                         previous_significance_values[acc] = significance_values[acc]
-                    del minimizer_graph_transposed[t_acc]
+                    del nearest_neighbor_graph_transposed[t_acc]
                 else: 
                     # print("Modified")
                     previous_components[t_acc] = accessions_in_component_to_test
 
-            # print(minimizer_graph_transposed)
+            # print(nearest_neighbor_graph_transposed)
         #####################################################################################################
 
 
         # get all candidats that serve as null-hypothesis references and have neighbors subject to testing
-        # these are all candidates that are minimizers to some other, isolated nodes are not tested
+        # these are all candidates that are nearest_neighbors to some other, isolated nodes are not tested
         # candidatate in G_star_C
-        nr_of_tests_this_round = len([ 1 for t_acc in minimizer_graph_transposed for c_acc in minimizer_graph_transposed[t_acc] ] )
+        nr_of_tests_this_round = len([ 1 for t_acc in nearest_neighbor_graph_transposed for c_acc in nearest_neighbor_graph_transposed[t_acc] ] )
         print("NUMBER OF CANDIDATES LEFT:", len(C), "Number statistical tests in this round:", nr_of_tests_this_round)
 
         # if realignment_to_avoid_local_max == 1:
-        #     new_significance_values = statistical_test_v2.do_statistical_tests_all_c_to_t(minimizer_graph_transposed, C, X, partition_of_X, params )
+        #     new_significance_values = statistical_test_v2.do_statistical_tests_all_c_to_t(nearest_neighbor_graph_transposed, C, X, partition_of_X, params )
         # else:
-        new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(minimizer_graph_transposed, C, X, partition_of_X, ccs_dict, params )
+        new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(nearest_neighbor_graph_transposed, C, X, partition_of_X, ccs_dict, params )
 
         # updating if previously identical test had higher p_val than the highest new one, substitute with the stored test.
         for c_acc, (p_value, mult_factor_inv, k, N_t, variants) in new_significance_values.items():
