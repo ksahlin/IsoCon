@@ -398,7 +398,7 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
             errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
             # weight = functions.get_weights_per_read(t_acc, len(t_seq), candidate_accessions, errors) 
             invariant_factors_for_candidate = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
-            probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
+            probability = functions.get_prob_of_error_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
 
         #TODO: do exact only if partition less than, say 200? Otherwise poisson approx
         # p_value = CLT_test(probability, weight, x)

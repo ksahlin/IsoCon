@@ -310,12 +310,18 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
             # [A, B] --> [a, b]  [3, 93] --> [3, 43]
             # (x - A)*(b-a)/(B-A) + a
             q_qual_mapped = (q_qual - 3)*(40.0)/(90.0) + 3
-            if c_state == "S":
+
+            if u_v > 1: # probability in a homopolymenr region has all it's uncertainty attributed to the lenght of the homopolymer that 
+                p_error =  (10**(-q_qual_mapped/10.0))
+            elif c_state == "S":
                 p_error =  ((10**(-q_qual_mapped/10.0))*subs_ratio)/3.0 # probability that its an identical substitution error from a base call uncertainty
             elif  c_state == "I":
                 p_error =  ((10**(-q_qual_mapped/10.0))*ins_ratio)/4.0 # probability that its an identical insertion error from a base call uncertainty
+            elif c_state == "D":
+                p_error =  (10**(-q_qual_mapped/10.0)) * del_ratio # probability that its a delation error from a base call uncertainty
             else:
-                p_error =  (10**(-q_qual_mapped/10.0)) * min(del_ratio* u_v, 1.0) # probability that its a delation error from a base call uncertainty, homopolymers of length u has u possible positions to get deletion on
+                p_error = -1 # If end up here, there is a bug
+
             # print(p_error, q_qual_mapped, q_qual)
             assert 0.0 < p_error < 1.0
             probability[q_acc] *= p_error #max(p_error, min_uncertainty)
@@ -406,7 +412,7 @@ def get_min_uncertainty_per_read(target_accession, segment_length, candidate_acc
 #     return probability
 
 
-def get_prob_of_support_per_read(target_accession, segment_length, candidate_accessions, errors, invariant_factors_for_candidate):
+def get_prob_of_error_per_read(target_accession, segment_length, candidate_accessions, errors, invariant_factors_for_candidate):
     probability = {}
     assert len(invariant_factors_for_candidate) == 1
     c_acc = list(invariant_factors_for_candidate.keys())[0]
@@ -422,11 +428,11 @@ def get_prob_of_support_per_read(target_accession, segment_length, candidate_acc
             for (state, char) in invariant_factors_for_candidate[c_acc][pos]:
                 u_v = invariant_factors_for_candidate[c_acc][pos][(state, char)]
                 if state == "S":
-                    probability[q_acc] *= p_S*u_v # *(1.0/u_v)
+                    probability[q_acc] *= p_S*u_v 
                 elif state == "I":
-                    probability[q_acc] *= p_I*u_v #**(1.0/u_v)
+                    probability[q_acc] *= min(0.5, p_I*u_v) 
                 elif state == "D":
-                    probability[q_acc] *= p_D*u_v #**(1.0/u_v)
+                    probability[q_acc] *= min(0.5, p_D*u_v)
         if probability[q_acc] >= 1.0:
             probability[q_acc] = 0.99999
 
