@@ -53,7 +53,9 @@ def get_partition_alignments(graph_partition, M, G_star, params):
     print("Number of alignments returned from SSW:", len(ssw_temp))
     print("Number of alignments that were removed before correction phase -- too many mismatchas in ends (#ED-alignments - # SSW-alignments): {0} ".format(  len(ed_temp) - len(ssw_temp) ))
 
-    pattern = r"[-]{20,}"
+    pattern = r"[-]{{{min_exon_diff},}}".format( min_exon_diff = str(params.min_exon_diff)  )  # r"[-]{20,}"
+    print(pattern)
+
     for s1 in list(exact_alignments.keys()): 
         for s2 in list(exact_alignments[s1].keys()):
             s1_alignment, s2_alignment, (matches, mismatches, indels) = exact_alignments[s1][s2]
@@ -73,7 +75,7 @@ def get_partition_alignments(graph_partition, M, G_star, params):
                 del exact_alignments[s1][s2]
 
     ssw_after_exon_temp = [ exact_alignments[s1][s2] for s1 in exact_alignments for s2 in exact_alignments[s1]  ] 
-    print("Number of alignments that were removed before correction phase due to exon difference larger than 20bp: {0} ".format(  len(ssw_temp) - len(ssw_after_exon_temp) ))
+    print("Number of alignments that were removed before correction phase due to exon difference larger than {0}bp: {1} ".format(str(params.min_exon_diff) , len(ssw_temp) - len(ssw_after_exon_temp) ))
     # sys.exit()
 
 

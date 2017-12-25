@@ -145,35 +145,36 @@ def get_nearest_neighbor_graph_transposed(candidate_transcripts):
     assert len(best_edit_distances) == len(candidate_transcripts)
     return nearest_neighbor_graph_transposed
 
-def check_exon_diffs(alignments_of_x_to_c, params):
-    #################################################################
-    ###### temp check for best alignment to wrong isoform ###########
-    import re
-    pattern = r"[-]{8,}"
-    cccntr = 0
-    print("Barcodes:", params.barcodes )
-    out_file = open(os.path.join(params.outfolder, "statistical_exon_difs.fa"), "w")
-    if params.barcodes:
-        for s1, s1_dict in list(alignments_of_x_to_c.items()): 
-            for s2, alignment_tuple in list(s1_dict.items()):
-                if re.search(pattern, alignment_tuple[1][20: -20]) or  re.search(pattern, alignment_tuple[2][20: -20]): # [20: -20] --> ignore this if-statement if missing or truncated barcode
-                    # del alignments_of_x_to_c[s1][s2]
-                    # print("Deleted:", len(s1)," nearest_neighbor length:", len(s2), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0])
-                    # print(s2)
-                    cccntr += 1
-                    out_file.write(">{0}\n{1}\n".format(s1, alignment_tuple[1].replace("-", "") ))
-    else:
-        for s1, s1_dict in list(alignments_of_x_to_c.items()): 
-            for s2, alignment_tuple in list(s1_dict.items()):
-                if re.search(pattern, alignment_tuple[1]) or  re.search(pattern, alignment_tuple[2]):
-                    # del alignments_of_x_to_c[s1][s2]
-                    cccntr += 1        
-                    out_file.write(">{0}\n{1}\n".format(s1, alignment_tuple[1].replace("-", "") ))
 
-    print("Number containing exon differences in this pass:", cccntr)
-    # sys.exit()
-    ###################################################################
-    ###################################################################
+# def check_exon_diffs(alignments_of_x_to_c, params):
+#     #################################################################
+#     ###### temp check for best alignment to wrong isoform ###########
+#     import re
+#     pattern = r"[-]{8,}"
+#     cccntr = 0
+#     print("Barcodes:", params.barcodes )
+#     out_file = open(os.path.join(params.outfolder, "statistical_exon_difs.fa"), "w")
+#     if params.barcodes:
+#         for s1, s1_dict in list(alignments_of_x_to_c.items()): 
+#             for s2, alignment_tuple in list(s1_dict.items()):
+#                 if re.search(pattern, alignment_tuple[1][20: -20]) or  re.search(pattern, alignment_tuple[2][20: -20]): # [20: -20] --> ignore this if-statement if missing or truncated barcode
+#                     # del alignments_of_x_to_c[s1][s2]
+#                     # print("Deleted:", len(s1)," nearest_neighbor length:", len(s2), "length alignment:", len(alignment_tuple[2]), "edit distance:", alignment_tuple[0])
+#                     # print(s2)
+#                     cccntr += 1
+#                     out_file.write(">{0}\n{1}\n".format(s1, alignment_tuple[1].replace("-", "") ))
+#     else:
+#         for s1, s1_dict in list(alignments_of_x_to_c.items()): 
+#             for s2, alignment_tuple in list(s1_dict.items()):
+#                 if re.search(pattern, alignment_tuple[1]) or  re.search(pattern, alignment_tuple[2]):
+#                     # del alignments_of_x_to_c[s1][s2]
+#                     cccntr += 1        
+#                     out_file.write(">{0}\n{1}\n".format(s1, alignment_tuple[1].replace("-", "") ))
+
+#     print("Number containing exon differences in this pass:", cccntr)
+#     # sys.exit()
+#     ###################################################################
+#     ###################################################################
 
 def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign, params):
     modified = True
