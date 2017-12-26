@@ -244,7 +244,7 @@ def get_difference_coordinates_for_candidates(target_accession, candidate_access
     return position_differences
 
 
-def get_ccs_position_prob_per_read(target_accession, target_length, alignment_matrix, invariant_factors_for_candidate, candidate_accessions, Delta_t, ccs_dict, insertions, deletions, substitutions):
+def get_ccs_position_prob_per_read(target_accession, target_length, alignment_matrix, invariant_factors_for_candidate, candidate_accessions, Delta_t, ccs_dict, insertions, deletions, substitutions, max_phred_q_trusted):
     probability = {}
     assert len(candidate_accessions) == 1
     c_acc = list(candidate_accessions)[0]
@@ -309,7 +309,7 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
             # To map quality values
             # [A, B] --> [a, b]  [3, 93] --> [3, 43]
             # (x - A)*(b-a)/(B-A) + a
-            q_qual_mapped = (q_qual - 3)*(40.0)/(90.0) + 3
+            q_qual_mapped = (q_qual - 3)*(max_phred_q_trusted - 3.0)/(90.0) + 3
 
             if u_v > 1: # probability in a homopolymenr region has all it's uncertainty attributed to the lenght of the homopolymer that 
                 p_error =  (10**(-q_qual_mapped/10.0))
