@@ -76,7 +76,7 @@ def get_nearest_neighbors_helper(arguments):
 
 
 def get_nearest_neighbors_under_ignored_edge_ends(seq_to_acc_list_sorted, params):
-    if params.single_core:
+    if params.nr_cores:
         best_edit_distances = get_nearest_neighbors(seq_to_acc_list_sorted, 0, 0, seq_to_acc_list_sorted, params.neighbor_search_depth, params.ignore_ends_len)
 
         # implement check here to se that all seqs got a nearest_neighbor, if not, print which noes that did not get a nearest_neighbor computed.!
@@ -123,7 +123,7 @@ def get_nearest_neighbors_under_ignored_edge_ends(seq_to_acc_list_sorted, params
 
 
 def get_invariants_under_ignored_edge_ends(seq_to_acc_list_sorted, params):
-    if params.single_core:
+    if params.nr_cores:
         best_edit_distances = get_nearest_neighbors(seq_to_acc_list_sorted, 0, 0, seq_to_acc_list_sorted, params.neighbor_search_depth, params.ignore_ends_len)
 
         # implement check here to se that all seqs got a nearest_neighbor, if not, print which noes that did not get a nearest_neighbor computed.!

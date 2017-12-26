@@ -9,7 +9,7 @@ from collections import Counter
 
 from modules.functions import create_position_probability_matrix
 
-def correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, single_core = False):
+def correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, nr_cores = 1):
     S_prime = {}
     S_prime_quality = {}
 
@@ -36,7 +36,7 @@ def correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, single_cor
         for m, partition in partition_alignments.items():
             partitioned_ccs_dict[m] = {}       
 
-    if single_core:
+    if nr_cores == 1:
         for m, partition in sorted(partition_alignments.items()):
             S_prime_partition, S_prime_quality_vectors = correct_to_consensus_helper( ((m, partition, partition_unique_seq_to_acc[m], step, partitioned_ccs_dict[m]), {}) )
             for acc, s in S_prime_partition.items():
@@ -52,7 +52,7 @@ def correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, single_cor
         # pool = Pool(processes=mp.cpu_count())
         original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
         signal.signal(signal.SIGINT, original_sigint_handler)
-        pool = Pool(processes=mp.cpu_count())
+        pool = Pool(processes=nr_cores)
         try:
             res = pool.map_async(correct_to_consensus_helper, [ ( (m, partition, partition_unique_seq_to_acc[m], step, partitioned_ccs_dict[m]), {}) for m, partition in partition_alignments.items() if len(partition) > 1 ] )
             S_prime_partition_dicts =res.get(999999999) # Without the timeout this blocking call ignores all signals.

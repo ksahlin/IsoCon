@@ -39,14 +39,14 @@ def get_unique_seq_accessions(S):
     return seq_to_acc
 
 def get_partition_alignments(graph_partition, M, G_star, params):
-    exact_edit_distances = edlib_align_sequences(graph_partition, single_core = params.single_core)    
+    exact_edit_distances = edlib_align_sequences(graph_partition, nr_cores = params.nr_cores)    
         
     ed_temp = [ exact_edit_distances[s1][s2] for s1 in exact_edit_distances for s2 in exact_edit_distances[s1]  ] 
     ed_temp.sort()
     print("ED from edlib:", ed_temp)
     print("number of ed calculated:", len(ed_temp))
 
-    exact_alignments = sw_align_sequences(exact_edit_distances, single_core = params.single_core)
+    exact_alignments = sw_align_sequences(exact_edit_distances, nr_cores = params.nr_cores)
 
     ssw_temp = [ exact_alignments[s1][s2] for s1 in exact_alignments for s2 in exact_alignments[s1]  ] 
     # ssw_temp.sort()
@@ -193,7 +193,7 @@ def find_candidate_transcripts(read_file, params):
             #     homopolymer_mode = True
         #######################################################
 
-        S_prime, S_prime_quality_vector = correct_sequence_to_nearest_neighbor.correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, single_core = params.single_core)
+        S_prime, S_prime_quality_vector = correct_sequence_to_nearest_neighbor.correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, nr_cores = params.nr_cores)
 
         for acc, s_prime in S_prime.items():
             S[acc] = s_prime
@@ -262,8 +262,8 @@ def find_candidate_transcripts(read_file, params):
                 not_converged_reads.write(">{0}_corrected_but_not_converged_version\n{1}\n".format(read_acc, corrected_s))
 
     not_converged_reads.close()
-    edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_nearest_neighbors, single_core = params.single_core)
-    alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m, single_core = params.single_core)
+    edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_nearest_neighbors, nr_cores = params.nr_cores)
+    alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m, nr_cores = params.nr_cores)
 
 
     if params.ignore_ends_len > 0:

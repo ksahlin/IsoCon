@@ -10,7 +10,7 @@ def find_best_matches(approximate_matches, params, edge_creating_min_treshold = 
                 Each string in the inner dict has the same (lowest) edit distance to the key 
     """
 
-    exact_edit_distances = edlib_alignment_module.edlib_align_sequences(approximate_matches, single_core = params.single_core)
+    exact_edit_distances = edlib_alignment_module.edlib_align_sequences(approximate_matches, nr_cores = params.nr_cores)
     best_exact_edit_distances = {}
     tot_ed = 0
     cntrr = 0
@@ -59,7 +59,7 @@ def find_best_matches(approximate_matches, params, edge_creating_min_treshold = 
     print("TOTAL EDGES:", cntrr)
     print("EDIT DISTANCE PER EDGE:", filtered_tot_ed/float(cntrr))
 
-    exact_alignments = SW_alignment_module.sw_align_sequences(best_exact_edit_distances, single_core = params.single_core)
+    exact_alignments = SW_alignment_module.sw_align_sequences(best_exact_edit_distances, nr_cores = params.nr_cores)
 
     # process the exact matches here
     best_exact_matches = {}
@@ -135,7 +135,7 @@ def find_best_matches_2set(highest_paf_scores, X, C, params):
             approximate_matches[read_acc][t_acc] = (X[read_acc], C[t_acc])
 
 
-    exact_edit_distances = edlib_alignment_module.edlib_align_sequences_keeping_accession(approximate_matches, single_core = params.single_core)
+    exact_edit_distances = edlib_alignment_module.edlib_align_sequences_keeping_accession(approximate_matches, nr_cores = params.nr_cores)
     best_exact_edit_distances = {}
     for s1_acc in exact_edit_distances:
         for s2_acc in exact_edit_distances[s1_acc]:
@@ -159,7 +159,7 @@ def find_best_matches_2set(highest_paf_scores, X, C, params):
                 del best_exact_edit_distances[s1_acc][s2_acc]
 
 
-    exact_alignments = SW_alignment_module.sw_align_sequences_keeping_accession(best_exact_edit_distances, single_core = params.single_core)
+    exact_alignments = SW_alignment_module.sw_align_sequences_keeping_accession(best_exact_edit_distances, nr_cores = params.nr_cores)
 
     # process the exact matches here
     best_exact_matches = {}

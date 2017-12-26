@@ -14,14 +14,14 @@ from Bio.SubsMat import MatrixInfo as matlist
 #         result_vector.append(ssw_alignment( (x_acc, y_acc, x, y) ))
 #     return result_vector
 
-def sw_align_sequences(matches, single_core = False, mismatch_penalty = -1, ignore_ends_len = 15):
+def sw_align_sequences(matches, nr_cores = 1, mismatch_penalty = -1, ignore_ends_len = 15):
     """
         Matches should be a 2D matrix implemented as a dict of dict, the value should be the edit distance.
     """
     exact_matches = {}
     ends_discrepancy_threshold = max(25, ignore_ends_len + 1)
 
-    if single_core:
+    if nr_cores == 1:
         for j, s1 in enumerate(matches):
             for i, s2 in enumerate(matches[s1]):
                 if s1 in exact_matches:
@@ -52,7 +52,7 @@ def sw_align_sequences(matches, single_core = False, mismatch_penalty = -1, igno
         # pool = Pool(processes=mp.cpu_count())
         original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
         signal.signal(signal.SIGINT, original_sigint_handler)
-        pool = Pool(processes=mp.cpu_count())
+        pool = Pool(processes=nr_cores)
 
         matches_with_mismatch = {}
         for j, s1 in enumerate(matches):
@@ -93,13 +93,13 @@ def sw_align_sequences(matches, single_core = False, mismatch_penalty = -1, igno
     return exact_matches
 
 
-def sw_align_sequences_keeping_accession(matches, single_core = False, ignore_ends_len = 15):
+def sw_align_sequences_keeping_accession(matches, nr_cores = 1, ignore_ends_len = 15):
     """
         Matches should be a 2D matrix implemented as a dict of dict, the value should be a tuple (s1,s2, edit_distance) .
     """
     exact_matches = {}
     ends_discrepancy_threshold = max(25, ignore_ends_len + 1)
-    if single_core:
+    if nr_cores == 1:
         for j, s1_acc in enumerate(matches):
             for i, s2_acc in enumerate(matches[s1_acc]):
                 s1, s2, ed = matches[s1_acc][s2_acc]
@@ -130,7 +130,7 @@ def sw_align_sequences_keeping_accession(matches, single_core = False, ignore_en
         # pool = Pool(processes=mp.cpu_count())
         original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
         signal.signal(signal.SIGINT, original_sigint_handler)
-        pool = Pool(processes=mp.cpu_count())
+        pool = Pool(processes=nr_cores)
 
         matches_with_mismatch = {}
         for j, s1_acc in enumerate(matches):

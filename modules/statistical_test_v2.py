@@ -35,7 +35,7 @@ def do_statistical_tests_per_edge(nearest_neighbor_graph_transposed, C, X, parti
             all_X_in_partition[t_acc][c_acc] = { x_acc : X[x_acc] for acc in [t_acc, c_acc] for x_acc in partition_of_X[acc]}
 
 
-    if params.single_core:
+    if params.nr_cores == 1:
         for t_acc in nearest_neighbor_graph_transposed:
         #     if len(nearest_neighbor_graph_transposed[t_acc]) == 0:
         #         p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
@@ -43,7 +43,7 @@ def do_statistical_tests_per_edge(nearest_neighbor_graph_transposed, C, X, parti
         #     print("t", t_acc)
             
             for c_acc in nearest_neighbor_graph_transposed[t_acc]:
-                p_vals = statistical_test_CLT(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len, ccs_dict)
+                p_vals = statistical_test_CLT(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len, ccs_dict, params.max_phred_q_trusted)
 
                 for tested_cand_acc, (p_value, mult_factor_inv, k, N_t, variants) in p_vals.items():
                     if p_value == "not_tested":
@@ -69,7 +69,7 @@ def do_statistical_tests_per_edge(nearest_neighbor_graph_transposed, C, X, parti
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=mp.cpu_count())
         try:
-            res = pool.map_async(statistical_test_helper, [ ( (t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len, ccs_dict), {}) for t_acc in nearest_neighbor_graph_transposed for c_acc in nearest_neighbor_graph_transposed[t_acc]  ] )
+            res = pool.map_async(statistical_test_helper, [ ( (t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len, ccs_dict, params.max_phred_q_trusted), {}) for t_acc in nearest_neighbor_graph_transposed for c_acc in nearest_neighbor_graph_transposed[t_acc]  ] )
             statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -227,8 +227,8 @@ def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_le
         else:
             partition_dict[t_acc][seq_acc] = (C[t_acc], C[seq_acc])
 
-    exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, single_core = True)    
-    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, single_core = True, ignore_ends_len = ignore_ends_len)
+    exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, nr_cores = 1)    
+    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, nr_cores = 1, ignore_ends_len = ignore_ends_len)
     partition_alignments = {} 
 
     assert len(exact_alignments) == 1
@@ -317,7 +317,7 @@ def statistical_test(t_acc, X, C, partition_of_X, candidates, ignore_ends_len):
 
 
 
-def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_len, ccs_dict):
+def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_len, ccs_dict, max_phred_q_trusted):
     significance_values = {}
     t_seq = C[t_acc]
     if len(candidates) == 0:
@@ -388,7 +388,7 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
             # empirical_probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
             min_uncertainty = functions.get_min_uncertainty_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t, invariant_factors_for_candidate) 
 
-            probability = functions.get_ccs_position_prob_per_read(t_acc, len(t_seq), alignment_matrix_to_t, invariant_factors_for_candidate, candidate_accessions, delta_t, ccs_dict, insertions, deletions, substitutions) 
+            probability = functions.get_ccs_position_prob_per_read(t_acc, len(t_seq), alignment_matrix_to_t, invariant_factors_for_candidate, candidate_accessions, delta_t, ccs_dict, insertions, deletions, substitutions, max_phred_q_trusted) 
             # weight = {q_acc : ccs_info.p_error_to_qual(ccs_probability[q_acc]) for q_acc in ccs_probability.keys()}
             # print("emp:", sum( list(empirical_probability.values()) ), candidate_accessions )
             print("ccs:", sum( list(probability.values()) ), candidate_accessions )

@@ -7,9 +7,9 @@ import re
 
 import edlib
 
-def edlib_align_sequences(matches, single_core = False):
+def edlib_align_sequences(matches, nr_cores = 1):
     exact_edit_distances = {}
-    if single_core:
+    if nr_cores == 1:
         for j, s1 in enumerate(matches):
             for i, s2 in enumerate(matches[s1]):
                 if s1 in exact_edit_distances:
@@ -27,7 +27,7 @@ def edlib_align_sequences(matches, single_core = False):
         # pool = Pool(processes=mp.cpu_count())
         original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
         signal.signal(signal.SIGINT, original_sigint_handler)
-        pool = Pool(processes=mp.cpu_count())
+        pool = Pool(processes=nr_cores)
         try:
             res = pool.map_async(edlib_alignment_helper, [ ((s1, s2, i,j), {}) for j, s1 in enumerate(matches) for i, s2 in enumerate(matches[s1]) ] )
             alignment_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
@@ -48,14 +48,14 @@ def edlib_align_sequences(matches, single_core = False):
 
     return exact_edit_distances
 
-def edlib_align_sequences_keeping_accession(matches, single_core = False):
+def edlib_align_sequences_keeping_accession(matches, nr_cores = 1):
     """
         @param: Matches is be a 2D matrix implemented as a dict of dict with the accession of the two sequences as keys. The value is  a tuple (s1,s2) with the sequences.
         return: the same structure but a 3-tuple of seq1,seq2, ed
     """
     exact_matches = {}
 
-    if single_core:
+    if nr_cores == 1:
         for j, s1_acc in enumerate(matches):
             for i, s2_acc in enumerate(matches[s1_acc]):
                 s1, s2 = matches[s1_acc][s2_acc]
@@ -76,7 +76,7 @@ def edlib_align_sequences_keeping_accession(matches, single_core = False):
         # pool = Pool(processes=mp.cpu_count())
         original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
         signal.signal(signal.SIGINT, original_sigint_handler)
-        pool = Pool(processes=mp.cpu_count())
+        pool = Pool(processes=nr_cores)
 
         try:
             res = pool.map_async(edlib_alignment_helper, [ ((matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j), {"x_acc": s1_acc, "y_acc" : s2_acc}) for j, s1_acc in enumerate(matches) for i, s2_acc in enumerate(matches[s1_acc]) ] )
