@@ -36,18 +36,17 @@ The preferred way to install IsoCon is with pythons package installer pip.
 
 #### Using pip (12/27/17 -- under construction) 
 
-Type in terminal `pip install IsoCon` . With proper installation of **IsoCon**, you should be able to issue the command ` IsoCon` to view user instructions. pip will install the dependencies automatically for you. For customized installation of latest master branch, see below.
+This section assumes you have `pip` installed, which should be included in most python versions. If you do not have pip on your system, it can be easily installed as shown [here](https://pip.pypa.io/en/stable/installing/). Now, type in terminal `pip install IsoCon` . With proper installation of **IsoCon**, you should be able to issue the command ` IsoCon` to view user instructions. pip will install the dependencies automatically for you. For customized installation of latest master branch, see below.
 
 #### Downloading source from GitHub
 
 ##### Dependencies
 
 Install the following dependencies, either with `pip install` or using instructions in links below
-* scipy
 * [edlib](https://github.com/Martinsos/edlib "edlib's Homepage"), for installation see [link](https://github.com/Martinsos/edlib/tree/master/bindings/python#installation)
 * [networkx](https://networkx.github.io/)
 * [ssw](https://github.com/vishnubob/ssw "Python wrapper for SSW"), for installation see [link](https://github.com/vishnubob/ssw#installation)
-
+* [pysam](http://pysam.readthedocs.io/en/latest/installation.html)
 With these dependencies installed. Run
 
 ```sh

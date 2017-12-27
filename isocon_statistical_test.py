@@ -13,7 +13,7 @@ from collections import defaultdict
 from itertools import combinations
 
 
-from scipy.stats import poisson
+# from scipy.stats import poisson
 from time import time
 import pysam
 
@@ -30,33 +30,33 @@ from modules import end_invariant_functions
 from modules import ccs_info
 
 
-def vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C):
-    import networkx as nx
-    import matplotlib.pyplot as plt
-    D=nx.DiGraph()
-    lables = {}
-    for c1 in partition_of_C:
-        c1_acc = C_seq_to_acc[c1]
-        reads_to_c1 = [X[x_acc] for x_acc in  partition_of_X[c1_acc] ]
-        w_c1 = len(reads_to_c1)
-        for c2 in  partition_of_C[c1]:
-            c2_acc = C_seq_to_acc[c2]
-            reads_to_c2 = [X[x_acc] for x_acc in  partition_of_X[c2_acc] ]
-            w_c2 = len(reads_to_c2)
-            D.add_edge(c2,c1, weight = str(w_c2) + "->" + str(w_c1)  )
-    labels = nx.get_edge_attributes(D, 'weight')
-    # pos = nx.circular_layout(D)
-    pos = dict()
-    XX = [c2 for c1 in partition_of_C for c2 in partition_of_C[c1] ] # have in-edges
-    YY = [c1 for c1 in partition_of_C ] # not
-    pos.update( (n, (1, 4*i)) for i, n in enumerate(XX) ) # put nodes from X at x=1
-    pos.update( (n, (2, 2*i)) for i, n in enumerate(YY) ) # put nodes from Y at x=2
-    nx.draw_networkx_nodes(D, pos, node_size=50 )
-    nx.draw_networkx_edge_labels(D, pos, arrows=True, edge_labels=labels)
-    nx.draw_networkx_edges(D, pos, arrows=True, edge_labels=labels)
-    fig_file = os.path.join(params.plotfolder, "Graph_bip_1000_step_" + str(step) + ".png")
-    plt.savefig(fig_file, format="PNG")
-    plt.clf()
+# def vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C):
+#     import networkx as nx
+#     import matplotlib.pyplot as plt
+#     D=nx.DiGraph()
+#     lables = {}
+#     for c1 in partition_of_C:
+#         c1_acc = C_seq_to_acc[c1]
+#         reads_to_c1 = [X[x_acc] for x_acc in  partition_of_X[c1_acc] ]
+#         w_c1 = len(reads_to_c1)
+#         for c2 in  partition_of_C[c1]:
+#             c2_acc = C_seq_to_acc[c2]
+#             reads_to_c2 = [X[x_acc] for x_acc in  partition_of_X[c2_acc] ]
+#             w_c2 = len(reads_to_c2)
+#             D.add_edge(c2,c1, weight = str(w_c2) + "->" + str(w_c1)  )
+#     labels = nx.get_edge_attributes(D, 'weight')
+#     # pos = nx.circular_layout(D)
+#     pos = dict()
+#     XX = [c2 for c1 in partition_of_C for c2 in partition_of_C[c1] ] # have in-edges
+#     YY = [c1 for c1 in partition_of_C ] # not
+#     pos.update( (n, (1, 4*i)) for i, n in enumerate(XX) ) # put nodes from X at x=1
+#     pos.update( (n, (2, 2*i)) for i, n in enumerate(YY) ) # put nodes from Y at x=2
+#     nx.draw_networkx_nodes(D, pos, node_size=50 )
+#     nx.draw_networkx_edge_labels(D, pos, arrows=True, edge_labels=labels)
+#     nx.draw_networkx_edges(D, pos, arrows=True, edge_labels=labels)
+#     fig_file = os.path.join(params.plotfolder, "Graph_bip_1000_step_" + str(step) + ".png")
+#     plt.savefig(fig_file, format="PNG")
+#     plt.clf()
 
 def transform(read):
     transformed_seq = []
