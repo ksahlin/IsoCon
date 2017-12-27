@@ -1,6 +1,5 @@
-networkx==1.10
-edlib==1.1.2
-ssw==0.3.1
-scipy=0.18.1
-sympy==1.1.1
-mpmath==0.19
+networkx>=1.10
+edlib>=1.1.2
+ssw>=0.3.1
+scipy>=0.18
+numpy>=1.10
