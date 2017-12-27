@@ -34,7 +34,7 @@ INSTALLATION
 
 The preferred way to install IsoCon is with pythons package installer pip.
 
-#### Using pip (recommended)
+#### Using pip (12/27/17 -- under construction) 
 
 Type in terminal `pip install IsoCon` . With proper installation of **IsoCon**, you should be able to issue the command ` IsoCon` to view user instructions. pip will install the dependencies automatically for you. For customized installation of latest master branch, see below.
 
