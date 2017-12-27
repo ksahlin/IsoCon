@@ -5,7 +5,7 @@ import re
 import math
 # import numpy as np
 from Bio.SubsMat import MatrixInfo as matlist
-import pandas as pd
+# import pandas as pd
 import string
 import fractions
 # import matplotlib

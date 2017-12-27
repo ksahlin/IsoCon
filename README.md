@@ -1,7 +1,7 @@
 IsoCon
 ========
 
-IsoCon is distributed as a python package supported on Linux / OSX with python 2.7, and 3 [![Build Status](https://travis-ci.org/ksahlin/IsoCon.svg?branch=master)](https://travis-ci.org/ksahlin/IsoCon)
+IsoCon is distributed as a python package supported on Linux / OSX with python >=2.7, and >=3.4 [![Build Status](https://travis-ci.org/ksahlin/IsoCon.svg?branch=master)](https://travis-ci.org/ksahlin/IsoCon)
 
 
 IsoCon is a tool for deriving *finished transcript sequences* from *Iso-Seq* reads. Input is a set of full-length-non-chimeric reads in fasta format and the CCS base call values as a bam file. The output is a set of predicted transcripts. IsoCon can be run as follows
@@ -36,17 +36,20 @@ The preferred way to install IsoCon is with pythons package installer pip.
 
 #### Using pip (12/27/17 -- under construction) 
 
-This section assumes you have `pip` installed, which should be included in most python versions. If you do not have pip on your system, it can be easily installed as shown [here](https://pip.pypa.io/en/stable/installing/). Now, type in terminal `pip install IsoCon` . With proper installation of **IsoCon**, you should be able to issue the command ` IsoCon` to view user instructions. pip will install the dependencies automatically for you. For customized installation of latest master branch, see below.
+This section assumes you have `pip` installed, which should be included in most python versions. If you do not have pip on your system, it can be easily installed as shown [here](https://pip.pypa.io/en/stable/installing/). Now, create a file `requirements.txt` with this [line](https://github.com/ksahlin/IsoCon/blob/master/requirements.txt) and type in terminal `pip install --requirement requirements.txt IsoCon` . With proper installation of **IsoCon**, you should be able to issue the command `IsoCon` to view user instructions. `pip` will install the dependencies automatically for you. For customized installation of latest master branch, see below.
 
 #### Downloading source from GitHub
 
 ##### Dependencies
 
-Install the following dependencies, either with `pip install` or using instructions in links below
-* [edlib](https://github.com/Martinsos/edlib "edlib's Homepage"), for installation see [link](https://github.com/Martinsos/edlib/tree/master/bindings/python#installation)
-* [networkx](https://networkx.github.io/)
+Install the following dependencies, either with `pip install` or using instructions in links below. Versions in parenthesis are suggested as IsoCon has not been tested with earlier versions of these libraries, IsoCon may however work with earliear versions of these libaries too.
+* [edlib](https://github.com/Martinsos/edlib "edlib's Homepage"), for installation see [link](https://github.com/Martinsos/edlib/tree/master/bindings/python#installation) (>= v1.1.2)
+* [networkx](https://networkx.github.io/) (>= v1.10)
 * [ssw](https://github.com/vishnubob/ssw "Python wrapper for SSW"), for installation see [link](https://github.com/vishnubob/ssw#installation)
-* [pysam](http://pysam.readthedocs.io/en/latest/installation.html)
+* [pysam](http://pysam.readthedocs.io/en/latest/installation.html) (>= v0.11)
+* [BioPython](http://biopython.org/wiki/Download) (>= v1.66)
+
+
 With these dependencies installed. Run
 
 ```sh

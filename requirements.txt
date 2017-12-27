@@ -1,4 +1,1 @@
-networkx>=1.10
-edlib>=1.1.2
-ssw>=0.3.1
-pysam>=0.11
+https://github.com/vishnubob/ssw/archive/master.zip
