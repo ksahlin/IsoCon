@@ -19,7 +19,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 setup(
 
     name='IsoCon',  # Required
-    version='0.2.4',  # Required
+    version='0.2.5',  # Required
     description='Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads.',  # Required
     long_description=long_description,  # Optional
     url='https://github.com/ksahlin/IsoCon',  # Optional
@@ -66,19 +66,21 @@ setup(
     #
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),  # Required
 
-    # If your package is for Python 2.7, and all versions of Python 3 starting with 3.3, write
-    python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, <4',
+    # If your package is for Python 2.7, and all versions of Python 3 starting with 3.4, write
+    python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
     # This field lists other packages that your project depends on to run.
     # Any package you put here will be installed by pip when your project is
     # installed, so they must be valid existing projects.
     #
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['ssw>=0.3.1', 
-                      'edlib>=1.1.2',
+    install_requires=['edlib>=1.1.2',
                       'pysam>=0.11',
-                      'networkx>=1.10'],  # Optional
-
+                      'networkx>=1.10',
+                      'biopython>=1.66'],  # Optional
+    dependency_links=[
+        'https://github.com/vishnubob/ssw/archive/master.zip'
+    ], # Optional
     # List additional groups of dependencies here (e.g. development
     # dependencies). Users will be able to install these using the "extras"
     # syntax, for example:
@@ -96,9 +98,10 @@ setup(
     # "scripts" keyword. Entry points provide cross-platform support and allow
     # `pip` to create the appropriate form of executable for the target
     # platform.
-    entry_points={  # Optional
-        'console_scripts': [
-            'IsoCon=IsoCon',
-        ],
-    },
+    # entry_points={  # Optional
+    #     'console_scripts': [
+    #         'IsoCon=IsoCon.__main__()',
+    #     ],
+    # },
+    scripts=['IsoCon'],
 )
