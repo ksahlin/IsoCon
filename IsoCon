@@ -129,7 +129,7 @@ def initialize_logger(params):
     params.logfile = logfile
     for arg, val in params.__dict__.items():
         write_output.logger("{0}:\t\t\t {1}".format(arg, val), params.logfile, timestamp=False)
-    print(params.__dict__)
+    # print(params.__dict__)
     write_output.logger("Starting.", params.logfile)
     ###################################################
 

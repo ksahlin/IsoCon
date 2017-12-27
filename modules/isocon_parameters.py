@@ -15,5 +15,5 @@ class Parameters(object):
         # parameters that might need to be inferred during
         # runtime.
         for key, value in kwargs.items():
-            # print("{0}: {1}".format(key, value))
+            print("{0}: {1}".format(key, value))
             setattr(self, key, value)
