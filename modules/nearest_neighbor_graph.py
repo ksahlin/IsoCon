@@ -3,15 +3,15 @@ import os,sys
 import argparse
 import re
 import math
-import numpy as np
+# import numpy as np
 from Bio.SubsMat import MatrixInfo as matlist
 import pandas as pd
 import string
 import fractions
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
-import seaborn as sns
+# import matplotlib
+# matplotlib.use('agg')
+# import matplotlib.pyplot as plt
+# import seaborn as sns
 from collections import defaultdict
 import edlib
 import signal
@@ -109,18 +109,18 @@ def read_fasta(fasta_file):
     if accession:
         yield accession, temp
 
-def histogram(data, args, name='histogram.png', x='x-axis', y='y-axis', x_cutoff=None, title=None):
-    if x_cutoff: 
-        plt.hist(data, range=[0, x_cutoff], bins = 100)
-    else:
-        plt.hist(data, bins = 100)
-    plt.xlabel(x)
-    plt.ylabel(y)
-    if title:
-        plt.title(title)
+# def histogram(data, args, name='histogram.png', x='x-axis', y='y-axis', x_cutoff=None, title=None):
+#     if x_cutoff: 
+#         plt.hist(data, range=[0, x_cutoff], bins = 100)
+#     else:
+#         plt.hist(data, bins = 100)
+#     plt.xlabel(x)
+#     plt.ylabel(y)
+#     if title:
+#         plt.title(title)
 
-    plt.savefig(os.path.join(args.outfolder, name))
-    plt.clf()
+#     plt.savefig(os.path.join(args.outfolder, name))
+#     plt.clf()
 
 
 def collapse(seq):
@@ -497,9 +497,9 @@ def main(args):
     print("Number of edges:", edges)
     print("Total edit distance:", tot_ed)
     print("Avg ed (ed/edges):", tot_ed/ float(edges))
-    histogram(edit_hist, args, name='edit_distances.png', x='x-axis', y='y-axis', x_cutoff=100, title="Edit distances in nearest_neighbor graph")
-    histogram(neighbors, args, name='neighbours.png', x='x-axis', y='y-axis', title="Number of neighbours in nearest_neighbor graph")
-    histogram(neighbors, args, name='neighbours_zoomed.png', x='x-axis', y='y-axis', x_cutoff=20, title="Number of neighbours in nearest_neighbor graph")
+    # histogram(edit_hist, args, name='edit_distances.png', x='x-axis', y='y-axis', x_cutoff=100, title="Edit distances in nearest_neighbor graph")
+    # histogram(neighbors, args, name='neighbours.png', x='x-axis', y='y-axis', title="Number of neighbours in nearest_neighbor graph")
+    # histogram(neighbors, args, name='neighbours_zoomed.png', x='x-axis', y='y-axis', x_cutoff=20, title="Number of neighbours in nearest_neighbor graph")
 
 
 if __name__ == '__main__':

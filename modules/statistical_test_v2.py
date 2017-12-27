@@ -5,10 +5,10 @@ import multiprocessing as mp
 import sys
 
 import math
-from scipy.stats import poisson, binom, norm
+# from scipy.stats import poisson, binom, norm
 
 from modules import functions
-from modules.multinomial_distr import multinomial_
+# from modules.multinomial_distr import multinomial_
 from modules.SW_alignment_module import sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences_keeping_accession
 from modules.functions import create_position_probability_matrix, get_error_rates_and_lambda, get_difference_coordinates_for_candidates, get_supporting_reads_for_candidates, adjust_probability_of_candidate_to_alignment_invariant
@@ -543,46 +543,46 @@ def exact_test(probability, weight, x):
 
 
 
-def poisson_approx_test(probability, weight, x):
+# def poisson_approx_test(probability, weight, x):
 
-    print([weight[x_i] for x_i in probability if x_i in x ])
-    print([weight[x_i] for x_i in probability ])
-    min_w = min([weight[x_i] for x_i in probability if weight[x_i] > 0 ])
-    weight_multiplier = 1.0 / min_w
+#     print([weight[x_i] for x_i in probability if x_i in x ])
+#     print([weight[x_i] for x_i in probability ])
+#     min_w = min([weight[x_i] for x_i in probability if weight[x_i] > 0 ])
+#     weight_multiplier = 1.0 / min_w
 
-    weight = { x_i : weight[x_i] * weight_multiplier for x_i in weight}
-    print([weight[x_i] for x_i in probability ])
+#     weight = { x_i : weight[x_i] * weight_multiplier for x_i in weight}
+#     print([weight[x_i] for x_i in probability ])
 
-    observed_weighted_x = sum([weight[x_i]*1.0 for x_i in probability if x_i in x ])
-    po_lambda = sum([ probability[x_i]* weight[x_i] for x_i in probability ])
+#     observed_weighted_x = sum([weight[x_i]*1.0 for x_i in probability if x_i in x ])
+#     po_lambda = sum([ probability[x_i]* weight[x_i] for x_i in probability ])
 
-    observed_x = sum([1.0 for x_i in probability if x_i in x ])
-    po_lambda = sum([ probability[x_i] for x_i in probability ])
-    if observed_x == 0:
-        k = -1
-    elif observed_x.is_integer():
-        k = observed_x - 1
-    else:
-        k = math.floor(observed_x)
-    # k = observed_weighted_x if observed_weighted_x == 0 or not observed_weighted_x.is_integer() else observed_weighted_x - 1
-    print("k:", k)
-    p_value = poisson.sf(k, po_lambda)
+#     observed_x = sum([1.0 for x_i in probability if x_i in x ])
+#     po_lambda = sum([ probability[x_i] for x_i in probability ])
+#     if observed_x == 0:
+#         k = -1
+#     elif observed_x.is_integer():
+#         k = observed_x - 1
+#     else:
+#         k = math.floor(observed_x)
+#     # k = observed_weighted_x if observed_weighted_x == 0 or not observed_weighted_x.is_integer() else observed_weighted_x - 1
+#     print("k:", k)
+#     p_value = poisson.sf(k, po_lambda)
 
-    return p_value
+#     return p_value
 
 
-def CLT_test(probability, weight, x):
+# def CLT_test(probability, weight, x):
 
-    observed_weighted_x = sum([weight[x_i]*1.0 for x_i in probability if x_i in x ])
-    mu = sum([ probability[x_i]* weight[x_i] for x_i in probability ])
-    var = sum([ probability[x_i]*(1.0 - probability[x_i])* weight[x_i]**2 for x_i in probability ])
-    sigma = math.sqrt(var)
-    print([weight[x_i] for x_i in probability if x_i in x ])
-    print([weight[x_i] for x_i in probability ])
-    print(mu, sigma, observed_weighted_x)
-    p_value_norm = norm.sf(observed_weighted_x, loc= mu, scale= sigma )
+#     observed_weighted_x = sum([weight[x_i]*1.0 for x_i in probability if x_i in x ])
+#     mu = sum([ probability[x_i]* weight[x_i] for x_i in probability ])
+#     var = sum([ probability[x_i]*(1.0 - probability[x_i])* weight[x_i]**2 for x_i in probability ])
+#     sigma = math.sqrt(var)
+#     print([weight[x_i] for x_i in probability if x_i in x ])
+#     print([weight[x_i] for x_i in probability ])
+#     print(mu, sigma, observed_weighted_x)
+#     p_value_norm = norm.sf(observed_weighted_x, loc= mu, scale= sigma )
 
-    return p_value_norm
+#     return p_value_norm
 
 def calc_correction_factor(t_seq, c_acc, delta_t):
     m = len(t_seq)

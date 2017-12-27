@@ -3,7 +3,7 @@ import os
 import sys
 import argparse
 import re
-import numpy as np
+# import numpy as np
 import signal
 from multiprocessing import Pool
 import multiprocessing as mp
