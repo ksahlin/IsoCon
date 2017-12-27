@@ -1,22 +1,20 @@
 IsoCon
 ========
 
-Supported on Linux / OSX with python 2.7, and 3 [![Build Status](https://travis-ci.org/ksahlin/BESST.svg?branch=master)](https://travis-ci.org/ksahlin/IsoCon)
+IsoCon is distributed as a python package supported on Linux / OSX with python 2.7, and 3 [![Build Status](https://travis-ci.org/ksahlin/IsoCon.svg?branch=master)](https://travis-ci.org/ksahlin/IsoCon)
 
-Codecov:        https://img.shields.io/codecov/c/github/codecov/example-python.svg
-Codecov branch:     https://img.shields.io/codecov/c/github/codecov/example-python/master.svg
 
-IsoCon is a tool for deriving *finished transcript sequences* from *Iso-Seq* reads. Input is a set of full-length-non-chimeric reads and output is a set of predicted transcripts. IsoCon can be run as follows
+IsoCon is a tool for deriving *finished transcript sequences* from *Iso-Seq* reads. Input is a set of full-length-non-chimeric reads in fasta format and the CCS base call values as a bam file. The output is a set of predicted transcripts. IsoCon can be run as follows
 
 ```
 IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --ccs </path/to/filename.ccs.bam>
 ```
 
-predicted transcripts is found in file */path/to/output/final_candidates.fa*. Reads that could not be corrected or clustered (e.g., due to chimeric products or less than three reads sequenced from the transcript) are found in */path/to/output/not_converged.fa*. For more instructions see below.
+predicted transcripts are found in file **/path/to/output/final_candidates.fa**. Reads that could not be corrected or clustered are found in /path/to/output/not_converged.fa. For more instructions see below.
 
 Please cite [1] when using IsoCon.
 
-1. Kristoffer Sahlin*, Marta Tomaszkiewicz*, Kateryna D. Makova†, Paul Medvedev† (2017) "Title." Journal (bioRxiv for now?)(17), 2215-2222 [Link](here)
+1. Kristoffer Sahlin*, Marta Tomaszkiewicz*, Kateryna D. Makova†, Paul Medvedev† (2017) "IsoCon: Deciphering highly similar multigene family transcripts from Iso-Seq data", bioRxiv [Link](http/link)
 
 <!-- Table of Contents
 =================
@@ -38,18 +36,19 @@ The preferred way to install IsoCon is with pythons package installer pip.
 
 #### Using pip (recommended)
 
-Type in terminal `pip install IsoCon` . With proper installation of **IsoCon**, you should be able to issue the command ` IsoCon` to view user instructions. This installation will install the dependencies automatically for you. Customized installation of latest master branch is also easy, see below.
+Type in terminal `pip install IsoCon` . With proper installation of **IsoCon**, you should be able to issue the command ` IsoCon` to view user instructions. pip will install the dependencies automatically for you. For customized installation of latest master branch, see below.
 
 #### Downloading source from GitHub
 
 ##### Dependencies
 
+Install the following dependencies, either with `pip install` or using instructions in links below
 * scipy
 * [edlib](https://github.com/Martinsos/edlib "edlib's Homepage"), for installation see [link](https://github.com/Martinsos/edlib/tree/master/bindings/python#installation)
-* [ssw](https://github.com/vishnubob/ssw "Python wrapper for SSW"), for installation see [link](https://github.com/vishnubob/ssw#installation)
 * [networkx](https://networkx.github.io/)
+* [ssw](https://github.com/vishnubob/ssw "Python wrapper for SSW"), for installation see [link](https://github.com/vishnubob/ssw#installation)
 
-These libraries can all be installed with `pip install`. With the dependencies already installed.
+With these dependencies installed. Run
 
 ```sh
 git clone https://github.com/ksahlin/IsoCon.git
@@ -57,25 +56,87 @@ cd IsoCon
 ./IsoCon
 ```
 
-Usage
+
+USAGE
 -------
 
-Running IsoCon end-to-end with base call quality values (preffered)
+IsoCon takes two input files: (1) a fasta file of full length non-chimeric (flnc) CCS reads and (2) the bam file of CCS reads containing predicted base call quality values. The fasta file containing flnc can be obtained from PacBios Iso-Seq pipeline [ToFU](https://github.com/Martinsos/edlib/tree/master/bindings/python#installation) and the bam file is the output of running the consensus caller algorthm [ccs](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md) on the Iso-Seq reads (ccs takes bam files so if you have bax files, convert them using [bax2bam](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md#input) ). IsoCon can then be run as
+
 ```
 IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --ccs </path/to/filename.ccs.bam>
 ```
 
-IsoCon takes two input files: (1) a fasta file of full length non-chimeric (flnc) CCS reads and (2) the bam file of CCS reads containing predicted base call quality values. IsoCon also supports taking only the fasta read file as input. Without the base call quality values, IsoCon will use an empirically estimated error model. The ability to take only the flnc fasta file as input is useful when the reads have been altered after the CCS base calling algorithm, \emph{e.g.}, from correction using illumina reads. We highly recommend supplying the quality values to IsoCon if CCS reads has not gone through any additional correction. IsoCon is available at \url{[https://github.com/ksahlin/IsoCon]} and distributed as a python package for Unix and OSX based systems.
+IsoCon also supports taking only the fasta read file as input. Without the base call quality values, IsoCon will use an empirically estimated error model. The ability to take only the flnc fasta file as input is useful when the reads have been altered after the CCS base calling algorithm, \emph{e.g.}, from **error correction using Illumina reads**. However, we highly recommend supplying the CCS quality values to IsoCon if CCS reads has not gone through any additional correction. 
 
-Running IsoCon end-to-end without base call quality values (e.g., if CCS reads have been altered after they were constructed such as Illumina corrected)
+Simply omit the `--ccs` parameter if running IsoCon without base call quality values as
 ```
 IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output>
 ```
 
-Output
--------
+### Output
 
-The final high quality transcripts are written to the file `final_candidates.fa` in the output folder. If there was only one read coming from a transcript, which is sufficiently different from other reads (exon difference), it will be output in the file `not_converged.fa`. This file may also contain other erroneous CCS reads such as chimeras.
+The final high quality transcripts are written to the file `final_candidates.fa` in the output folder. If there was only one or two reads coming from a transcript, which is sufficiently different from other reads (exon difference), it will be output in the file `not_converged.fa`. This file may contain other erroneous CCS reads such as chimeras.
+
+
+### Parameters
+
+```
+    $ IsoCon pipeline --help
+usage: Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads. pipeline
+       [-h] -fl_reads FL_READS -outfolder OUTFOLDER [--ccs CCS]
+       [--develop_mode] [--neighbor_search_depth NEIGHBOR_SEARCH_DEPTH]
+       [--min_exon_diff MIN_EXON_DIFF] [--p_value_threshold P_VALUE_THRESHOLD]
+       [--nr_cores NR_CORES] [--max_phred_q_trusted MAX_PHRED_Q_TRUSTED]
+       [--min_candidate_support MIN_CANDIDATE_SUPPORT]
+       [--ignore_ends_len IGNORE_ENDS_LEN] [--cleanup]
+       [--prefilter_candidates]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --ccs CCS             BAM/SAM file with CCS sequence predictions.
+  --develop_mode        This will print more information abount workflow and
+                        provide plots of similarity network etc.
+  --neighbor_search_depth NEIGHBOR_SEARCH_DEPTH
+                        Maximum number of pairwise alignments in search matrix
+                        to find nearest_neighbor. [default =2**32]
+  --min_exon_diff MIN_EXON_DIFF
+                        Minimum consequtive base pair difference between two
+                        neigborss in order to remove edge. If more than this
+                        nr of consequtive base pair difference, its likely an
+                        exon difference. [default =20]
+  --p_value_threshold P_VALUE_THRESHOLD
+                        Threshold for statistical test, filter everythin below
+                        this threshold . [default = 0.01]
+  --nr_cores NR_CORES   Number of cores to use.
+  --max_phred_q_trusted MAX_PHRED_Q_TRUSTED
+                        Maximum PHRED quality score trusted (T), linerarly
+                        remaps quality score interval [0,93] --> [0, T].
+                        Quality scores may have some uncertainty since T is
+                        estimated from a consensus caller algorithm.
+  --min_candidate_support MIN_CANDIDATE_SUPPORT
+                        Required minimum number of reads converged to the same
+                        sequence to be included in statistical test. [default
+                        2]
+  --ignore_ends_len IGNORE_ENDS_LEN
+                        Number of bp to ignore in ends. If two candidates are
+                        identical except in ends of this size, they are
+                        collapsed and the longest common substing is chosen to
+                        represent them. In the statistical test step,
+                        the nearest neighbors are found based on ignoring the ends
+                        of this size. Also indels "hanging off" ends of this size will not be tested.
+                        [default 15].
+  --cleanup             Remove everything except logfile.txt,
+                        candidates_converged.fa and final_candidates.fa in
+                        output folder. [default = False]
+  --prefilter_candidates
+                        Filter candidates if they are not consensus over at
+                        least one base pair, this can reduce runtime without
+                        significant loss in true candidates. [default = False]
+
+required arguments:
+  -fl_reads FL_READS    Fast<a/q> file pacbio Reads of Insert.
+  -outfolder OUTFOLDER  Outfolder.
+```
 
 <!-- IsoCon on general Iso-Seq datasets
 -----------------------------------
@@ -100,10 +161,9 @@ Manual BLAT of 20 sequences from the "corrected_but_not_converged" predictions t
 
 <a name="footnote_not_converged">1</a>: Footnote content goes here -->
 
-Detailed usage
-----------------
 
-IsoCOn has three different modes `pipeline` (end to end), `get_candidates` only correct and cluster reads (no statistical testing), as well as `stat_filter` (only statistical testing of a set of candidate transcripts).
+<!-- ### Entry points in IsoCon
+IsoCon has three different modes `pipeline` (end to end), `get_candidates` only correct and cluster reads (no statistical testing), as well as `stat_filter` (only statistical testing of a set of candidate transcripts).
 
 ```
 $ IsoCon --help
@@ -126,47 +186,4 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   --version             show program's version number and exit
-```
-
-#### Commands
-
-```
-    $ ./IsoCon pipeline --help
-usage: Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads. pipeline
-       [-h] -fl_reads FL_READS -outfolder OUTFOLDER [--barcodes BARCODES]
-       [--develop_mode] [--neighbor_search_depth neighbor_search_depth]
-       [--single_core] [--min_candidate_support MIN_CANDIDATE_SUPPORT]
-       [--ignore_ends_len IGNORE_ENDS_LEN] [--cleanup]
-       [--prefilter_candidates]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --barcodes BARCODES   If targeted approach. A fasta file with barcodes to
-                        search for in ends of transcripts.
-  --develop_mode        This will print more information abount workflow and
-                        provide plots of similarity network etc.
-  --neighbor_search_depth neighbor_search_depth
-                        Maximum number of pairwise alignments in search matrix
-                        to find nearest_neighbor. [default =2**32]
-  --single_core         Force working on single core.
-  --min_candidate_support MIN_CANDIDATE_SUPPORT
-                        Required minimum number of reads converged to the same
-                        sequence to be included in statistical test.
-  --ignore_ends_len IGNORE_ENDS_LEN
-                        Number of bp to ignore in ends. If two candidates are
-                        identical expept in ends of this size, they are
-                        collapses and the longest common substing is chosen to
-                        represent them. In statistical test step, nearest_neighbors
-                        are found based on ignoring the ends of this size.
-                        Also indels in ends will not be tested. [default
-                        ignore_ends_len=15].
-  --cleanup             Remove everything except logfile.txt,
-                        candidates_converged.fa and final_candidates.fa in
-                        output folder.
-  --prefilter_candidates
-                        Filter candidates if they are not consensus over at
-                        least one base pair, this can reduce runtime without
-                        significant loss in true candidates.
-```
-
-
+``` -->
