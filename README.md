@@ -60,7 +60,7 @@ cd IsoCon
 USAGE
 -------
 
-IsoCon takes two input files: (1) a fasta file of full length non-chimeric (flnc) CCS reads and (2) the bam file of CCS reads containing predicted base call quality values. The fasta file containing flnc can be obtained from PacBios Iso-Seq pipeline [ToFU](https://github.com/Martinsos/edlib/tree/master/bindings/python#installation) and the bam file is the output of running the consensus caller algorthm [ccs](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md) on the Iso-Seq reads (ccs takes bam files so if you have bax files, convert them using [bax2bam](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md#input) ). IsoCon can then be run as
+IsoCon takes two input files: (1) a fasta file of full length non-chimeric (flnc) CCS reads and (2) the bam file of CCS reads containing predicted base call quality values. The fasta file containing flnc can be obtained from PacBios Iso-Seq pipeline [ToFU](https://github.com/PacificBiosciences/IsoSeq_SA3nUP/wiki) and the bam file is the output of running the consensus caller algorthm [ccs](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md) on the Iso-Seq reads (ccs takes bam files so if you have bax files, convert them using [bax2bam](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md#input) ). IsoCon can then be run as
 
 ```
 IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --ccs </path/to/filename.ccs.bam>
@@ -84,7 +84,7 @@ The final high quality transcripts are written to the file `final_candidates.fa`
     $ IsoCon pipeline --help
 usage: Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads. pipeline
        [-h] -fl_reads FL_READS -outfolder OUTFOLDER [--ccs CCS]
-       [--develop_mode] [--neighbor_search_depth NEIGHBOR_SEARCH_DEPTH]
+       [--verbose] [--neighbor_search_depth NEIGHBOR_SEARCH_DEPTH]
        [--min_exon_diff MIN_EXON_DIFF] [--p_value_threshold P_VALUE_THRESHOLD]
        [--nr_cores NR_CORES] [--max_phred_q_trusted MAX_PHRED_Q_TRUSTED]
        [--min_candidate_support MIN_CANDIDATE_SUPPORT]
@@ -94,7 +94,7 @@ usage: Pipeline for obtaining non-redundant haplotype specific transcript isofor
 optional arguments:
   -h, --help            show this help message and exit
   --ccs CCS             BAM/SAM file with CCS sequence predictions.
-  --develop_mode        This will print more information abount workflow and
+  --verbose        This will print more information abount workflow and
                         provide plots of similarity network etc.
   --neighbor_search_depth NEIGHBOR_SEARCH_DEPTH
                         Maximum number of pairwise alignments in search matrix
@@ -129,9 +129,9 @@ optional arguments:
                         candidates_converged.fa and final_candidates.fa in
                         output folder. [default = False]
   --prefilter_candidates
-                        Filter candidates if they are not consensus over at
-                        least one base pair, this can reduce runtime without
-                        significant loss in true candidates. [default = False]
+                        Filter candidates if they are not consensus over any base pair 
+                        in the candidate transcript formed from them, this can reduce runtime
+                        without significant loss in true candidates. [default = False]
 
 required arguments:
   -fl_reads FL_READS    Fast<a/q> file pacbio Reads of Insert.

@@ -71,8 +71,10 @@ def construct_exact_nearest_neighbor_graph(S, params):
     was_assigned_to_a_nearest_neighbor = set([s for s in G.nodes() if len(G.neighbors(s)) > 0 ])
     strings_converged = set([s for s in G.nodes() if G.node[s]["degree"] > 1 ])
     isolated_nodes = set(unique_strings.keys()) - (was_assigned_to_a_nearest_neighbor | strings_converged)
-    print("{0} strings was not converged and did not find a nearest_neighbor when aligning.".format(len(isolated_nodes)))
-    print("{0} edges in nearest_neighbor graph".format(len(G.edges())))
+
+    if params.verbose:
+        print("{0} strings was not converged and did not find a nearest_neighbor when aligning.".format(len(isolated_nodes)))
+        print("{0} edges in nearest_neighbor graph".format(len(G.edges())))
 
     for s in isolated_nodes:
         assert s in G
@@ -167,8 +169,11 @@ def construct_approximate_nearest_neighbor_graph(S, params, edge_creating_min_tr
     was_assigned_to_a_nearest_neighbor = set([s for s in G.nodes() if len(G.neighbors(s)) > 0 ])
     strings_converged = set([s for s in G.nodes() if G.node[s]["degree"] > 1 ])
     isolated_nodes = unique_strings - (was_assigned_to_a_nearest_neighbor | strings_converged)
-    print("{0} strings was not converged and did not find a nearest_neighbor when aligning.".format(len(isolated_nodes)))
-    print("{0} edges in nearest_neighbor graph".format(len(G.edges())))
+    
+    if params.verbose:
+        print("{0} strings was not converged and did not find a nearest_neighbor when aligning.".format(len(isolated_nodes)))
+        print("{0} edges in nearest_neighbor graph".format(len(G.edges())))
+
     for s in isolated_nodes:
         assert s in G
 

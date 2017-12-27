@@ -12,18 +12,14 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 from collections import defaultdict
 import edlib
-
 import signal
 from multiprocessing import Pool
 import multiprocessing as mp
 import sys
 
-import re
-
-import edlib
+from modules.input_output import write_output
 
 def get_nearest_neighbors_helper(arguments):
     args, kwargs = arguments
@@ -45,13 +41,19 @@ def get_exact_nearest_neighbor_graph(seq_to_acc_list_sorted, has_converged, para
         # here we split the input into chunks
         chunk_size = max(int(len(seq_to_acc_list_sorted) / (10*mp.cpu_count())), 20 )
         ref_seq_chunks = [ ( max(0, i - params.neighbor_search_depth -1), seq_to_acc_list_sorted[max(0, i - params.neighbor_search_depth -1) : i + chunk_size + params.neighbor_search_depth +1 ]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size) ]
-        print([j for j, ch in ref_seq_chunks])
-        print("reference chunks:", [len(ch) for j,ch in ref_seq_chunks])
-
         chunks = [(i, seq_to_acc_list_sorted[i:i + chunk_size]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size)] 
-        print([i for i,ch in chunks])
-        print("query chunks:", [len(ch) for i,ch in chunks])
-        # sys.exit()
+
+        if params.verbose:
+            write_output.logger(str([j for j, ch in ref_seq_chunks]), params.develop_logfile, timestamp=False)
+            write_output.logger("reference chunks:" + str([len(ch) for j,ch in ref_seq_chunks]), params.develop_logfile, timestamp=False)
+            # print([j for j, ch in ref_seq_chunks])
+            # print("reference chunks:", [len(ch) for j,ch in ref_seq_chunks])
+            write_output.logger(str([i for i,ch in chunks]), params.develop_logfile, timestamp=False)
+            write_output.logger("query chunks:" + str([len(ch) for i,ch in chunks]), params.develop_logfile, timestamp=False)
+
+            print([i for i,ch in chunks])
+            print("query chunks:", [len(ch) for i,ch in chunks])
+
         already_converged_chunks = []
         for i, chunk in chunks:
             already_converged_chunk = set()
@@ -59,7 +61,9 @@ def get_exact_nearest_neighbor_graph(seq_to_acc_list_sorted, has_converged, para
                 if seq in has_converged:
                     already_converged_chunk.add(seq)
             already_converged_chunks.append(already_converged_chunk)
-        print("already converged chunks:", [len(ch) for ch in already_converged_chunks])
+        
+        if params.verbose:
+            write_output.logger("already converged chunks: " + str([len(ch) for ch in already_converged_chunks]), params.develop_logfile, timestamp=False)
 
         # get nearest_neighbors takes thre sub containers: 
         #  chunk - a container with (sequences, accesions)-tuples to be aligned (queries)
@@ -143,7 +147,7 @@ def edlib_traceback(x, y, mode="NW", task="path", k=1):
 def get_nearest_neighbors(batch_of_queries, global_index_in_matrix, start_index, seq_to_acc_list_sorted, has_converged, neighbor_search_depth):
     best_edit_distances = {}
     lower_target_edit_distances = {}
-    print("Processing global index:" , global_index_in_matrix)
+    # print("Processing global index:" , global_index_in_matrix)
     # error_types = {"D":0, "S": 0, "I": 0}
     for i in range(start_index, start_index + len(batch_of_queries)):
         if i % 500 == 0:
@@ -255,9 +259,10 @@ def compute_2set_nearest_neighbor_graph(X, C, params):
 
         neighbors.append(len(nearest_neighbor_graph_x_to_c[x]))
 
-    print("Number of edges:", edges)
-    print("Total edit distance:", tot_ed)
-    print("Avg ed (ed/edges):", tot_ed/ float(edges))
+    if params.verbose:
+        print("Number of edges:", edges)
+        print("Total edit distance:", tot_ed)
+        print("Avg ed (ed/edges):", tot_ed/ float(edges))
     # histogram(edit_hist, args, name='edit_distances.png', x='x-axis', y='y-axis', x_cutoff=100, title="Edit distances in nearest_neighbor graph")
     # histogram(edit_hist, args, name='edit_distances_zoomed.png', x='x-axis', y='y-axis', x_cutoff=5, title="Edit distances in nearest_neighbor graph")
     # histogram(neighbors, args, name='neighbours.png', x='x-axis', y='y-axis', title="Number of neighbours in nearest_neighbor graph")
@@ -300,7 +305,7 @@ def compute_nearest_neighbor_graph(S, has_converged, params):
 ########################
 
     collapsed_consensus_transcripts =  { acc : seq for (seq, acc) in  seq_to_acc.items() }
-    print("Number of collapsed consensus:", len(collapsed_consensus_transcripts))
+    # print("Number of collapsed consensus:", len(collapsed_consensus_transcripts))
     nearest_neighbor_graph = get_exact_nearest_neighbor_graph(seq_to_acc_list_sorted, has_converged, params)
 
     s1 = set()
@@ -324,9 +329,10 @@ def compute_nearest_neighbor_graph(S, has_converged, params):
 
         neighbors.append(len(nearest_neighbor_graph[r1]))
 
-    print("Number of edges:", edges)
-    print("Total edit distance:", tot_ed)
-    print("Avg ed (ed/edges):", tot_ed/ float(edges))
+    if params.verbose:
+        print("Number of edges:", edges)
+        print("Total edit distance:", tot_ed)
+        print("Avg ed (ed/edges):", tot_ed/ float(edges))
     # histogram(edit_hist, params, name='edit_distances.png', x='x-axis', y='y-axis', x_cutoff=100, title="Edit distances in nearest_neighbor graph")
     # histogram(neighbors, params, name='neighbours.png', x='x-axis', y='y-axis', title="Number of neighbours in nearest_neighbor graph")
     # histogram(neighbors, params, name='neighbours_zoomed.png', x='x-axis', y='y-axis', x_cutoff=20, title="Number of neighbours in nearest_neighbor graph")
@@ -468,7 +474,7 @@ def main(args):
     seq_to_acc_list = list(seq_to_acc.items())
     seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
     collapsed_consensus_transcripts =  { acc : seq for (seq, acc) in  seq_to_acc.items() }
-    print("Number of collapsed consensus:", len(collapsed_consensus_transcripts))
+    # print("Number of collapsed consensus:", len(collapsed_consensus_transcripts))
     nearest_neighbor_graph = get_exact_nearest_neighbor_graph(seq_to_acc_list_sorted, params)
 
     s1 = set( [ collapsed_consensus_transcripts[acc2] for acc1 in nearest_neighbor_graph for acc2 in nearest_neighbor_graph[acc1] ])

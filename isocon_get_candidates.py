@@ -3,6 +3,7 @@
     alignment_matrix is a representation of all alignments in a partition. this is a dictionary where sequences s_i belonging to the 
     partition as keys and the alignment of s_i with respectt to the alignment matix.
 """
+from __future__ import print_function
 import os
 import unittest
 import copy
@@ -34,7 +35,7 @@ def get_unique_seq_accessions(S):
             seq_to_acc[seq] = [acc]
 
     unique_seq_to_acc = {seq: acc_list[0] for seq, acc_list in  seq_to_acc.items() if len(acc_list) == 1 } 
-    print("Unique seqs left:", len(unique_seq_to_acc))
+    print("Non-converged (unique) sequences left:", len(unique_seq_to_acc))
 
     return seq_to_acc
 
@@ -43,18 +44,23 @@ def get_partition_alignments(graph_partition, M, G_star, params):
         
     ed_temp = [ exact_edit_distances[s1][s2] for s1 in exact_edit_distances for s2 in exact_edit_distances[s1]  ] 
     ed_temp.sort()
-    print("ED from edlib:", ed_temp)
-    print("number of ed calculated:", len(ed_temp))
+
+    if params.verbose:
+        print("ED from edlib:", ed_temp)
+        print("number of ed calculated:", len(ed_temp))
 
     exact_alignments = sw_align_sequences(exact_edit_distances, nr_cores = params.nr_cores)
 
     ssw_temp = [ exact_alignments[s1][s2] for s1 in exact_alignments for s2 in exact_alignments[s1]  ] 
     # ssw_temp.sort()
-    print("Number of alignments returned from SSW:", len(ssw_temp))
-    print("Number of alignments that were removed before correction phase -- too many mismatchas in ends (#ED-alignments - # SSW-alignments): {0} ".format(  len(ed_temp) - len(ssw_temp) ))
+    if params.verbose:
+        print("Number of alignments returned from SSW:", len(ssw_temp))
+        print("Number of alignments that were removed before correction phase -- too many mismatchas in ends (#ED-alignments - # SSW-alignments): {0} ".format(  len(ed_temp) - len(ssw_temp) ))
 
     pattern = r"[-]{{{min_exon_diff},}}".format( min_exon_diff = str(params.min_exon_diff)  )  # r"[-]{20,}"
-    print(pattern)
+
+    if params.verbose:
+        print(pattern)
 
     for s1 in list(exact_alignments.keys()): 
         for s2 in list(exact_alignments[s1].keys()):
@@ -98,7 +104,7 @@ def get_partition_alignments(graph_partition, M, G_star, params):
                 #     print("Larger than 1!!", indegree)
                 partition_alignments[m][s] = (edit_dist, aln_m, aln_s, 1)
 
-    print("NR candidates :", len(partition_alignments))
+    print("NR PARTITIONS :", len(partition_alignments))
     return partition_alignments
 
 
@@ -122,11 +128,18 @@ def find_candidate_transcripts(read_file, params):
     else:
         ccs_dict = {}
 
+    step = 1
+    print()
+    print("ITERATION:", step)
+    print()
 
     lenghts = [len(seq) for seq in S.values()]
     C = Counter(lenghts)
-    for l in sorted(C.keys()):
-        print("seq length {0}: {1} occurances".format(l, C[l]) )
+
+    if params.verbose:
+        for l in sorted(C.keys()):
+            write_output.logger("seq length {0}: {1} occurances".format(l, C[l]), params.develop_logfile, timestamp=False)
+
     # print(sorted(lenghts))
     max_len = max(lenghts)
     min_len = min(lenghts)
@@ -141,7 +154,7 @@ def find_candidate_transcripts(read_file, params):
     nearest_neighbor_elapsed = time() - nearest_neighbor_start
     write_output.logger('Time for nearest_neighbors and partition, step 1:{0}'.format(str(nearest_neighbor_elapsed)), params.logfile)
 
-    step = 1
+
     prev_edit_distances_2steps_ago = [2**28,2**28,2**28] # prevents 2-cycles
     prev_edit_distances = [2**28]
 
@@ -149,11 +162,10 @@ def find_candidate_transcripts(read_file, params):
 
     while not converged:
         correction_start = time() 
-
-        print("candidates:", len(M))
         edit_distances = [ partition_alignments[s1][s2][0] for s1 in partition_alignments for s2 in partition_alignments[s1]  ] 
         edit_distances.sort()
-        print("edit distances from SSW:", edit_distances) 
+        if params.verbose:
+            print("edit distances from SSW:", edit_distances) 
 
         ###### Different convergence criterion #########
 
@@ -193,7 +205,7 @@ def find_candidate_transcripts(read_file, params):
             #     homopolymer_mode = True
         #######################################################
 
-        S_prime, S_prime_quality_vector = correct_sequence_to_nearest_neighbor.correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, nr_cores = params.nr_cores)
+        S_prime, S_prime_quality_vector = correct_sequence_to_nearest_neighbor.correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, nr_cores = params.nr_cores, verbose = params.verbose)
 
         for acc, s_prime in S_prime.items():
             S[acc] = s_prime
@@ -202,6 +214,11 @@ def find_candidate_transcripts(read_file, params):
 
         print("Tot seqs:", len(S))
         seq_to_acc = get_unique_seq_accessions(S)
+        step += 1
+        print()
+        print("ITERATION:", step)
+        print()
+
         # partition_alignments, partition, M, converged = partition_strings(S)
 
         G_star, graph_partition, M, converged = highest_reachable_with_edge_degrees(S, params)
@@ -212,13 +229,13 @@ def find_candidate_transcripts(read_file, params):
             N_t = sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
             out_file.write(">{0}\n{1}\n".format("read" + str(i)+ "_support_" + str(N_t) , m))
 
-        step += 1
+
         prev_edit_distances_2steps_ago = prev_edit_distances
         prev_edit_distances = edit_distances
 
         correction_elapsed = time() - correction_start
         write_output.logger('Time for correction, nearest_neighbors and partition, step {0}:{1}'.format(step, str(correction_elapsed)), params.logfile)
-        
+    
         # sys.exit()
    
     C = {}
@@ -244,21 +261,24 @@ def find_candidate_transcripts(read_file, params):
             if C[corrected_s] >= params.min_candidate_support:
                 reads_to_nearest_neighbors[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
             else:
-                print("nearest_neighbor did not pass threshold. It had support of {0} reads.".format(C[corrected_s]))
-                print(read_acc)
+                if params.verbose:
+                    print("nearest_neighbor did not pass threshold. It had support of {0} reads.".format(C[corrected_s]))
+                    print(read_acc)
                 del C[corrected_s]
         else:
             if corrected_s in original_reads_seq_to_accs:
-                print("Read neither converged nor was it corrected (local pair r1 <---> r2 nearest_neighbor or a isolated alignment with exon difference filtered out before each correction)")
-                print(read_acc)
+                if params.verbose:
+                    print("Read neither converged nor was it corrected (local pair r1 <---> r2 nearest_neighbor or a isolated alignment with exon difference filtered out before each correction)")
+                    print(read_acc)
                 not_converged_reads.write(">{0}_not_corrected_not_converged\n{1}\n".format(read_acc, seq))
                 not_converged.add(read_acc)
 
             else: # partially corrected but not converged
                 not_converged_reads.write(">{0}\n{1}\n".format(read_acc, seq))
                 not_converged.add(read_acc)
-                print("Read partially corrected but not converged")
-                print(read_acc)
+                if params.verbose:
+                    print("Read partially corrected but not converged")
+                    print(read_acc)
                 not_converged_reads.write(">{0}_corrected_but_not_converged_version\n{1}\n".format(read_acc, corrected_s))
 
     not_converged_reads.close()

@@ -9,7 +9,7 @@ from collections import Counter
 
 from modules.functions import create_position_probability_matrix
 
-def correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, nr_cores = 1):
+def correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, nr_cores = 1, verbose = False):
     S_prime = {}
     S_prime_quality = {}
 
@@ -38,7 +38,7 @@ def correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, nr_cores =
 
     if nr_cores == 1:
         for m, partition in sorted(partition_alignments.items()):
-            S_prime_partition, S_prime_quality_vectors = correct_to_consensus_helper( ((m, partition, partition_unique_seq_to_acc[m], step, partitioned_ccs_dict[m]), {}) )
+            S_prime_partition, S_prime_quality_vectors = correct_to_consensus_helper( ((m, partition, partition_unique_seq_to_acc[m], step, verbose, partitioned_ccs_dict[m]), {}) )
             for acc, s in S_prime_partition.items():
                 assert acc not in S_prime
                 S_prime[acc] = s
@@ -54,14 +54,14 @@ def correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, nr_cores =
         signal.signal(signal.SIGINT, original_sigint_handler)
         pool = Pool(processes=nr_cores)
         try:
-            res = pool.map_async(correct_to_consensus_helper, [ ( (m, partition, partition_unique_seq_to_acc[m], step, partitioned_ccs_dict[m]), {}) for m, partition in partition_alignments.items() if len(partition) > 1 ] )
+            res = pool.map_async(correct_to_consensus_helper, [ ( (m, partition, partition_unique_seq_to_acc[m], step, verbose, partitioned_ccs_dict[m]), {}) for m, partition in partition_alignments.items() if len(partition) > 1 ] )
             S_prime_partition_dicts =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
             pool.terminate()
             sys.exit()
         else:
-            print("Normal termination")
+            # print("Normal termination")
             pool.close()
         pool.join()
         for S_prime_partition, S_prime_quality_vectors in S_prime_partition_dicts:
@@ -80,7 +80,7 @@ def correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, nr_cores =
 
 def correct_to_consensus_helper(arguments):
     args, kwargs = arguments
-    if args[4]:
+    if args[5]:
         print("Correction with ccs probabilities")
         return correct_to_consensus_ccs_qual(*args, **kwargs)
     else:
@@ -428,7 +428,7 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
 
 
 
-def correct_to_consensus(m, partition, seq_to_acc, step):
+def correct_to_consensus(m, partition, seq_to_acc, step, verbose):
     S_prime_partition = {}
     N_t = sum([container_tuple[3] for s, container_tuple in partition.items()]) # total number of sequences in partition
     
@@ -476,17 +476,16 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
                             c_del += PFM[j][v]
                         else:
                             c_subs += PFM[j][v]
-
-        print("Error types:", c_del, c_ins, c_subs, "depth:", N_t )
+        if verbose:
+            print("Partition error types:", c_del, c_ins, c_subs, "depth:", N_t )
         assert len(majority_vector) == len(PFM)
-        print(len(temp_majority_string), temp_majority_string)
+
         ############################
 
         for s in sorted(partition):
             if partition[s][3] > 1: # at least 2 identical sequences --> its a nearest_neighbor of the partition, has converged, and should not be corrected
                 continue
 
-            print(len(s))
             nr_pos_to_correct2 = int(math.ceil(partition[s][0] / 2.0)) #decide how many errors we should correct here
             s_alignment_in_matrix = alignment_matrix[s]
             
@@ -495,14 +494,15 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
             nr_pos_to_correct = int(math.ceil( len([ 1 for j in range(len(majority_vector)) if (len(majority_vector[j]) == 1 and majority_vector[j] != s_alignment_in_matrix[j] ) ]) * 0.5)) # (step/ float(step +1)) ))
             # print("positions to correct:", nr_pos_to_correct)
 
-            if nr_pos_to_correct == 0:
-                print("Edit distance to nearest_neighbor:", partition[s][0], "is nearest_neighbor:", s ==m, "Minority positions:", minority_positions)
+            if verbose:
+                if nr_pos_to_correct == 0:
+                    print("Edit distance to nearest_neighbor:", partition[s][0], "is nearest_neighbor:", s ==m, "Minority positions:", minority_positions)
 
-            if nr_pos_to_correct2 > 0 and nr_pos_to_correct == 0:
-                print("Edit distance to nearest_neighbor: {0}, {1} minority positions, correcting no position. Length partition (unique): {2}, total seqs: {3}".format(partition[s][0], len(minority_positions), len(partition), N_t))
-                # for s in partition:
-                #     print(s)
-                # print([ (j,majority_vector[j], s_alignment_in_matrix[j], PFM[j]) for j in range(len(majority_vector)) if majority_vector[j] != s_alignment_in_matrix[j] ])
+                if nr_pos_to_correct2 > 0 and nr_pos_to_correct == 0:
+                    print("Edit distance to nearest_neighbor: {0}, {1} minority positions, correcting no position. Length partition (unique): {2}, total seqs: {3}".format(partition[s][0], len(minority_positions), len(partition), N_t))
+                    # for s in partition:
+                    #     print(s)
+                    # print([ (j,majority_vector[j], s_alignment_in_matrix[j], PFM[j]) for j in range(len(majority_vector)) if majority_vector[j] != s_alignment_in_matrix[j] ])
             if nr_pos_to_correct  == 0:
                 continue
 
@@ -607,11 +607,12 @@ def correct_to_consensus(m, partition, seq_to_acc, step):
         for s in partition:
             if  partition[s][0] > ed:
                 ed = partition[s][0]
-        print("Partition could not be corrected: Partition size(unique strings):{0}, partition support: {1}, edit distance:{2}.".format(len(partition), N_t, ed))
+        if verbose:
+            print("Partition could not be corrected: Partition size(unique strings):{0}, partition support: {1}, edit distance:{2}.".format(len(partition), N_t, ed))
     else:
-        print("Partition converged: Partition size(unique strings):{0}, partition support: {1}.".format(len(partition), N_t))
+        if verbose:
+            print("Partition converged: Partition size(unique strings):{0}, partition support: {1}.".format(len(partition), N_t))
 
-    
     return S_prime_partition
 
 # def get_frozen_positions(m_in_alignment_matrix):

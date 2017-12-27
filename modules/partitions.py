@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import networkx as nx
 import argparse, os
 
@@ -16,14 +18,15 @@ def highest_reachable_with_edge_degrees(S, params):
     G_star, converged = graphs.construct_exact_nearest_neighbor_graph(S, params)
 
     unique_start_strings = set(G_star.nodes())
-
-    print("len G_star:", len(G_star))
     partition_sizes = []
     nr_consensus = 0
     G_transpose = nx.reverse(G_star)
-    print("len G_star_transposed (nearest_neighbors):", len(G_transpose))
 
-    print(sorted([len(G_transpose.neighbors(n)) for n in G_transpose], reverse=True))
+    if params.verbose:
+        print("Nodes in nearest_neighbor ggraph:", len(G_transpose))
+        print("Neighbors per nodes in nearest neighbor graph", sorted([len(G_transpose.neighbors(n)) for n in G_transpose], reverse=True))
+
+
     M = {}
     partition = {}
     # print("here")
@@ -151,10 +154,12 @@ def highest_reachable_with_edge_degrees(S, params):
     #     for p in sorted(partition[m]):
     #         print(len(p))
     nearest_neighbor_lenghts = [len(m) for m in sorted(partition)]
-    print(sorted(nearest_neighbor_lenghts))
-    print("NR CONSENSUS:", nr_consensus)
-    print("NR nearest_neighbors:", len(M), len(partition))
-    print("partition sizes(identical strings counted once): ", sorted([len(partition[p]) +1 for p in  partition], reverse = True))
+    
+    if params.verbose:
+        print("Seq lengths of centers", sorted(nearest_neighbor_lenghts))
+        print("NUMBER CONSENSUS:", nr_consensus)
+        print("Number of centers:", len(M), len(partition))
+        print("partition sizes(identical strings are collapsed here and therefore counted as one): ", sorted([len(partition[p]) +1 for p in  partition], reverse = True))
 
     total_strings_in_partition = sum([ len(partition[p]) +1 for p in  partition])
     partition_sequences = set()

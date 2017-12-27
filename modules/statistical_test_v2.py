@@ -177,47 +177,47 @@ def statistical_test_helper(arguments):
     return statistical_test_CLT(*args, **kwargs)
 
 
-def stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c):
-    m = len(t_seq)
-    n_S, n_D, n_I = 0, 0, 0
-    for pos, (state, char) in delta_t[c_acc].items():
-        if state == "S":
-            n_S += 1
-        elif state == "D":
-            n_D += 1
-        if state == "I":
-            n_I += 1
+# def stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c):
+#     m = len(t_seq)
+#     n_S, n_D, n_I = 0, 0, 0
+#     for pos, (state, char) in delta_t[c_acc].items():
+#         if state == "S":
+#             n_S += 1
+#         elif state == "D":
+#             n_D += 1
+#         if state == "I":
+#             n_I += 1
 
-    ######### INVARIANTS FACTORS PER VARIANT ##########
-    u_v_factor = 1
-    epsilon_invariant_adjusted = {}
-    for q_acc in epsilon:
-        p_i = 1.0
-        for pos, (state, char) in delta_t[c_acc].items():
-            u_v = candidate_indiv_invariant_factors[c_acc][pos][(state, char)]
-            p_iv = epsilon[q_acc][state]
-            p_i *= u_v*p_iv
+#     ######### INVARIANTS FACTORS PER VARIANT ##########
+#     u_v_factor = 1
+#     epsilon_invariant_adjusted = {}
+#     for q_acc in epsilon:
+#         p_i = 1.0
+#         for pos, (state, char) in delta_t[c_acc].items():
+#             u_v = candidate_indiv_invariant_factors[c_acc][pos][(state, char)]
+#             p_iv = epsilon[q_acc][state]
+#             p_i *= u_v*p_iv
         
-        p_i = min(p_i, 1.0) # we cannot have a probability larger than 1, this can happen due to our heuristic degeneracy multiplier "u_v"
-        epsilon_invariant_adjusted[q_acc] = p_i
-    #################################################
+#         p_i = min(p_i, 1.0) # we cannot have a probability larger than 1, this can happen due to our heuristic degeneracy multiplier "u_v"
+#         epsilon_invariant_adjusted[q_acc] = p_i
+#     #################################################
 
-    pobin_mean = sum([ epsilon_invariant_adjusted[q_acc] for q_acc in epsilon_invariant_adjusted])    
-    p_value = poisson.sf(k - 1, pobin_mean)
+#     pobin_mean = sum([ epsilon_invariant_adjusted[q_acc] for q_acc in epsilon_invariant_adjusted])    
+#     p_value = poisson.sf(k - 1, pobin_mean)
     
-    mult_factor_inv = ( (4*(m+1))**n_I ) * functions.choose(m, n_D) * functions.choose( 3*(m-n_D), n_S)
+#     mult_factor_inv = ( (4*(m+1))**n_I ) * functions.choose(m, n_D) * functions.choose( 3*(m-n_D), n_S)
 
-    pobin_var = sum([ epsilon_invariant_adjusted[q_acc] * ( 1 - epsilon_invariant_adjusted[q_acc] ) for q_acc in epsilon_invariant_adjusted])
-    pobin_stddev = math.sqrt(pobin_var)
-    if pobin_mean > 5.0: # implies that mean is at least 2.2 times larger than stddev, this should give fairly symmetrical distribution
-        p_value_norm = norm.sf(float(k-1), loc= pobin_mean, scale= pobin_stddev )
+#     pobin_var = sum([ epsilon_invariant_adjusted[q_acc] * ( 1 - epsilon_invariant_adjusted[q_acc] ) for q_acc in epsilon_invariant_adjusted])
+#     pobin_stddev = math.sqrt(pobin_var)
+#     if pobin_mean > 5.0: # implies that mean is at least 2.2 times larger than stddev, this should give fairly symmetrical distribution
+#         p_value_norm = norm.sf(float(k-1), loc= pobin_mean, scale= pobin_stddev )
 
-        print(c_acc, "COMPARE P-VALS:", p_value, "norm:", p_value_norm)
+#         print(c_acc, "COMPARE P-VALS:", p_value, "norm:", p_value_norm)
 
 
-    #############################
-    #################################### 
-    return  p_value, mult_factor_inv
+#     #############################
+#     #################################### 
+#     return  p_value, mult_factor_inv
 
 def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_len):
     partition_dict = {t_acc : {}}
@@ -247,73 +247,73 @@ def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_le
     return alignment_matrix_to_t, PFM_to_t
 
 
-def statistical_test(t_acc, X, C, partition_of_X, candidates, ignore_ends_len):
-    significance_values = {}
-    t_seq = C[t_acc]
-    if len(candidates) == 0:
-        significance_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
-        return significance_values
+# def statistical_test(t_acc, X, C, partition_of_X, candidates, ignore_ends_len):
+#     significance_values = {}
+#     t_seq = C[t_acc]
+#     if len(candidates) == 0:
+#         significance_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
+#         return significance_values
 
-    reads = set([x_acc for c_acc in candidates for x_acc in partition_of_X[c_acc]] )
-    reads.update(partition_of_X[t_acc])
+#     reads = set([x_acc for c_acc in candidates for x_acc in partition_of_X[c_acc]] )
+#     reads.update(partition_of_X[t_acc])
 
-    #### Bug FIX ############
-    total_read_in_partition = len(partition_of_X[t_acc])
-    reads_in_partition = set(partition_of_X[t_acc])
-    # print(partition_of_X[t_acc])
-    for c_acc in candidates:
-        # for x_acc in partition_of_X[c_acc]:
-        #     if x_acc in reads_in_partition:
-        #         print("Already in partition:", x_acc)
-        #         print(x_acc in partition_of_X[t_acc])
-        #         print("candidate:", c_acc)
-        #     else:
-        #         reads_in_partition.add(x_acc)
-        total_read_in_partition += len(partition_of_X[c_acc])
-        # print(partition_of_X[c_acc])
+#     #### Bug FIX ############
+#     total_read_in_partition = len(partition_of_X[t_acc])
+#     reads_in_partition = set(partition_of_X[t_acc])
+#     # print(partition_of_X[t_acc])
+#     for c_acc in candidates:
+#         # for x_acc in partition_of_X[c_acc]:
+#         #     if x_acc in reads_in_partition:
+#         #         print("Already in partition:", x_acc)
+#         #         print(x_acc in partition_of_X[t_acc])
+#         #         print("candidate:", c_acc)
+#         #     else:
+#         #         reads_in_partition.add(x_acc)
+#         total_read_in_partition += len(partition_of_X[c_acc])
+#         # print(partition_of_X[c_acc])
 
-    ############################
+#     ############################
 
-    N_t = len(reads)
+#     N_t = len(reads)
 
-    # print("N_t:", N_t, "reads in partition:", total_read_in_partition, "ref:", t_acc )
-    # print("Nr candidates:", len(candidates), candidates)
-    assert total_read_in_partition == N_t # each read should be uiquely assinged to a candidate
-    reads_and_candidates = reads.union( [c_acc for c_acc in candidates]) 
-    reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
+#     # print("N_t:", N_t, "reads in partition:", total_read_in_partition, "ref:", t_acc )
+#     # print("Nr candidates:", len(candidates), candidates)
+#     assert total_read_in_partition == N_t # each read should be uiquely assinged to a candidate
+#     reads_and_candidates = reads.union( [c_acc for c_acc in candidates]) 
+#     reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
 
-    # get multialignment matrix here
-    alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_len)
+#     # get multialignment matrix here
+#     alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_len)
 
-    # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
-    # these are bases that we disregard when testing varinats
-    # We get individual cut positions depending on which candidate is being tested -- we dont want to include ends spanning over the reference or candidate
-    # we cut at the start position in c or t that comes last, and the end position in c or t that comes first
-    assert len(list(candidates)) == 1
-    for c_acc in list(candidates):
-        if ignore_ends_len > 0:
-            alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
+#     # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
+#     # these are bases that we disregard when testing varinats
+#     # We get individual cut positions depending on which candidate is being tested -- we dont want to include ends spanning over the reference or candidate
+#     # we cut at the start position in c or t that comes last, and the end position in c or t that comes first
+#     assert len(list(candidates)) == 1
+#     for c_acc in list(candidates):
+#         if ignore_ends_len > 0:
+#             alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
 
-        # get parameter estimates for statistical test
-        candidate_accessions = set( [ c_acc for c_acc in candidates] )
-        delta_t = functions.get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
-        epsilon, lambda_S, lambda_D, lambda_I = functions.get_error_rates_and_lambda(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
-        # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
-        candidate_support = functions.get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
-        candidate_indiv_invariant_factors = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
+#         # get parameter estimates for statistical test
+#         candidate_accessions = set( [ c_acc for c_acc in candidates] )
+#         delta_t = functions.get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
+#         epsilon, lambda_S, lambda_D, lambda_I = functions.get_error_rates_and_lambda(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
+#         # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
+#         candidate_support = functions.get_supporting_reads_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
+#         candidate_indiv_invariant_factors = functions.adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix_to_t, t_acc)
 
-    for c_acc in list(candidates):
-        original_mapped_to_c = len(partition_of_X[c_acc])
-        k = len(candidate_support[c_acc])
-        # print("supprot:", k, "diff:", len(delta_t[c_acc]))
-        if len(delta_t[c_acc]) == 0:
-            print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
-        p_value, mult_factor_inv = stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c)
-        delta_size = len(delta_t[c_acc])
-        significance_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
-        print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, mult_factor_inv, p_value * mult_factor_inv,  k, N_t, delta_size) )
+#     for c_acc in list(candidates):
+#         original_mapped_to_c = len(partition_of_X[c_acc])
+#         k = len(candidate_support[c_acc])
+#         # print("supprot:", k, "diff:", len(delta_t[c_acc]))
+#         if len(delta_t[c_acc]) == 0:
+#             print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
+#         p_value, mult_factor_inv = stat_test(k, t_seq, epsilon, delta_t, candidate_indiv_invariant_factors, t_acc, c_acc, original_mapped_to_c)
+#         delta_size = len(delta_t[c_acc])
+#         significance_values[c_acc] = (p_value, mult_factor_inv, k, N_t, delta_size)
+#         print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, mult_factor_inv, p_value * mult_factor_inv,  k, N_t, delta_size) )
 
-    return significance_values
+#     return significance_values
 
 
 
@@ -422,11 +422,11 @@ def statistical_test_CLT(t_acc, X, C, partition_of_X, candidates, ignore_ends_le
         # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, correction_factor, p_value * correction_factor,  len(x), N_t, delta_size) )
         # significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
         if ccs_dict:
-            print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
+            # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
             significance_values[c_acc] = (p_value, 1.0, len(x), N_t, variant_types)
         else:
             correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
-            print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
+            # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
             significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, variant_types)
 
     return significance_values
@@ -461,11 +461,13 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
     #     if p_i < 0 or p_i > 1.0:
     #         print(p_i)
     # assert max(probability.values()) <= 1.0
-    print(sorted(probability.values()))
+    # print(sorted(probability.values()))
     log_probabilities = { acc: -math.log(p_i, 10) for acc, p_i in probability.items()}
     log_p_i_max = max(log_probabilities.values())
-    print(log_probabilities.values())
-    print("log_p_i_max:", log_p_i_max, )
+    
+    # print(log_probabilities.values())
+    # print("log_p_i_max:", log_p_i_max)
+
     assert log_p_i_max > 0
     weight = {q_acc : log_probabilities[q_acc] / log_p_i_max  for q_acc in log_probabilities.keys()}
 
@@ -474,7 +476,7 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
 
     m = Decimal( sum([ weight[q_acc] * probability[q_acc]  for q_acc in probability.keys()]) )
     y = Decimal( sum([weight[x_i] for x_i in x_equal_to_one ]) )
-    print(m, y, "log_p_max: ",log_p_i_max, "nr supp:", len(x_equal_to_one), sorted([(weight[x_i], x_i) for x_i in x_equal_to_one ], key = lambda x: x[0]) )
+    # print(m, y, "log_p_max: ",log_p_i_max, "nr supp:", len(x_equal_to_one), sorted([(weight[x_i], x_i) for x_i in x_equal_to_one ], key = lambda x: x[0]) )
     d = y / m - 1
     k = m*d
 

@@ -3,6 +3,7 @@
     alignment_matrix is a representation of all alignments in a partition. this is a dictionary where sequences s_i belonging to the 
     partition as keys and the alignment of s_i with respectt to the alignment matix.
 """
+from __future__ import print_function
 import os
 import sys
 import unittest
@@ -189,7 +190,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
     if os.stat(candidate_file).st_size == 0:
         out_file_name = os.path.join(params.outfolder, "final_candidates.fa")
         tsv_info = os.path.join(params.outfolder, "cluster_info.tsv")
-        write_output.print_candidates(out_file_name, {}, {}, {}, {}, final = True, reads_to_consensus_tsv = tsv_info)
+        write_output.print_candidates(out_file_name, {}, {}, {}, {}, params, final = True, reads_to_consensus_tsv = tsv_info)
         print("Candidate file is empty!")
         sys.exit(0)
     else:
@@ -246,8 +247,9 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         statistical_start = time() 
 
         modified = False
+        print()
         print("STEP NR: {0}".format(step))
-
+        print()
         ########### Write current candidates to file ##########
         temp_candidate_name = os.path.join(params.outfolder, "temp_candidates_step_{0}.fa".format(step))
         temp_candidate_file = open(temp_candidate_name, "w")
@@ -263,8 +265,9 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         #     for c_acc in alignments_of_x_to_c[x_acc]:
         #         partition_of_X[c_acc].add(x_acc)
 
-        for c_acc in partition_of_X:
-            print(c_acc, "has {0} reads assigned to it.".format(len(partition_of_X[c_acc])))
+        if params.verbose:
+            for c_acc in partition_of_X:
+                print(c_acc, "has {0} reads assigned to it.".format(len(partition_of_X[c_acc])))
 
         ############ GET READ SUPORT AND ALIGNMENTS #################
 
@@ -289,7 +292,8 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
                     del C[c_acc]
                     del partition_of_X[c_acc]
                 else:
-                    print(c_acc, "Now has {0} reads assigned to it, after aligning reads that are not assigned.".format(len(partition_of_X[c_acc])))
+                    if params.verbose:
+                        print(c_acc, "Now has {0} reads assigned to it, after aligning reads that are not assigned.".format(len(partition_of_X[c_acc])))
 
             # add the alignments to alignment structure
             # for x_acc in remaining_alignments_of_x_to_c.keys():
@@ -349,7 +353,8 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
                 accessions_in_component_to_test = set([c_acc for c_acc in nearest_neighbor_graph_transposed[t_acc].keys()] + [t_acc])
                 # print(accessions_in_component_to_test)
                 if (accessions_in_component_to_test == previous_components[t_acc]) and all([ len(previous_partition_of_X[acc]) == len(partition_of_X[acc]) for acc in accessions_in_component_to_test]):
-                    print("TEST IDENTICAL TO PREVIOUS STEP, SKIPPING FOR", t_acc)
+                    if params.verbose:
+                        print("TEST IDENTICAL TO PREVIOUS STEP, SKIPPING FOR", t_acc)
                     for acc in accessions_in_component_to_test:
                         previous_significance_values[acc] = significance_values[acc]
                     del nearest_neighbor_graph_transposed[t_acc]
@@ -365,7 +370,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         # these are all candidates that are nearest_neighbors to some other, isolated nodes are not tested
         # candidatate in G_star_C
         nr_of_tests_this_round = len([ 1 for t_acc in nearest_neighbor_graph_transposed for c_acc in nearest_neighbor_graph_transposed[t_acc] ] )
-        print("NUMBER OF CANDIDATES LEFT:", len(C), "Number statistical tests in this round:", nr_of_tests_this_round)
+        print("NUMBER OF CANDIDATES LEFT:", len(C), ". Number statistical tests in this round:", nr_of_tests_this_round)
 
         # if realignment_to_avoid_local_max == 1:
         #     new_significance_values = statistical_test_v2.do_statistical_tests_all_c_to_t(nearest_neighbor_graph_transposed, C, X, partition_of_X, params )
@@ -375,17 +380,15 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         # updating if previously identical test had higher p_val than the highest new one, substitute with the stored test.
         for c_acc, (p_value, mult_factor_inv, k, N_t, variants) in new_significance_values.items():
             if c_acc in previous_significance_values:
-                print("HERE!!")
                 prev_p_val, prev_mult_factor_inv = previous_significance_values[c_acc][0], previous_significance_values[c_acc][1]
                 if prev_p_val != "not_tested" and p_value != "not_tested":
                     if prev_p_val * prev_mult_factor_inv > p_value * mult_factor_inv:
-                        print("old:", previous_significance_values[c_acc])
-                        print("new:", new_significance_values[c_acc])
+                        # print("old:", previous_significance_values[c_acc])
+                        # print("new:", new_significance_values[c_acc])
                         new_significance_values[c_acc] = previous_significance_values[c_acc]
         # updating with previously stored identical tests
         for c_acc, (p_value, mult_factor_inv, k, N_t, variants) in previous_significance_values.items():
             if c_acc not in new_significance_values:
-                print("HERE22!!")
                 new_significance_values[c_acc] = previous_significance_values[c_acc]            
 
         # print('INTERSECTION:', set(new_significance_values.keys()) & set(previous_significance_values.keys()) )
@@ -415,8 +418,10 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}
         for c_acc, (p_value, mult_factor_inv, k, N_t, variants) in new_significance_values_list:
+
             if p_value == "not_tested":
-                print("Did not test", c_acc)
+                if params.verbose:
+                    print("Did not test", c_acc)
             # elif prefilter:
             #     if p_value > 0.01:
             #         print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "variants:", variants )
@@ -444,8 +449,8 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         if len(C) == 0: # no candidates were significant!
             break
 
-        print("LEN SIGN:", len(significance_values), len(C))
-        write_output.print_candidates(candidate_file, C, significance_values, partition_of_X, X)
+        # print("LEN SIGN:", len(significance_values), len(C))
+        write_output.print_candidates(candidate_file, C, significance_values, partition_of_X, X, params)
 
         # do a last realingment to avoind local maxima of reads
 
@@ -462,6 +467,6 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
 
     final_out_file_name =  os.path.join(params.outfolder, "final_candidates.fa")
     tsv_info = os.path.join(params.outfolder, "cluster_info.tsv")
-    write_output.print_candidates(final_out_file_name, C, significance_values, partition_of_X, X, final = True, reads_to_consensus_tsv = tsv_info)
+    write_output.print_candidates(final_out_file_name, C, significance_values, partition_of_X, X, params, final = True, reads_to_consensus_tsv = tsv_info)
 
     return C

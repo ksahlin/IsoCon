@@ -13,7 +13,7 @@ import networkx as nx
 import edlib
 
 from modules import functions
-
+from modules.input_output import write_output
 
 def edlib_traceback_allow_ends(x, y, mode="NW", task="path", k=1, end_threshold = 0):
     result = edlib.align(x, y, mode=mode, task=task, k=k)
@@ -91,12 +91,18 @@ def get_nearest_neighbors_under_ignored_edge_ends(seq_to_acc_list_sorted, params
         # here we split the input into chunks
         chunk_size = max(int(len(seq_to_acc_list_sorted) / (10*mp.cpu_count())), 20 )
         ref_seq_chunks = [ ( max(0, i - params.neighbor_search_depth -1), seq_to_acc_list_sorted[max(0, i - params.neighbor_search_depth -1) : i + chunk_size + params.neighbor_search_depth +1 ]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size) ]
-        print([j for j, ch in ref_seq_chunks])
-        print("reference chunks:", [len(ch) for j,ch in ref_seq_chunks])
-
         chunks = [(i, seq_to_acc_list_sorted[i:i + chunk_size]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size)] 
-        print([i for i,ch in chunks])
-        print("query chunks:", [len(ch) for i,ch in chunks])
+
+        if params.verbose:
+            write_output.logger(str([j for j, ch in ref_seq_chunks]), params.develop_logfile, timestamp=False)
+            write_output.logger("reference chunks:" + str([len(ch) for j,ch in ref_seq_chunks]), params.develop_logfile, timestamp=False)
+            # print([j for j, ch in ref_seq_chunks])
+            # print("reference chunks:", [len(ch) for j,ch in ref_seq_chunks])
+            write_output.logger(str([i for i,ch in chunks]), params.develop_logfile, timestamp=False)
+            write_output.logger("query chunks:" + str([len(ch) for i,ch in chunks]), params.develop_logfile, timestamp=False)
+
+            print([i for i,ch in chunks])
+            print("query chunks:", [len(ch) for i,ch in chunks])
         # get nearest_neighbors takes thre sub containers: 
         #  chunk - a container with (sequences, accesions)-tuples to be aligned (queries)
         #  ref_seq_chunks - a container with (sequences, accesions)-tuples to be aligned to (references)
@@ -138,12 +144,19 @@ def get_invariants_under_ignored_edge_ends(seq_to_acc_list_sorted, params):
         # here we split the input into chunks
         chunk_size = max(int(len(seq_to_acc_list_sorted) / (10*mp.cpu_count())), 20 )
         ref_seq_chunks = [ ( max(0, i - params.neighbor_search_depth -1), seq_to_acc_list_sorted[max(0, i - params.neighbor_search_depth -1) : i + chunk_size + params.neighbor_search_depth +1 ]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size) ]
-        print([j for j, ch in ref_seq_chunks])
-        print("reference chunks:", [len(ch) for j,ch in ref_seq_chunks])
-
         chunks = [(i, seq_to_acc_list_sorted[i:i + chunk_size]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size)] 
-        print([i for i,ch in chunks])
-        print("query chunks:", [len(ch) for i,ch in chunks])
+
+        if params.verbose:
+            write_output.logger(str([j for j, ch in ref_seq_chunks]), params.develop_logfile, timestamp=False)
+            write_output.logger("reference chunks:" + str([len(ch) for j,ch in ref_seq_chunks]), params.develop_logfile, timestamp=False)
+            # print([j for j, ch in ref_seq_chunks])
+            # print("reference chunks:", [len(ch) for j,ch in ref_seq_chunks])
+            write_output.logger(str([i for i,ch in chunks]), params.develop_logfile, timestamp=False)
+            write_output.logger("query chunks:" + str([len(ch) for i,ch in chunks]), params.develop_logfile, timestamp=False)
+
+            print([i for i,ch in chunks])
+            print("query chunks:", [len(ch) for i,ch in chunks])
+
         # get nearest_neighbors takes thre sub containers: 
         #  chunk - a container with (sequences, accesions)-tuples to be aligned (queries)
         #  ref_seq_chunks - a container with (sequences, accesions)-tuples to be aligned to (references)
@@ -178,7 +191,7 @@ def get_invariants_under_ignored_edge_ends(seq_to_acc_list_sorted, params):
 def get_nearest_neighbors(batch_of_queries, global_index_in_matrix, start_index, seq_to_acc_list_sorted, neighbor_search_depth, ignore_ends_threshold):
     best_edit_distances = {}
     lower_target_edit_distances = {}
-    print("Processing global index:" , global_index_in_matrix)
+    # print("Processing global index:" , global_index_in_matrix)
     # error_types = {"D":0, "S": 0, "I": 0}
     for i in range(start_index, start_index + len(batch_of_queries)):
         if i % 500 == 0:
@@ -275,22 +288,24 @@ def get_nearest_neighbors(batch_of_queries, global_index_in_matrix, start_index,
 
 
 
-def partition_highest_reachable_with_edge_degrees(G_star):
+def partition_highest_reachable_with_edge_degrees(G_star, params):
     # G_star, converged = graphs.construct_exact_nearest_neighbor_graph_improved(S, params)
     unique_start_strings = set(G_star.nodes())
 
-    print("len G_star:", len(G_star))
+    # print("len G_star:", len(G_star))
     partition_sizes = []
     nr_consensus = 0
     G_transpose = nx.reverse(G_star)
-    print("len G_star_transposed (nearest_neighbors):", len(G_transpose))
+    # print("len G_star_transposed (nearest_neighbors):", len(G_transpose))
+    if params.verbose:
+        print("Nodes in nearest_neighbor graph:", len(G_transpose))
+        print("Neighbors per nodes in nearest neighbor graph", sorted([len(G_transpose.neighbors(n)) for n in G_transpose], reverse=True))
 
-    print(sorted([len(G_transpose.neighbors(n)) for n in G_transpose], reverse=True))
     M = {}
     partition = {}
     # print("here")
     for subgraph in sorted(nx.weakly_connected_component_subgraphs(G_transpose), key=len, reverse=True):
-        print("Subgraph of size", len(subgraph.nodes()), "nr edges:", [x for x in subgraph.nodes()] )
+        # print("Subgraph of size", len(subgraph.nodes()), "nr edges:", [x for x in subgraph.nodes()] )
         while subgraph:
             reachable_comp_sizes = []
             reachable_comp_weights = {}
@@ -382,9 +397,10 @@ def partition_highest_reachable_with_edge_degrees(G_star):
             subgraph.remove_nodes_from(biggest_reachable_comp_nodes)
             nr_consensus += 1
 
-    print("NR CONSENSUS:", nr_consensus)
-    print("NR nearest_neighbors:", len(M), len(partition))
-    print("partition sizes(identical strings counted once): ", sorted([len(partition[p]) +1 for p in  partition], reverse = True))
+    if params.verbose:
+        print("NR CONSENSUS:", nr_consensus)
+        print("NR nearest_neighbors:", len(M), len(partition))
+        print("partition sizes(identical strings counted once): ", sorted([len(partition[p]) +1 for p in  partition], reverse = True))
 
     total_strings_in_partition = sum([ len(partition[p]) +1 for p in  partition])
     partition_sequences = set()
@@ -412,7 +428,8 @@ def get_nearest_neighbors_graph_transposed_under_ignored_ends(candidate_transcri
             ed = nearest_neighbor_graph[acc1][acc2]
             if ed > 10:
                 del nearest_neighbor_graph[acc1][acc2]
-                print("had ed > 10 statistical test", acc1, acc2)
+                if args.verbose:
+                    print("had ed > 10 statistical test", acc1, acc2)
 
 
     no_ref_to_test_to = set()
@@ -422,10 +439,11 @@ def get_nearest_neighbors_graph_transposed_under_ignored_ends(candidate_transcri
         if len(nearest_neighbor_graph[acc1]) == 0: # all isolated nodes in this graph
             no_ref_to_test_to.add(acc1)
 
-        for acc2 in nearest_neighbor_graph[acc1]:
-            seq2 = candidate_transcripts[acc2]
-            if nearest_neighbor_graph[acc1][acc2] > 0:
-                print(acc1, acc2,  nearest_neighbor_graph[acc1][acc2])
+        if args.verbose:
+            for acc2 in nearest_neighbor_graph[acc1]:
+                seq2 = candidate_transcripts[acc2]
+                if nearest_neighbor_graph[acc1][acc2] > 0:
+                    print("To be tested:", acc1, acc2,  nearest_neighbor_graph[acc1][acc2])
     
     nearest_neighbor_graph_transposed = functions.transpose(nearest_neighbor_graph)
 
@@ -433,19 +451,19 @@ def get_nearest_neighbors_graph_transposed_under_ignored_ends(candidate_transcri
     # print("isolated:",isolated_nodes )
     # for c_isolated in isolated_nodes:
     #     nearest_neighbor_graph_transposed[c_isolated] = {}
-    print("isolated:", no_ref_to_test_to)
+    print("Number of transcripts that are not tested (too divergent from other transcripts):", len(no_ref_to_test_to))
     for c_isolated in no_ref_to_test_to:
         nearest_neighbor_graph_transposed[c_isolated] = {}
 
     return nearest_neighbor_graph_transposed
 
-def collapse_candidates_under_ends_invariant(candidate_transcripts, candidate_support, args):
-    print("candidates before edge invariants:", len(candidate_transcripts))
+def collapse_candidates_under_ends_invariant(candidate_transcripts, candidate_support, params):
+    print("Candidates before edge invariants:", len(candidate_transcripts))
 
     seq_to_acc = {seq: acc for (acc, seq) in candidate_transcripts.items()}
     seq_to_acc_list = list(seq_to_acc.items())
     seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
-    invariant_graph = get_invariants_under_ignored_edge_ends(seq_to_acc_list_sorted, args)
+    invariant_graph = get_invariants_under_ignored_edge_ends(seq_to_acc_list_sorted, params)
     # convert nearest_neighbor graph to nx graph object
     G = nx.DiGraph()
     # add nodes
@@ -456,11 +474,13 @@ def collapse_candidates_under_ends_invariant(candidate_transcripts, candidate_su
     for acc1 in  invariant_graph:
         for acc2 in invariant_graph[acc1]:
             G.add_edge(acc1, acc2)
-    G_star, partition, M = partition_highest_reachable_with_edge_degrees(G)
+    G_star, partition, M = partition_highest_reachable_with_edge_degrees(G, params)
 
-    for t in partition:
-        print(t, partition[t])
-    print("candidates after edge invariants:", len(partition))
+    if params.verbose:
+        for t in partition:
+            print(t, partition[t])
+    print("Candidates after edge invariants:", len(partition))
+    print()
     return partition
 
 def main(args):
@@ -470,12 +490,12 @@ def main(args):
         supp = acc.split("_support_")[1]
         candidate_support[acc] = int(supp)
     
-    print("Number of consensus:", len(candidate_transcripts))
+    # print("Number of consensus:", len(candidate_transcripts))
     seq_to_acc = {seq: acc for (acc, seq) in  read_fasta(open(args.candidate_transcripts, 'r'))}
     seq_to_acc_list = list(seq_to_acc.items())
     seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
     collapsed_candidate_transcripts =  { acc : seq for (seq, acc) in  seq_to_acc.items() }
-    print("Number of collapsed consensus:", len(collapsed_candidate_transcripts))
+    # print("Number of collapsed consensus:", len(collapsed_candidate_transcripts))
     assert len(collapsed_candidate_transcripts) == len(candidate_transcripts) # all transcripts should be unique at this point
     
 
@@ -507,7 +527,7 @@ def main(args):
     for acc1 in  nearest_neighbor_graph:
         for acc2 in nearest_neighbor_graph[acc1]:
             G.add_edge(acc1, acc2)
-    G_star, partition, M = partition_highest_reachable_with_edge_degrees(G)
+    G_star, partition, M = partition_highest_reachable_with_edge_degrees(G, params)
 
     print("candidates after edge invariants:", len(partition))
     # for t in partition:
