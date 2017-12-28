@@ -68,7 +68,7 @@ def construct_exact_nearest_neighbor_graph(S, params):
                 ed = all_internode_edges_in_nearest_neighbor_graph[s1_acc][s2_acc]
                 G.add_edge(s1, s2, edit_distance=ed)
 
-    was_assigned_to_a_nearest_neighbor = set([s for s in G.nodes() if len(G.neighbors(s)) > 0 ])
+    was_assigned_to_a_nearest_neighbor = set([s for s in G.nodes() if len(list(G.neighbors(s)) ) > 0 ])
     strings_converged = set([s for s in G.nodes() if G.node[s]["degree"] > 1 ])
     isolated_nodes = set(unique_strings.keys()) - (was_assigned_to_a_nearest_neighbor | strings_converged)
 
@@ -166,7 +166,7 @@ def construct_approximate_nearest_neighbor_graph(S, params, edge_creating_min_tr
                 ed = best_exact_matches[s1][s2][0]
                 G.add_edge(s1, s2, edit_distance=ed)
 
-    was_assigned_to_a_nearest_neighbor = set([s for s in G.nodes() if len(G.neighbors(s)) > 0 ])
+    was_assigned_to_a_nearest_neighbor = set([s for s in G.nodes() if len(list(G.neighbors(s))) > 0 ])
     strings_converged = set([s for s in G.nodes() if G.node[s]["degree"] > 1 ])
     isolated_nodes = unique_strings - (was_assigned_to_a_nearest_neighbor | strings_converged)
     
