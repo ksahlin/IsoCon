@@ -11,4 +11,4 @@ python:
 install:
   - pip install -r requirements.txt
 # command to run tests
-script: echo foo
+script: IsoCon
