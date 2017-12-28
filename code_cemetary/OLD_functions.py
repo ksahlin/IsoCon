@@ -740,14 +740,14 @@ def check_if_consensus(c_acc, C, X, partition_of_X):
 
 #     return G_star, partition, M, converged
 
-def vizualize_test_graph(G):
-    import networkx as nx
-    import matplotlib.pyplot as plt
-    nx.draw_networkx(G, with_labels=False, node_size=30)
-    # nx.draw_networkx_nodes(G, node_size=50 )
-    # nx.draw_networkx_edge_labels(G, pos, arrows=True, edge_labels=labels)
-    # nx.draw_networkx_edges(G, arrows=True, edge_labels=labels)
-    fig_file = "/Users/kxs624/tmp/LOLGRAPH"
-    plt.savefig(fig_file, format="PNG")
-    plt.clf()
+# def vizualize_test_graph(G):
+#     import networkx as nx
+#     import matplotlib.pyplot as plt
+#     nx.draw_networkx(G, with_labels=False, node_size=30)
+#     # nx.draw_networkx_nodes(G, node_size=50 )
+#     # nx.draw_networkx_edge_labels(G, pos, arrows=True, edge_labels=labels)
+#     # nx.draw_networkx_edges(G, arrows=True, edge_labels=labels)
+#     fig_file = "/Users/kxs624/tmp/LOLGRAPH"
+#     plt.savefig(fig_file, format="PNG")
+#     plt.clf()
 
