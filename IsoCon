@@ -42,7 +42,8 @@ import re
 from multiprocessing import Pool
 import multiprocessing as mp
 
-import isocon_get_candidates, isocon_statistical_test
+from modules import isocon_get_candidates
+from modules import isocon_statistical_test
 from modules import isocon_parameters
 from modules.input_output import write_output, fasta_parser
 from modules import partitions
@@ -175,7 +176,7 @@ if __name__ == '__main__':
     # create the top-level parser
     parent_parser = argparse.ArgumentParser("Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads.")
     # parent_parser.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
-    parent_parser.add_argument('--version', action='version', version='%(prog)s 0.2.5')
+    parent_parser.add_argument('--version', action='version', version='%(prog)s 0.2.5.1')
 
     subparsers = parent_parser.add_subparsers(help='help for subcommand')
 
