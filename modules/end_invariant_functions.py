@@ -299,7 +299,7 @@ def partition_highest_reachable_with_edge_degrees(G_star, params):
     # print("len G_star_transposed (nearest_neighbors):", len(G_transpose))
     if params.verbose:
         print("Nodes in nearest_neighbor graph:", len(G_transpose))
-        print("Neighbors per nodes in nearest neighbor graph", sorted([len(G_transpose.neighbors(n)) for n in G_transpose], reverse=True))
+        print("Neighbors per nodes in nearest neighbor graph", sorted([len(list(G_transpose.neighbors(n)) ) for n in G_transpose], reverse=True))
 
     M = {}
     partition = {}
@@ -382,7 +382,7 @@ def partition_highest_reachable_with_edge_degrees(G_star, params):
                 # print("total nodes searched in this pass:", len(biggest_reachable_comp_nodes))
                 for n in biggest_reachable_comp_nodes:
                     direct_weight = subgraph.node[n]["degree"]                    
-                    direct_weight += len(subgraph.neighbors(n))
+                    direct_weight += len(list(subgraph.neighbors(n)))
 
                     if direct_weight > max_direct_weight:
                         max_direct_weight = direct_weight

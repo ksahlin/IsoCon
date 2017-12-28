@@ -125,7 +125,7 @@ def highest_reachable_with_edge_degrees(S, params):
                 # print("total nodes searched in this pass:", len(biggest_reachable_comp_nodes))
                 for n in biggest_reachable_comp_nodes:
                     direct_weight = subgraph.node[n]["degree"]                    
-                    direct_weight += len(subgraph.neighbors(n))
+                    direct_weight += len(list(subgraph.neighbors(n)))
                     # print( [ subgraph.node[nbr]["degree"] for nbr in subgraph.neighbors(n)])
                     assert all( [ subgraph.node[nbr]["degree"] == 1 for nbr in subgraph.neighbors(n)] )
 
@@ -208,10 +208,13 @@ def partition_strings_2set(X, C, X_file, C_file, params):
     ######################
     while len(candidate_nodes) > 0:
         read_deg, cand_deg = bipartite.degrees(G_star_transposed, candidate_nodes)
+        read_deg, cand_deg = dict(read_deg), dict(cand_deg)
+        # print(type(read_deg), read_deg)
+        # print(type(cand_deg), cand_deg)
         # print("reads left:", len(read_deg))
         # print("cands left:", len(cand_deg))
-        m = max(cand_deg, key=lambda key: cand_deg[key])
-        reads_supporting_m = G_star_transposed.neighbors(m)
+        m = max(sorted(cand_deg), key=lambda key: cand_deg[key])
+        reads_supporting_m = list(G_star_transposed.neighbors(m))
         partition[m] = set(reads_supporting_m)
         G_star_transposed.remove_node(m)
         G_star_transposed.remove_nodes_from(reads_supporting_m)
