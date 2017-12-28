@@ -36,13 +36,13 @@ The preferred way to install IsoCon is with pythons package installer pip.
 
 `pip` is pythons official package installer. This section assumes you have `python` (v2.7 or >=3.4) and a recent version of `pip` installed which should be included in most python versions. If you do not have `pip`, it can be easily installed [from here](https://pip.pypa.io/en/stable/installing/) and upgraded with `pip install --upgrade pip`. 
 
-Create a file `requirements.txt` with contents copied from [this file](https://github.com/ksahlin/IsoCon/blob/master/requirements.txt). Then, type in terminal 
+With `python` and `pip` available, create a file `requirements.txt` with contents copied from [this file](https://github.com/ksahlin/IsoCon/blob/master/requirements.txt). Then, type in terminal 
 
 ```
 pip install --requirement requirements.txt IsoCon
 ```
 
-This should install IsoCon. With proper installation of **IsoCon**, you should be able to issue the command `IsoCon pipeline` to view user instructions. `pip` will install the dependencies automatically for you. IsoCon has been built with python 2.7, 3.4-3.6 on OS X and Linux systems using [Travis](https://travis-ci.org/). For customized installation of latest master branch, see below.
+This should install IsoCon. With proper installation of **IsoCon**, you should be able to issue the command `IsoCon pipeline` to view user instructions. `pip` will install the dependencies automatically for you. IsoCon has been built with python 2.7, 3.4-3.6 on Linux systems using [Travis](https://travis-ci.org/). For customized installation of latest master branch, see below.
 
 #### Downloading source from GitHub
 
