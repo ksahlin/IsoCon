@@ -9,5 +9,12 @@ python:
 # command to install dependencies
 install:
   - pip install -r requirements.txt
+os:
+  - linux
+  - osx
+# safelist
+branches:
+  only:
+  - master
 # command to run tests
 script: python  IsoCon pipeline -fl_reads test/data/simulated_pacbio_reads.fa -outfolder test/out/ 

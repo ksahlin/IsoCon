@@ -1,0 +1,16 @@
+IsoCon 0.2.5, commit 3e0bd9e162bec4970dd70178f9eae654cd94d1b4, was tested with the following versions of dependencies
+
+```
+biopython==1.70
+decorator==4.1.2
+edlib==1.2.1
+IsoCon==0.2.5.1
+networkx==2.0
+numpy==1.13.3
+pip==9.0.1
+pysam==0.13
+setuptools==38.2.5
+six==1.11.0
+ssw==0.3.1
+wheel==0.30.0
+```

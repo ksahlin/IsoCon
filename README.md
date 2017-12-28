@@ -32,17 +32,23 @@ INSTALLATION
 
 The preferred way to install IsoCon is with pythons package installer pip.
 
-#### Using pip (12/27/17 -- under construction) 
+#### Using pip 
 
-`pip` is pythons official package installer. This section assumes you have `python` and a recent version of `pip` installed which should be included in most python versions. If you do not have `pip`, it can be easily installed [from here](https://pip.pypa.io/en/stable/installing/) and upgraded with `pip install --upgrade pip`. 
+`pip` is pythons official package installer. This section assumes you have `python` (v2.7 or >=3.4) and a recent version of `pip` installed which should be included in most python versions. If you do not have `pip`, it can be easily installed [from here](https://pip.pypa.io/en/stable/installing/) and upgraded with `pip install --upgrade pip`. 
 
-Now, create a file `requirements.txt` with these [lines](https://github.com/ksahlin/IsoCon/blob/master/requirements.txt) and type in terminal `pip install --requirement requirements.txt IsoCon` . This should install IsoCOn. With proper installation of **IsoCon**, you should be able to issue the command `IsoCon pipeline` to view user instructions. `pip` will install the dependencies automatically for you. For customized installation of latest master branch, see below.
+Create a file `requirements.txt` with contents copied from [this file](https://github.com/ksahlin/IsoCon/blob/master/requirements.txt). Then, type in terminal 
+
+```
+pip install --requirement requirements.txt IsoCon
+```
+
+This should install IsoCon. With proper installation of **IsoCon**, you should be able to issue the command `IsoCon pipeline` to view user instructions. `pip` will install the dependencies automatically for you. IsoCon has been built with python 2.7, 3.4-3.6 on OS X and Linux systems using [Travis](https://travis-ci.org/). For customized installation of latest master branch, see below.
 
 #### Downloading source from GitHub
 
 ##### Dependencies
 
-Install the following dependencies, either with `pip install` or using instructions in links below. Versions in parenthesis are suggested as IsoCon has not been tested with earlier versions of these libraries, IsoCon may however work with earliear versions of these libaries too.
+Make sure the below listed dependencies are installed (installation links below). Versions in parenthesis are suggested as IsoCon has not been tested with earlier versions of these libraries. However, IsoCon may also work with earliear versions of these libaries.
 * [edlib](https://github.com/Martinsos/edlib "edlib's Homepage"), for installation see [link](https://github.com/Martinsos/edlib/tree/master/bindings/python#installation) (>= v1.1.2)
 * [networkx](https://networkx.github.io/) (>= v1.10)
 * [ssw](https://github.com/vishnubob/ssw "Python wrapper for SSW"), for installation see [link](https://github.com/vishnubob/ssw#installation)
