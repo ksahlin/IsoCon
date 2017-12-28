@@ -12,22 +12,20 @@ IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --ccs </path
 
 predicted transcripts are found in file **/path/to/output/final_candidates.fa**. Reads that could not be corrected or clustered are found in /path/to/output/not_converged.fa. For more instructions see below.
 
-Please cite [1] when using IsoCon.
 
-1. Kristoffer Sahlin*, Marta Tomaszkiewicz*, Kateryna D. Makova†, Paul Medvedev† (2017) "IsoCon: Deciphering highly similar multigene family transcripts from Iso-Seq data", bioRxiv [Link](http/link)
-
-<!-- Table of Contents
+Table of Contents
 =================
-    * [INSTALLATION](#installation)
-        * [Using pip (recommended)](#using-pip-recommended)
-        * [Downloading source from GitHub](#downloading-source-from-github)
-            * [Dependencies](#dependencies)
-    * [Usage](#usage)
-    * [IsoCon on general Iso-Seq datasets](#isocon-on-general-iso-seq-datasets)
-    * [Detailed usage](#detailed-usage)
-        * [Commands](#commands)
 
-TOC created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc) -->
+   * [IsoCon](#isocon)
+      * [INSTALLATION](#installation)
+            * [Using pip (12/27/17 -- under construction)](#using-pip-122717----under-construction)
+            * [Downloading source from GitHub](#downloading-source-from-github)
+               * [Dependencies](#dependencies)
+      * [USAGE](#usage)
+         * [Output](#output)
+         * [Parameters](#parameters)
+      * [CREDITS](#credits)
+      * [LICENCE](#licence)
 
 INSTALLATION
 ----------------
@@ -141,6 +139,17 @@ required arguments:
   -fl_reads FL_READS    Fast<a/q> file pacbio Reads of Insert.
   -outfolder OUTFOLDER  Outfolder.
 ```
+
+CREDITS
+----------------
+
+Please cite [1] when using IsoCon.
+
+1. Kristoffer Sahlin*, Marta Tomaszkiewicz*, Kateryna D. Makova†, Paul Medvedev† (2017) "IsoCon: Deciphering highly similar multigene family transcripts from Iso-Seq data", bioRxiv [Link](http/link)
+
+LICENCE
+----------------
+
 
 <!-- IsoCon on general Iso-Seq datasets
 -----------------------------------
