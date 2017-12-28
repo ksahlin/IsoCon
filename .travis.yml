@@ -11,4 +11,4 @@ python:
 install:
   - pip install -r requirements.txt
 # command to run tests
-script: python IsoCon
+script: python  IsoCon pipeline -fl_reads test/data/simulated_pacbio_reads.fa -outfolder test/out/ 
