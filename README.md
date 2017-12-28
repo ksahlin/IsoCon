@@ -42,7 +42,13 @@ With `python` and `pip` available, create a file `requirements.txt` with content
 pip install --requirement requirements.txt IsoCon
 ```
 
-This should install IsoCon. With proper installation of **IsoCon**, you should be able to issue the command `IsoCon pipeline` to view user instructions. `pip` will install the dependencies automatically for you. IsoCon has been built with python 2.7, 3.4-3.6 on Linux systems using [Travis](https://travis-ci.org/). For customized installation of latest master branch, see below.
+This should install IsoCon. With proper installation of **IsoCon**, you should be able to issue the command `IsoCon pipeline` to view user instructions. You should also be able to run IsoCon on this [small dataset](https://github.com/ksahlin/IsoCon/tree/master/test/data). Simply download the test dataset and run:
+
+```
+python  IsoCon pipeline -fl_reads [path/simulated_pacbio_reads.fa] -outfolder [output path]
+```
+
+`pip` will install the dependencies automatically for you. IsoCon has been built with python 2.7, 3.4-3.6 on Linux systems using [Travis](https://travis-ci.org/). For customized installation of latest master branch, see below.
 
 #### Downloading source from GitHub
 
