@@ -18,6 +18,6 @@ branches:
   only:
   - master
 # command to run tests
-script: python  IsoCon pipeline -fl_reads test/data/simulated_pacbio_reads.fa -outfolder test/out/ 
+script: python  IsoCon pipeline -fl_reads test/data/simulated_pacbio_reads_n_200.fa -outfolder test/out/ 
 # after_success:
 #  - coveralls
