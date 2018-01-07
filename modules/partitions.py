@@ -78,25 +78,25 @@ def partition_strings(S, params):
                     biggest_reachable_comp_nodes = set(reachable_comp)
                     biggest_reachable_comp_size = len(reachable_comp)
                     biggest_reachable_comp_center = m
-                    biggest_reachable_comp_center_nr_nbrs = len(subgraph.neighbors(m))
+                    biggest_reachable_comp_center_nr_nbrs = len(list(subgraph.neighbors(m)))
 
                 # elif reachable_comp_weight >= biggest_reachable_comp_weight:
                 elif reachable_comp_weight == biggest_reachable_comp_weight:
                     # print("HEEERE!!",reachable_comp_weight, biggest_reachable_comp_weight)
-                    if biggest_reachable_comp_center_nr_nbrs < len(subgraph.neighbors(m)):
+                    if biggest_reachable_comp_center_nr_nbrs < len(list(subgraph.neighbors(m))):
                         biggest_reachable_comp_weight = reachable_comp_weight
                         biggest_reachable_comp_nodes = set(reachable_comp)
                         biggest_reachable_comp_size = len(reachable_comp)
                         biggest_reachable_comp_center = m
-                        biggest_reachable_comp_center_nr_nbrs = len(subgraph.neighbors(m))   
+                        biggest_reachable_comp_center_nr_nbrs = len(list(subgraph.neighbors(m)))   
                     
-                    elif biggest_reachable_comp_center_nr_nbrs == len(subgraph.neighbors(m)):
+                    elif biggest_reachable_comp_center_nr_nbrs == len(list(subgraph.neighbors(m))):
                         if m < biggest_reachable_comp_center: # just pick lexicographically smallest to remove non determinism
                             biggest_reachable_comp_weight = reachable_comp_weight
                             biggest_reachable_comp_nodes = set(reachable_comp)
                             biggest_reachable_comp_size = len(reachable_comp)
                             biggest_reachable_comp_center = m
-                            biggest_reachable_comp_center_nr_nbrs = len(subgraph.neighbors(m))                             
+                            biggest_reachable_comp_center_nr_nbrs = len(list(subgraph.neighbors(m)))                             
 
 
                     # if edit_distances_to_m[m] < edit_distances_to_m[biggest_reachable_comp_center]:
@@ -125,7 +125,7 @@ def partition_strings(S, params):
                     biggest_reachable_comp_nodes = set(reachable_comp)
                     biggest_reachable_comp_size = len(reachable_comp)
                     biggest_reachable_comp_center = m
-                    biggest_reachable_comp_center_nr_nbrs = len(subgraph.neighbors(m))                  
+                    biggest_reachable_comp_center_nr_nbrs = len(list(subgraph.neighbors(m)))                  
 
 
             if biggest_reachable_comp_weight == 0: # if there were no edges! partition is center itself
