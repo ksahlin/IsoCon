@@ -69,30 +69,6 @@ def cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_end
     return  alignment_matrix_to_t
 
 
-def calculate_homopolymenr_lengths(t_seq):
-    homopolymenr_length_numbers = {}
-
-    h_len = 1
-    for char1, char2 in zip(t_seq[:-1], t_seq[1:]):
-
-        if char1 != char2:
-            if h_len in homopolymenr_length_numbers:
-                homopolymenr_length_numbers[h_len] += 1
-            else:
-                homopolymenr_length_numbers[h_len] = 1
-            h_len = 1
-
-        else:
-            h_len += 1
-
-    # end case
-    if h_len in homopolymenr_length_numbers:
-        homopolymenr_length_numbers[h_len] += 1
-    else:
-        homopolymenr_length_numbers[h_len] = 1
-
-    return homopolymenr_length_numbers
-
 def choose(n, k):
     """
     A fast way to calculate binomial coefficients by Andrew Dalke (contrib).
@@ -162,7 +138,7 @@ def get_multiplier_for_variant(state, char, pos, target_alignment, candidate_ali
     return u_v
 
 
-def adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_matrix, t_acc):
+def get_invariant_multipliers(delta_t, alignment_matrix, t_acc):
 
     target_alignment = alignment_matrix[t_acc]
     # Get the individual invariant factors u_iv for each read and variant x_i and v in delta, v is a tuple (state, char).
@@ -191,56 +167,25 @@ def adjust_probability_of_candidate_to_alignment_invariant(delta_t, alignment_ma
     return u_iv
 
 
-def get_supporting_reads_for_candidates(target_accession, candidate_accessions, alignment_matrix, Delta_t, partition_of_X):
-    # candidate_support = { c : [] for c in candidate_accessions }
-    # target_alignment = alignment_matrix[target_accession]
-    candidate_support = {}
-    for c in candidate_accessions:
-        candidate_support[c] = []
-
-        # candidate_alignment = alignment_matrix[c]
-        # for q_acc in alignment_matrix:
-        #     if q_acc == target_accession or q_acc in candidate_accessions:
-        #         continue
-        # print("LEEN", len(partition_of_X[c]), len(partition_of_X[target_accession]) , len(partition_of_X[c].union(partition_of_X[target_accession]) ))
-        # print(len(partition_of_X[c] and  partition_of_X[target_accession]) )
-        # assert len(partition_of_X[c] &  partition_of_X[target_accession]) == 0
-        for q_acc in partition_of_X[c]: #.union(partition_of_X[target_accession]):
-            if q_acc not in  alignment_matrix:
-                print("READ {0} ALIGNED TO {0} BUT FAILED TO ALIGN TO {1}".format(q_acc, c, target_accession) )
-                continue
-            query_alignment = alignment_matrix[q_acc]    
-            support = 1
-            for delta in Delta_t[c]:
-                q_base = query_alignment[delta]
-                c_state, c_base = Delta_t[c][delta]
-                if q_base != c_base:
-                    support = 0
-
-            if support:
-                candidate_support[c].append(q_acc)
-        # print(candidate_support[c])
-    return candidate_support
-
 def get_difference_coordinates_for_candidates(target_accession, candidate_accessions, alignment_matrix):
     position_differences = {}
     target_alignment = alignment_matrix[target_accession]
     
-    for q_acc in candidate_accessions:
-        position_differences[q_acc] = {}
-        query_alignment = alignment_matrix[q_acc]
-        for j in range(len(query_alignment)):
-            q_base = query_alignment[j]
+    for c_acc in candidate_accessions:
+        position_differences[c_acc] = {}
+        candidate_alignment = alignment_matrix[c_acc]
+        for j in range(len(candidate_alignment)):
+            c_base = candidate_alignment[j]
             t_base = target_alignment[j]
-            if q_base != t_base:
+            if c_base != t_base:
                 if t_base == "-":
-                    position_differences[q_acc][j] = ("I", q_base)
-                elif q_base == "-":
-                    position_differences[q_acc][j] = ("D", q_base)
+                    position_differences[c_acc][j] = ("I", c_base)
+                elif c_base == "-":
+                    position_differences[c_acc][j] = ("D", c_base)
                 else:
-                    position_differences[q_acc][j] = ("S", q_base)
+                    position_differences[c_acc][j] = ("S", c_base)
 
-        # print("nr v:",len(position_differences[q_acc]))
+        # print("nr v:",len(position_differences[c_acc]))
     return position_differences
 
 
@@ -272,13 +217,6 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
         if q_acc in candidate_accessions:
             continue  
 
-
-        # print("q length:", len("".join([n for n in alignment_matrix[q_acc] if n != "-"])))
-        
-        # empirical_min_uncertainty_S =  (delta_size / float(target_length) ) / 3.0   # p = 0.0 not allowed, min_p is 1/(3*len(seq))
-        # empirical_min_uncertainty_I =  (delta_size / float(target_length) ) / 4.0   # p = 0.0 not allowed, min_p is 1/(4*len(seq))
-        # empirical_min_uncertainty_D =  (delta_size / float(target_length) )         # p = 0.0 not allowed, min_p is 1/(len(seq))
-
         probability[q_acc] = 1.0
         ccs_alignment = alignment_matrix[q_acc]
         for pos in Delta_t[c_acc]:
@@ -288,18 +226,7 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
             assert c_base != t_nucl
 
 
-            ###############################
-            ### Empirical lower uncertainty 
             u_v = invariant_factors_for_candidate[c_acc][pos][(c_state, c_base)]
-            # if c_state == "S":
-            #     min_uncertainty = empirical_min_uncertainty_S*u_v # *(1.0/u_v)
-            # elif c_state == "I":
-            #     min_uncertainty = empirical_min_uncertainty_I*u_v #**(1.0/u_v)
-            # elif c_state == "D":
-            #     min_uncertainty = empirical_min_uncertainty_D*u_v #**(1.0/u_v)
-
-            ###############################
-
             ###  base pair quality predictions ###
             ccs_coord = ccs_dict[q_acc].alignment_matrix_pos_to_ccs_coord(ccs_alignment, pos)
             # print(ccs_coord, len(ccs_alignment), pos)
@@ -334,82 +261,10 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
             # print("ccs bam seq:", ccs_dict[q_acc].seq)
             # print(candidate_alignment[pos-10:pos+10], pos, ccs_coord)
             # print('pos:', ccs_dict[q_acc].seq.find("GTCACTGCTGGATATCA"), "pred coord:", ccs_coord)
-            print(pos, c_state, c_base, ccs_alignment[pos], ccs_dict[q_acc].seq[ccs_coord],   ccs_alignment[pos-10:pos+10],  ccs_dict[q_acc].seq[ccs_coord-6:ccs_coord +11], p_error, ccs_dict[q_acc].np, q_acc)
-
-            # ccs_nucl = ccs_alignment[pos]            
-            # if ccs_nucl == t_nucl:
-            #     # tmp_weight_equal += ccs_dict[q_acc].np
-            #     tmp_weight_equal += ccs_dict[q_acc].qual[ccs_coord]
-            # else:
-            #     # tmp_weight_diff += ccs_dict[q_acc].np
-            #     tmp_weight_diff += ccs_dict[q_acc].qual[ccs_coord]
-
-
-            # if ccs_nucl == "-": # candidate is a deletion
-            #     probability[q_acc] *= p_error
-            # elif t_nucl == "-" and ccs_nucl != "-":  # candidate is insertion
-            #     probability[q_acc] *= p_error #/4.0
-            # else: # candidate is substitution
-            #     assert ccs_nucl != "-" and  t_nucl != "-"
-            #     probability[q_acc] *= p_error #/3.0
-    # print("diff:",tmp_weight_diff )
-    # print("equal:",tmp_weight_equal )
+            # print(pos, c_state, c_base, ccs_alignment[pos], ccs_dict[q_acc].seq[ccs_coord],   ccs_alignment[pos-10:pos+10],  ccs_dict[q_acc].seq[ccs_coord-6:ccs_coord +11], p_error, ccs_dict[q_acc].np, q_acc)
 
     return probability
 
-
-def get_min_uncertainty_per_read(target_accession, segment_length, candidate_accessions, alignment_matrix, invariant_factors_for_candidate):
-    probability = {}
-    assert len(invariant_factors_for_candidate) == 1
-    c_acc = list(invariant_factors_for_candidate.keys())[0]
-    delta_size = float(len(invariant_factors_for_candidate[c_acc]))
-
-    for q_acc in alignment_matrix:
-        if q_acc == target_accession:
-            continue
-        if q_acc == c_acc:
-            continue 
-
-    # for q_acc in errors:
-        probability[q_acc] = 1.0
-        p_S =  (delta_size / float(segment_length) ) / 3.0   # p = 0.0 not allowed, min_p is 1/(3*len(seq))
-        p_I =  (delta_size / float(segment_length) ) / 4.0   # p = 0.0 not allowed, min_p is 1/(4*len(seq))
-        p_D =  (delta_size / float(segment_length) )         # p = 0.0 not allowed, min_p is 1/(len(seq))
-
-        for pos in invariant_factors_for_candidate[c_acc]:
-            for (state, char) in invariant_factors_for_candidate[c_acc][pos]:
-                u_v = invariant_factors_for_candidate[c_acc][pos][(state, char)]
-                if state == "S":
-                    probability[q_acc] *= p_S*u_v # *(1.0/u_v)
-                elif state == "I":
-                    probability[q_acc] *= p_I*u_v #**(1.0/u_v)
-                elif state == "D":
-                    probability[q_acc] *= p_D*u_v #**(1.0/u_v)
-    return probability
-
-
-# def get_prob_of_support_per_read(target_accession, segment_length, candidate_accessions, errors, invariant_factors_for_candidate):
-#     probability = {}
-#     assert len(invariant_factors_for_candidate) == 1
-#     c_acc = list(invariant_factors_for_candidate.keys())[0]
-#     delta_size = float(len(invariant_factors_for_candidate[c_acc]))
-
-#     for q_acc in errors:
-#         probability[q_acc] = 1.0
-#         p_S = ( max(errors[q_acc], delta_size) / float(segment_length) ) / 3.0   # p = 0.0 not allowed, min_p is 1/(3*len(seq))
-#         p_I = ( max(errors[q_acc], delta_size) / float(segment_length) ) / 4.0   # p = 0.0 not allowed, min_p is 1/(4*len(seq))
-#         p_D = ( max(errors[q_acc], delta_size) / float(segment_length) )         # p = 0.0 not allowed, min_p is 1/(len(seq))
-
-#         for pos in invariant_factors_for_candidate[c_acc]:
-#             for (state, char) in invariant_factors_for_candidate[c_acc][pos]:
-#                 u_v = invariant_factors_for_candidate[c_acc][pos][(state, char)]
-#                 if state == "S":
-#                     probability[q_acc] *= p_S*u_v # *(1.0/u_v)
-#                 elif state == "I":
-#                     probability[q_acc] *= p_I*u_v #**(1.0/u_v)
-#                 elif state == "D":
-#                     probability[q_acc] *= p_D*u_v #**(1.0/u_v)
-#     return probability
 
 
 def get_prob_of_error_per_read(target_accession, segment_length, candidate_accessions, errors, invariant_factors_for_candidate):
@@ -438,58 +293,6 @@ def get_prob_of_error_per_read(target_accession, segment_length, candidate_acces
 
     return probability
 
-
-# def get_weights_per_read(target_accession, segment_length, candidate_accessions, errors):
-#     sum_of_inverse_errors = {}
-#     sum_of_inverse_errors["I"] = sum([ 1.0/errors[q_acc]["I"] for q_acc in errors if errors[q_acc]["I"] > 0])
-#     sum_of_inverse_errors["D"] = sum([ 1.0/errors[q_acc]["D"] for q_acc in errors if errors[q_acc]["D"] > 0])
-#     sum_of_inverse_errors["S"] = sum([ 1.0/errors[q_acc]["S"] for q_acc in errors if errors[q_acc]["S"] > 0])
-
-#     sum_of_inverse_errors = sum([sum_of_inverse_errors["I"], sum_of_inverse_errors["D"], sum_of_inverse_errors["S"]])
-
-#     weight = {}
-#     for q_acc in errors:
-#         assert q_acc != target_accession and q_acc not in candidate_accessions
-#         read_errors = (errors[q_acc]["I"] + errors[q_acc]["D"] + errors[q_acc]["S"])
-#         if read_errors > 0:
-#             q_errors_inverse =  1.0 / (errors[q_acc]["I"] + errors[q_acc]["D"] + errors[q_acc]["S"])
-#         else:
-#             q_errors_inverse = 0
-        
-#         if q_errors_inverse == 0:
-#              weight[q_acc] = 1.0 / sum_of_inverse_errors
-#         else:
-#             weight[q_acc] = q_errors_inverse / sum_of_inverse_errors
-
-
-#         # weights[q_acc] = {}
-#         # for error_type in ["I", "S", "D"]:
-#         #     weights[q_acc][error_type] = errors[q_acc][error_type] / float(sum_of_errors[error_type])
-
-#     return weight
-
-
-
-# def get_errors_per_read(target_accession, segment_length, candidate_accessions, alignment_matrix):
-#     assert len(candidate_accessions) == 1
-#     c_acc = list(candidate_accessions)[0]
-
-#     errors = {}
-#     target_alignment = alignment_matrix[target_accession]
-#     candidate_alignment = alignment_matrix[c_acc]
-    
-#     for q_acc in alignment_matrix:
-#         if q_acc == target_accession:
-#             continue
-#         if q_acc in candidate_accessions:
-#             continue  
-
-#         read_alignment = alignment_matrix[q_acc]
-#         errors_to_t = sum( [1 for pos in range(len(target_alignment)) if  target_alignment[pos] != read_alignment[pos] ] )
-#         errors_to_c = sum( [1 for pos in range(len(target_alignment)) if  candidate_alignment[pos] != read_alignment[pos] ] )
-#         errors[q_acc] = min(errors_to_t, errors_to_c)
-
-#     return errors
 
 def get_errors_for_partitions(target_accession, segment_length, candidate_accessions, alignment_matrix):
     errors = {}
@@ -555,7 +358,7 @@ def get_errors_for_partitions(target_accession, segment_length, candidate_access
         deletions += errors[q_acc]["D"]
         substitutions += errors[q_acc]["S"]
 
-    print("I", insertions, "D", deletions, "S", substitutions)
+    # print("I", insertions, "D", deletions, "S", substitutions)
     # sys.exit()
     # if insertions, deletions, substitutions == 0:
     return insertions, deletions, substitutions
@@ -649,73 +452,6 @@ def reads_supporting_candidate(target_accession, candidate_accessions, alignment
     return x
 
 
-def get_error_rates_and_lambda(target_accession, segment_length, candidate_accessions, alignment_matrix):
-    epsilon = {}
-    target_alignment = alignment_matrix[target_accession]
-    # lambda_S, lambda_D, lambda_I = 0,0,0
-    read_depth = 0
-    ed_poisson_i, ed_poisson_s, ed_poisson_d = 0, 0, 0
-    
-    for q_acc in alignment_matrix:
-        if q_acc == target_accession:
-            continue
-        if q_acc in candidate_accessions:
-            continue  
-
-        epsilon[q_acc] = {}
-        query_alignment = alignment_matrix[q_acc]
-        ed_i, ed_s, ed_d = 0, 0, 0
-
-        for j in range(len(query_alignment)):
-            q_base = query_alignment[j]
-            t_base = target_alignment[j]
-            if q_base != t_base:
-                if t_base == "-":
-                    ed_i += 1
-                elif q_base == "-":
-                    ed_d += 1
-                else:
-                    ed_s += 1
- 
-
-        # get poisson counts on all positions
-        for j in range(len(query_alignment)):
-            target_alignment = alignment_matrix[target_accession]
-            # candidate_alignment = alignment_matrix[x_to_c_acc[q_acc]]
-            # if j not in forbidden:
-            q_base = query_alignment[j]
-            t_base = target_alignment[j]
-            if q_base != t_base:
-                if t_base == "-":
-                    ed_poisson_i += 1
-                elif q_base == "-":
-                    ed_poisson_d += 1
-                else:
-                    ed_poisson_s += 1      
-
-
-
-        # here we get the probabilities for the poisson counts over each position
-        if q_acc not in candidate_accessions:
-            # lambda_S += ed_s
-            # lambda_D += ed_d
-            # lambda_I += ed_i
-            read_depth += 1
-
-
-        epsilon[q_acc]["I"] = (ed_i/float(segment_length))/4.0 
-        epsilon[q_acc]["S"] = (ed_s/float(segment_length))/3.0  
-        epsilon[q_acc]["D"] = ed_d/float(segment_length)
-
-
-    # print(ed_poisson_s, ed_poisson_d, ed_poisson_i, float(read_depth), segment_length )
-    lambda_S = max(ed_poisson_s, 2 ) / (float(segment_length) * 3.0) # divisioan by 3 because we have 3 different subs, all equally liekly under our model 
-    lambda_D = max(ed_poisson_d, 2 ) / float(segment_length)
-    lambda_I = max(ed_poisson_i, 2 ) / (float(segment_length) * 4.0)  # divisioan by 4 because we have 4 different ins, all equally liekly under our model 
-
-        # print(segment_length, ed_i, ed_s, ed_d, epsilon[q_acc]["I"], epsilon[q_acc]["S"], epsilon[q_acc]["D"])
-    return epsilon, lambda_S, lambda_D, lambda_I
-
 def create_position_probability_matrix(m, partition):
     """
         a partition is a dictionary of pairwise alignments for a given center m. "partition has the following
@@ -758,7 +494,7 @@ def create_position_probability_matrix(m, partition):
         assert target_vector_end_position + 1 == 2*len(m) + 1 # vector positions are 0-indexed
         query_to_target_positioned_dict[q_acc] = (s_positioned, target_vector_start_position, target_vector_end_position)
 
-    alignment_matrix = create_multialignment_format_OLD_fixed(query_to_target_positioned_dict, 0, 2*len(m))
+    alignment_matrix = create_multialignment_format(query_to_target_positioned_dict, 0, 2*len(m))
 
     # N_t = sum([container_tuple[3] for q_acc, container_tuple in partition.items()]) # total number of sequences in partition
     # print("total seq multiset:", N_t, "total seqs in set:", len(partition))
@@ -815,79 +551,8 @@ def position_query_to_alignment(query_aligned, target_aligned, target_alignment_
     return query_positioned, target_vector_start_position, target_vector_end_position
 
 
-def arrange_query_alignments_to_target(target_accession, target_sequence, query_to_target_alignments):
-    """
-        input:
-            a dictionary query_to_target_alignments of the form
-            {query_accession1 : [(target_aligned, query_aligned, target_start, target_end)],
-             query_accession2 : [(target_aligned, query_aligned, target_start, target_end)],
-             ....
-            }
-        output: 
-            Target vector is a list of 2*len(target_seq) +1 positions
-    """
 
-    query_to_target_positioned_dict = {} # query_accession : [] list of length 2l_j +1 to hold insertions
-    for query_accession in query_to_target_alignments:
-        target_aligned, query_aligned, target_start, target_end = query_to_target_alignments[query_accession]
-
-        query_to_target_positioned, target_vector_start_position, target_vector_end_position = position_query_to_alignment(query_aligned, target_aligned, target_start)
-        query_to_target_positioned_dict[query_accession] = (query_to_target_positioned, target_vector_start_position, target_vector_end_position)
-        
-    return target_accession, query_to_target_positioned_dict
-
-
-def get_non_overlapping_intervals(ranges):
-    """
-        example input:     # ranges = [(0,100,'a'),(0,75,'b'),(95,150,'c'),(120,130,'d')]
-        output: 
-    """
-    non_overlapping_parts = []
-    # ranges = [(0,100,'a'),(0,75,'b'),(95,150,'c'),(120,130,'d')]
-    endpoints = sorted(list(set([r[0] for r in ranges] + [r[1] for r in ranges])))
-    start = {}
-    end = {}
-    for e in endpoints:
-        start[e] = set()
-        end[e] = set()
-    for r in ranges:
-        start[r[0]].add(r[2])
-        end[r[1]].add(r[2])
-
-    current_ranges = set()
-    prev_set_size = 0
-    for e1, e2 in zip(endpoints[:-1], endpoints[1:]):
-        current_ranges.difference_update(end[e1])
-        current_ranges.update(start[e1])
-
-        if prev_set_size > len(current_ranges):
-            start_offset = 1
-        else:
-            start_offset = 0
-
-        next_current_ranges = set(current_ranges)
-        next_current_ranges.difference_update(end[e2])
-        next_current_ranges.update(start[e2])
-        next_set_size = len(next_current_ranges)
-        if next_set_size < len(current_ranges):
-            stop_offset = 0
-        else:
-            stop_offset = -1
-
-        if current_ranges:
-            # print('%d - %d: %s' % (e1 + start_offset, e2 + stop_offset, ','.join(current_ranges)))
-            non_overlapping_parts.append((e1 + start_offset, e2 + stop_offset, tuple(current_ranges)))
-        else:
-            pass
-            # print('%d - %d: %s' % (e1 + start_offset, e2 + stop_offset, ','.join(current_ranges)), "lol")
-        
-        prev_set_size = len(current_ranges)
-
-    # sys.exit()
-    return(non_overlapping_parts)
-
-
-def create_multialignment_format_OLD_fixed(query_to_target_positioned_dict, start, stop):
+def create_multialignment_format(query_to_target_positioned_dict, start, stop):
     """
         only create multialignment format of the query sequences that cover the region [start,stop] start stop is the vector 
         coordinates where vector is of size 2*len(target) + 1
@@ -1029,37 +694,6 @@ def min_ed(max_insertion, q_ins):
             q_ins_pos += length
     return q_insertion_modified
 
-
-
-
-
-def thread_to_max_ins(max_insertion, q_ins):
-    # else, check if smaller variant can be aligned from left to right with all nucleotides matching in q_ins, e.g. say max deletion is GACG
-    # then an insertion AG may be aligned as -A-G. Take this alignment instead
-    can_be_threaded = True
-    prev_pos = -1
-    match_pos = set()
-    for q_nucl in q_ins:  # TODO: WHAT IF INSERTION AGA HERE WITH MAX_INSTERTION TAGA? match_pos will be {1,2,1} and can_be_threaded False, this is incorrect!!
-        pos = max_insertion[(prev_pos+1):].find(q_nucl) 
-        if pos < 0:
-            can_be_threaded = False
-            break
-        else:
-            match_pos.add( (pos + (prev_pos+1)) ) 
-        prev_pos = pos
-
-    if can_be_threaded:
-        q_insertion_modified = ""
-        for p in range(len(max_insertion)):
-            if p in match_pos:
-                nucl = max_insertion[p]
-            else:
-                nucl = "-"
-            q_insertion_modified = q_insertion_modified + nucl
-        # print("NEW can be threaded: q:{0}, max: {1}, new thread: {2}".format(q_ins, max_insertion, q_insertion_modified))
-        return q_insertion_modified
-    else:
-        return ""
  
 
 class TestFunctions(unittest.TestCase):

@@ -44,9 +44,9 @@ def edlib_traceback_allow_ends(x, y, mode="NW", task="path", k=1, end_threshold 
         #     print("ed global:", ed, "ed after:", ed_ignore_ends)
         ed = ed_ignore_ends
 
-    if ed ==0:
-        print("here")
-        # assert False
+    # if ed ==0:
+    #     print("here")
+
     return ed, locations, cigar
 
 

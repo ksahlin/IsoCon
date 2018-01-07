@@ -14,12 +14,12 @@ from collections import Counter
 
 import pysam
 
-from modules.functions import transpose,create_position_probability_matrix
-from modules.partitions import highest_reachable_with_edge_degrees
+from modules import functions
+from modules import partitions
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession, edlib_traceback
 from modules.input_output import fasta_parser, write_output
-from modules import correct_sequence_to_nearest_neighbor
+from modules import correction_module
 from modules import end_invariant_functions
 from modules import ccs_info
 
@@ -148,7 +148,7 @@ def find_candidate_transcripts(read_file, params):
     seq_to_acc = get_unique_seq_accessions(S)
 
     nearest_neighbor_start = time() 
-    G_star, graph_partition, M, converged = highest_reachable_with_edge_degrees(S, params)
+    G_star, graph_partition, M, converged = partitions.partition_strings(S, params)
     partition_alignments = get_partition_alignments(graph_partition, M, G_star, params)       
 
     nearest_neighbor_elapsed = time() - nearest_neighbor_start
@@ -205,7 +205,7 @@ def find_candidate_transcripts(read_file, params):
             #     homopolymer_mode = True
         #######################################################
 
-        S_prime, S_prime_quality_vector = correct_sequence_to_nearest_neighbor.correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, nr_cores = params.nr_cores, verbose = params.verbose)
+        S_prime, S_prime_quality_vector = correction_module.correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, nr_cores = params.nr_cores, verbose = params.verbose)
 
         for acc, s_prime in S_prime.items():
             S[acc] = s_prime
@@ -221,7 +221,7 @@ def find_candidate_transcripts(read_file, params):
 
         # partition_alignments, partition, M, converged = partition_strings(S)
 
-        G_star, graph_partition, M, converged = highest_reachable_with_edge_degrees(S, params)
+        G_star, graph_partition, M, converged = partitions.partition_strings(S, params)
         partition_alignments = get_partition_alignments(graph_partition, M, G_star, params)  
         out_file_name = os.path.join(params.outfolder, "candidates_step_" +  str(step) + ".fa")
         out_file = open(out_file_name, "w")
@@ -295,7 +295,7 @@ def find_candidate_transcripts(read_file, params):
             C_temp_accession_to_seq[c_acc] = seq
 
         remaining_c_after_invariant = end_invariant_functions.collapse_candidates_under_ends_invariant(C_temp_accession_to_seq, C_temp_accession_to_support, params)
-        alignments_of_x_to_m_transposed = transpose(alignments_of_x_to_m)   
+        alignments_of_x_to_m_transposed = functions.transpose(alignments_of_x_to_m)   
         for c_acc in remaining_c_after_invariant:
             c_seq = C_temp_accession_to_seq[ c_acc ] 
             c_support = C_temp_accession_to_support[ c_acc ]
@@ -310,7 +310,7 @@ def find_candidate_transcripts(read_file, params):
                 del alignments_of_x_to_m_transposed[c_removed_seq]
                 del C[c_removed_seq]
         
-        alignments_of_x_to_m = transpose(alignments_of_x_to_m_transposed)
+        alignments_of_x_to_m = functions.transpose(alignments_of_x_to_m_transposed)
 
         # alignments_of_x_to_m, C  = collapse_contained_sequences(alignments_of_x_to_m, C, params)
 
@@ -390,7 +390,7 @@ def find_candidate_transcripts(read_file, params):
 
 
 def filter_candidates(alignments_of_x_to_c, C, params):
-    alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)   
+    alignments_of_x_to_c_transposed = functions.transpose(alignments_of_x_to_c)   
 
     m_to_acc = {}
 
@@ -410,7 +410,7 @@ def filter_candidates(alignments_of_x_to_c, C, params):
                     partition_alignments_c[x_acc] = (ed, aln_m, aln_x, 1) 
                     # print(ed, aln_x, aln_m)
 
-                alignment_matrix_to_c, PFM_to_c = create_position_probability_matrix(m, partition_alignments_c)
+                alignment_matrix_to_c, PFM_to_c = functions.create_position_probability_matrix(m, partition_alignments_c)
                 c_alignment = alignment_matrix_to_c[m]
                 is_consensus = True
                 for j in range(len(PFM_to_c)):
@@ -439,7 +439,7 @@ def filter_candidates(alignments_of_x_to_c, C, params):
     partition_of_X = { m_to_acc[c] : set(alignments_of_x_to_c_transposed[c].keys()) for c in  alignments_of_x_to_c_transposed}
 
     # we now have an accession of nearest_neighbor, change to this accession insetad of storing sequence
-    alignments_of_x_to_m_filtered = transpose(alignments_of_x_to_c_transposed)
+    alignments_of_x_to_m_filtered = functions.transpose(alignments_of_x_to_c_transposed)
     for x_acc in list(alignments_of_x_to_m_filtered.keys()):
         for m in list(alignments_of_x_to_m_filtered[x_acc].keys()):
             m_acc = m_to_acc[m]

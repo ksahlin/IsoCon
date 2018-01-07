@@ -17,22 +17,27 @@ Table of Contents
 =================
 
    * [IsoCon](#isocon)
+   * [Table of Contents](#table-of-contents)
       * [INSTALLATION](#installation)
-            * [Using pip](#using-pip)
-            * [Downloading source from GitHub](#downloading-source-from-github)
-               * [Dependencies](#dependencies)
+         * [Using pip](#using-pip)
+         * [Downloading source from GitHub](#downloading-source-from-github)
+            * [Dependencies](#dependencies)
       * [USAGE](#usage)
-         * [Output](#output)
+         * [Pipline](#pipline)
+            * [Output](#output)
+         * [get_candidates](#get_candidates)
+         * [stat_filter](#stat_filter)
          * [Parameters](#parameters)
       * [CREDITS](#credits)
       * [LICENCE](#licence)
+
 
 INSTALLATION
 ----------------
 
 The preferred way to install IsoCon is with pythons package installer pip.
 
-#### Using pip 
+### Using pip 
 
 `pip` is pythons official package installer. This section assumes you have `python` (v2.7 or >=3.4) and a recent version of `pip` installed which should be included in most python versions. If you do not have `pip`, it can be easily installed [from here](https://pip.pypa.io/en/stable/installing/) and upgraded with `pip install --upgrade pip`. 
 
@@ -45,14 +50,14 @@ pip install --requirement requirements.txt IsoCon
 This should install IsoCon. With proper installation of **IsoCon**, you should be able to issue the command `IsoCon pipeline` to view user instructions. You should also be able to run IsoCon on this [small dataset](https://github.com/ksahlin/IsoCon/tree/master/test/data). Simply download the test dataset and run:
 
 ```
-python  IsoCon pipeline -fl_reads [path/simulated_pacbio_reads.fa] -outfolder [output path]
+IsoCon pipeline -fl_reads [path/simulated_pacbio_reads.fa] -outfolder [output path]
 ```
 
 `pip` will install the dependencies automatically for you. IsoCon has been built with python 2.7, 3.4-3.6 on Linux systems using [Travis](https://travis-ci.org/). For customized installation of latest master branch, see below.
 
-#### Downloading source from GitHub
+### Downloading source from GitHub
 
-##### Dependencies
+#### Dependencies
 
 Make sure the below listed dependencies are installed (installation links below). Versions in parenthesis are suggested as IsoCon has not been tested with earlier versions of these libraries. However, IsoCon may also work with earliear versions of these libaries.
 * [edlib](https://github.com/Martinsos/edlib "edlib's Homepage"), for installation see [link](https://github.com/Martinsos/edlib/tree/master/bindings/python#installation) (>= v1.1.2)
@@ -74,22 +79,44 @@ cd IsoCon
 USAGE
 -------
 
+IsoCon's algorithm consists of two main phases; the error correction step and the statistical testing step. IsoCon can run these two steps in one go using `IsoCon pipeline`, or it can run only the correction or statisitcal test steps using `IsoCon get_candidates` and `IsoCon stat_filter` respectively. The preffered and most tested way is to use the entire pipeline `IsoCon pipeline`, but the other two settings can come in handy for specific cases. For example, running only `IsoCon get_candidates` will give more sequences if one is not concerned about precision and will also be faster, while one might use only `IsoCon stat_filter` using different parameters for a set of already constructed candidates in order to prevent rerunning the error correction step.
+
+
+### Pipline
+
 IsoCon takes two input files: (1) a fasta file of full length non-chimeric (flnc) CCS reads and (2) the bam file of CCS reads containing predicted base call quality values. The fasta file containing flnc can be obtained from PacBios Iso-Seq pipeline [ToFU](https://github.com/PacificBiosciences/IsoSeq_SA3nUP/wiki) and the bam file is the output of running the consensus caller algorthm [ccs](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md) on the Iso-Seq reads (ccs takes bam files so if you have bax files, convert them using [bax2bam](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md#input) ). IsoCon can then be run as
 
 ```
-IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --ccs </path/to/filename.ccs.bam>
+IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> [--ccs </path/to/filename.ccs.bam>]
 ```
 
-IsoCon also supports taking only the fasta read file as input. Without the base call quality values, IsoCon will use an empirically estimated error model. The ability to take only the flnc fasta file as input is useful when the reads have been altered after the CCS base calling algorithm, \emph{e.g.}, from **error correction using Illumina reads**. However, we highly recommend supplying the CCS quality values to IsoCon if CCS reads has not gone through any additional correction. 
+IsoCon also supports taking only the fasta read file as input. Without the base call quality values in `--ccs`, IsoCon will use an empirically estimated error model. The ability to take only the flnc fasta file as input is useful when the reads have been altered after the CCS base calling algorithm, \emph{e.g.}, from error correction using Illumina reads. **However, we highly recommend supplying the CCS quality values to IsoCon if CCS reads has not gone through any additional correction.** 
 
 Simply omit the `--ccs` parameter if running IsoCon without base call quality values as
 ```
 IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output>
 ```
 
-### Output
+#### Output
 
-The final high quality transcripts are written to the file `final_candidates.fa` in the output folder. If there was only one or two reads coming from a transcript, which is sufficiently different from other reads (exon difference), it will be output in the file `not_converged.fa`. This file may contain other erroneous CCS reads such as chimeras.
+The final high quality transcripts are written to the file `final_candidates.fa` in the output folder. If there was only one or two reads coming from a transcript, which is sufficiently different from other reads (exon difference), it will be output in the file `not_converged.fa`. This file may contain other erroneous CCS reads such as chimeras. The output also contains a file `cluster_info.tsv` that shows for each read which candidate it was assigned to in `final_candidates.fa`.
+
+### get_candidates
+
+Runs only the error correction step. The output is the converged candidates in a fasta file.
+
+```
+IsoCon get_candidates -fl_reads <flnc.fasta> -outfolder </path/to/output>
+```
+
+### stat_filter
+
+Runs only the statistical filtering of candidates.
+
+```
+IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> -candidates <candidate_transcripts.fa>  [--ccs </path/to/filename.ccs.bam>]
+```
+**Observe that `candidate_transcripts.fa` does not have to come from IsoCon's algorithm. For example, this could be a set of already validated transcripts to which one would like to see if they occur in the CCS reads.**
 
 
 ### Parameters
@@ -157,7 +184,7 @@ CREDITS
 
 Please cite [1] when using IsoCon.
 
-1. Kristoffer Sahlin*, Marta Tomaszkiewicz*, Kateryna D. Makova†, Paul Medvedev† (2017) "IsoCon: Deciphering highly similar multigene family transcripts from Iso-Seq data", bioRxiv [Link](http/link)
+1. Kristoffer Sahlin*, Marta Tomaszkiewicz*, Kateryna D. Makova†, Paul Medvedev† (2018) "IsoCon: Deciphering highly similar multigene family transcripts from Iso-Seq data", bioRxiv [Link](http/link)
 
 LICENCE
 ----------------

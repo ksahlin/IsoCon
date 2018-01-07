@@ -19,13 +19,12 @@ import pysam
 
 from modules.functions import transpose, create_position_probability_matrix
 from modules import functions
-from modules.partitions import partition_strings_2set
+from modules import partitions
 from modules import graphs
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession, edlib_traceback
 from modules.input_output import fasta_parser, write_output
-from modules import statistical_test_v2
-from modules import correct_sequence_to_nearest_neighbor
+from modules import hypothesis_test_module
 from modules import end_invariant_functions
 from modules import ccs_info
 
@@ -282,7 +281,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         if to_realign:
             write_output.print_reads(remaining_to_align_read_file, to_realign)
             # align reads that is not yet assigned to candidate here
-            G_star_rem, partition_of_remaining_X = partition_strings_2set(to_realign, C, remaining_to_align_read_file, temp_candidate_file.name, params)
+            G_star_rem, partition_of_remaining_X = partitions.partition_strings_2set(to_realign, C, remaining_to_align_read_file, temp_candidate_file.name, params)
 
             # add reads to best candidate given new alignments
             for c_acc in partition_of_remaining_X:
@@ -373,9 +372,9 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         print("NUMBER OF CANDIDATES LEFT:", len(C), ". Number statistical tests in this round:", nr_of_tests_this_round)
 
         # if realignment_to_avoid_local_max == 1:
-        #     new_significance_values = statistical_test_v2.do_statistical_tests_all_c_to_t(nearest_neighbor_graph_transposed, C, X, partition_of_X, params )
+        #     new_significance_values = hypothesis_test_module.do_statistical_tests_all_c_to_t(nearest_neighbor_graph_transposed, C, X, partition_of_X, params )
         # else:
-        new_significance_values = statistical_test_v2.do_statistical_tests_per_edge(nearest_neighbor_graph_transposed, C, X, partition_of_X, ccs_dict, params )
+        new_significance_values = hypothesis_test_module.do_statistical_tests_per_edge(nearest_neighbor_graph_transposed, C, X, partition_of_X, ccs_dict, params )
 
         # updating if previously identical test had higher p_val than the highest new one, substitute with the stored test.
         for c_acc, (p_value, mult_factor_inv, k, N_t, variants) in new_significance_values.items():

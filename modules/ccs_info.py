@@ -118,7 +118,7 @@ def fix_quality_values(seq, qualities):
 
 
 def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
-    print(len(ccs_dict_raw))
+    # print(len(ccs_dict_raw))
     assert len(X_ids) == len(X)
     # print(X.keys())
     # print(sorted(X_ids.keys()))
@@ -126,7 +126,7 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
 
     for q_id in list(ccs_dict_raw.keys()):
         if q_id in X_ids:
-            print(q_id, "in reads!")
+            # print(q_id, "in reads!")
 
             q_acc = X_ids[q_id]
             p = r"strand=-"
@@ -170,9 +170,9 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
             del ccs_dict_raw[q_id]
 
     
-    print(len(ccs_dict_raw))
+    # print(len(ccs_dict_raw))
     assert len(ccs_dict_raw) == len(X_ids)
-    print("HERE!")
+    # print("HERE!")
 
     # lambda_ = 0
     # lambda_2 = 0

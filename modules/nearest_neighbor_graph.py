@@ -3,16 +3,7 @@ import os,sys
 import argparse
 import re
 import math
-# import numpy as np
-from Bio.SubsMat import MatrixInfo as matlist
-# import pandas as pd
-import string
-import fractions
-# import matplotlib
-# matplotlib.use('agg')
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-from collections import defaultdict
+
 import edlib
 import signal
 from multiprocessing import Pool
@@ -109,39 +100,11 @@ def read_fasta(fasta_file):
     if accession:
         yield accession, temp
 
-# def histogram(data, args, name='histogram.png', x='x-axis', y='y-axis', x_cutoff=None, title=None):
-#     if x_cutoff: 
-#         plt.hist(data, range=[0, x_cutoff], bins = 100)
-#     else:
-#         plt.hist(data, bins = 100)
-#     plt.xlabel(x)
-#     plt.ylabel(y)
-#     if title:
-#         plt.title(title)
-
-#     plt.savefig(os.path.join(args.outfolder, name))
-#     plt.clf()
-
-
-def collapse(seq):
-    seen = set()
-    seen_add = seen.add
-    return [x for x in seq if not (x in seen or seen_add(x))]
-
-
-
 
 def edlib_ed(x, y, mode="NW", task="distance", k=1):
     result = edlib.align(x, y, mode=mode, task=task, k=k)
     ed = result["editDistance"]
     return ed
-
-def edlib_traceback(x, y, mode="NW", task="path", k=1):
-    result = edlib.align(x, y, mode=mode, task=task, k=k)
-    ed = result["editDistance"]
-    locations =  result["locations"]
-    cigar =  result["cigar"]
-    return ed, locations, cigar
 
 
 def get_nearest_neighbors(batch_of_queries, global_index_in_matrix, start_index, seq_to_acc_list_sorted, has_converged, neighbor_search_depth):
@@ -234,6 +197,7 @@ def get_nearest_neighbors(batch_of_queries, global_index_in_matrix, start_index,
         #     print(best_ed, "for seq with length", len(seq1), seq1)
     return best_edit_distances
 
+
 def compute_2set_nearest_neighbor_graph(X, C, params):
     seq_to_acc_queries = [(seq, acc) for (acc, seq) in X.items()] #{seq: acc for (acc, seq) in  read_fasta(open(args.consensus_transcripts, 'r'))}
     # seq_to_acc_list_queries = list(seq_to_acc_queries.items())
@@ -268,14 +232,6 @@ def compute_2set_nearest_neighbor_graph(X, C, params):
     # histogram(neighbors, args, name='neighbours.png', x='x-axis', y='y-axis', title="Number of neighbours in nearest_neighbor graph")
     # histogram(neighbors, args, name='neighbours_zoomed.png', x='x-axis', y='y-axis', x_cutoff=20, title="Number of neighbours in nearest_neighbor graph")
     return nearest_neighbor_graph_x_to_c
-
-# def reverse_complement(string):
-#     #rev_nuc = {'A':'T', 'C':'G', 'G':'C', 'T':'A', 'N':'N', 'X':'X'}
-#     # Modified for Abyss output
-#     rev_nuc = {'A':'T', 'C':'G', 'G':'C', 'T':'A', 'a':'t', 'c':'g', 'g':'c', 't':'a', 'N':'N', 'X':'X', 'n':'n', 'Y':'R', 'R':'Y', 'K':'M', 'M':'K', 'S':'S', 'W':'W', 'B':'V', 'V':'B', 'H':'D', 'D':'H', 'y':'r', 'r':'y', 'k':'m', 'm':'k', 's':'s', 'w':'w', 'b':'v', 'v':'b', 'h':'d', 'd':'h'}
-
-#     rev_comp = ''.join([rev_nuc[nucl] for nucl in reversed(string)])
-#     return(rev_comp)
 
 
 def compute_nearest_neighbor_graph(S, has_converged, params):

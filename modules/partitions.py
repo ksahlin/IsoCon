@@ -11,7 +11,7 @@ from modules import graphs
 from modules import functions
 
 
-def highest_reachable_with_edge_degrees(S, params):
+def partition_strings(S, params):
     # if params.nontargeted:
     #     G_star, converged = graphs.construct_approximate_nearest_neighbor_graph(S, params)
     # else:
@@ -23,7 +23,7 @@ def highest_reachable_with_edge_degrees(S, params):
     G_transpose = nx.reverse(G_star)
 
     if params.verbose:
-        print("Nodes in nearest_neighbor ggraph:", len(G_transpose))
+        print("Nodes in nearest_neighbor graph:", len(G_transpose))
         print("Neighbors per nodes in nearest neighbor graph", sorted([len(G_transpose.neighbors(n)) for n in G_transpose], reverse=True))
 
 
@@ -33,21 +33,16 @@ def highest_reachable_with_edge_degrees(S, params):
     for subgraph in sorted(nx.weakly_connected_component_subgraphs(G_transpose), key=len, reverse=True):
         # print("Subgraph of size", len(subgraph.nodes()), "nr edges:", len(subgraph.edges()), [len(x) for x in subgraph.nodes()] )
         while subgraph:
-            reachable_comp_sizes = []
-            reachable_comp_weights = {}
-            reachable_comp_nodes = []
+ 
             edit_distances_to_m = {"XXXXX" : 0}
-            direct_neighbors = {}
             processed = set()
-
             biggest_reachable_comp_size = 0
             biggest_reachable_comp_weight = 0
             biggest_reachable_comp_nodes = set()
-            biggest_reachable_comp_nearest_neighbor = "XXXXX"
+            biggest_reachable_comp_center = "XXXXX"
 
 
             for m in subgraph:
-                # print(len(m))
                 edit_distances_to_m[m] = 0
                 
                 if m in processed:
@@ -60,7 +55,7 @@ def highest_reachable_with_edge_degrees(S, params):
 
 
                 ####################################################
-                # take all reachable nodes
+                # get all reachable nodes
                 ####################################################
 
                 for n1,n2 in nx.dfs_edges(subgraph, source=m): # store reachable node as processed here to avoid computation
@@ -78,67 +73,73 @@ def highest_reachable_with_edge_degrees(S, params):
                 # print("total component weight:", reachable_comp_weight)
                 # print("edit distance:",  edit_distances_to_m[m])
 
-                if biggest_reachable_comp_weight == 0:
+                if biggest_reachable_comp_weight == 0: # initialization for first processed m
                     biggest_reachable_comp_weight = reachable_comp_weight
                     biggest_reachable_comp_nodes = set(reachable_comp)
                     biggest_reachable_comp_size = len(reachable_comp)
-                    biggest_reachable_comp_nearest_neighbor = m
+                    biggest_reachable_comp_center = m
 
-                elif reachable_comp_weight >= biggest_reachable_comp_weight:
-                    if reachable_comp_weight > biggest_reachable_comp_weight:
-                        biggest_reachable_comp_weight = reachable_comp_weight
+                # elif reachable_comp_weight >= biggest_reachable_comp_weight:
+                elif reachable_comp_weight == biggest_reachable_comp_weight:
+                    # print("HEEERE!!",reachable_comp_weight, biggest_reachable_comp_weight)
+                    if edit_distances_to_m[m] < edit_distances_to_m[biggest_reachable_comp_center]:
+                        # print("tie but smaller edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_center])
                         biggest_reachable_comp_nodes = set(reachable_comp)
                         biggest_reachable_comp_size = len(reachable_comp)
-                        biggest_reachable_comp_nearest_neighbor = m
+                        biggest_reachable_comp_center = m
 
-                    elif reachable_comp_weight == biggest_reachable_comp_weight:
-                        if edit_distances_to_m[m] < edit_distances_to_m[biggest_reachable_comp_nearest_neighbor]:
-                            # print("tie but smaller edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_nearest_neighbor])
-                            biggest_reachable_comp_nodes = set(reachable_comp)
-                            biggest_reachable_comp_size = len(reachable_comp)
-                            biggest_reachable_comp_nearest_neighbor = m
-
-                        elif edit_distances_to_m[m] > edit_distances_to_m[biggest_reachable_comp_nearest_neighbor]:
-                            # print("tie but bigger edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_nearest_neighbor])
-                            pass
-                        else:
-                            if biggest_reachable_comp_weight > 1:
-                                # print("tie both in weighted partition size and total edit distance. Choosing lexographically smaller nearest_neighbor")
-                                # print(" weighted partition size:", biggest_reachable_comp_weight, " total edit distance:", edit_distances_to_m[m])
-                                pass
-                            
-                            if m < biggest_reachable_comp_nearest_neighbor:
-                                biggest_reachable_comp_nodes = set(reachable_comp)
-                                biggest_reachable_comp_nearest_neighbor = m
-                            else:
-                                pass
-
+                    elif edit_distances_to_m[m] > edit_distances_to_m[biggest_reachable_comp_center]:
+                        # print("tie but bigger edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_center])
+                        pass
                     else:
-                        print("BUG!")
+                        if biggest_reachable_comp_weight > 1:
+                            # print("tie both in weighted partition size and total edit distance. Choosing lexographically smaller center")
+                            # print(" weighted partition size:", biggest_reachable_comp_weight, " total edit distance:", edit_distances_to_m[m])
+                            pass
+                        
+                        if m < biggest_reachable_comp_center:
+                            biggest_reachable_comp_nodes = set(reachable_comp)
+                            biggest_reachable_comp_center = m
+                        else:
+                            pass
+                elif reachable_comp_weight > biggest_reachable_comp_weight:
+                    biggest_reachable_comp_weight = reachable_comp_weight
+                    biggest_reachable_comp_nodes = set(reachable_comp)
+                    biggest_reachable_comp_size = len(reachable_comp)
+                    biggest_reachable_comp_center = m
 
-            if biggest_reachable_comp_weight == 0: # if there were no edges! partition is nearest_neighbor itself
+
+            if biggest_reachable_comp_weight == 0: # if there were no edges! partition is center itself
                 M[m] = 0 
                 partition[m] = set()
             else:
-                nearest_neighbor = biggest_reachable_comp_nearest_neighbor # "XXXXXX" #biggest_reachable_comp_nearest_neighbor #
+                center = biggest_reachable_comp_center # "XXXXXX" #biggest_reachable_comp_center #
                 max_direct_weight = 0
                 # print("total nodes searched in this pass:", len(biggest_reachable_comp_nodes))
                 for n in biggest_reachable_comp_nodes:
                     direct_weight = subgraph.node[n]["degree"]                    
                     direct_weight += len(list(subgraph.neighbors(n)))
+
+                    # if len(list(subgraph.neighbors(n))) > 1 and n != center and len(list(subgraph.neighbors(center))) > 1:
+                    #     print(n in G_transpose[center], center in G_transpose[n], len(list(subgraph.neighbors(center))), len(list(subgraph.neighbors(n)))) #[n]["edit_distance"])
+                    #     if n in G_transpose[center]:
+                    #         print("ed", G_transpose[center][n]["edit_distance"])
+                    #         print(n)
+                    #         print(center)
                     # print( [ subgraph.node[nbr]["degree"] for nbr in subgraph.neighbors(n)])
+
                     assert all( [ subgraph.node[nbr]["degree"] == 1 for nbr in subgraph.neighbors(n)] )
 
                     # print("direct weight:", direct_weight)
                     if direct_weight > max_direct_weight:
                         max_direct_weight = direct_weight
-                        nearest_neighbor = n
+                        center = n
                     elif direct_weight == max_direct_weight:
-                        nearest_neighbor = min(nearest_neighbor, n)
-                # print("nearest_neighbor direct weight:", max_direct_weight, "nodes in reachable:", len(biggest_reachable_comp_nodes))
-                M[nearest_neighbor] = biggest_reachable_comp_weight   
-                partition[nearest_neighbor] = biggest_reachable_comp_nodes.difference(set([nearest_neighbor]))
-                assert nearest_neighbor in biggest_reachable_comp_nodes
+                        center = min(center, n)
+                # print("center direct weight:", max_direct_weight, "nodes in reachable:", len(biggest_reachable_comp_nodes))
+                M[center] = biggest_reachable_comp_weight   
+                partition[center] = biggest_reachable_comp_nodes.difference(set([center]))
+                assert center in biggest_reachable_comp_nodes
 
             # vizualize_test_graph(subgraph)
             # if len(biggest_reachable_comp_nodes) == 65:
@@ -153,10 +154,10 @@ def highest_reachable_with_edge_degrees(S, params):
     #     print("min:", len(m))
     #     for p in sorted(partition[m]):
     #         print(len(p))
-    nearest_neighbor_lenghts = [len(m) for m in sorted(partition)]
+    center_lenghts = [len(m) for m in sorted(partition)]
     
     if params.verbose:
-        print("Seq lengths of centers", sorted(nearest_neighbor_lenghts))
+        print("Seq lengths of centers", sorted(center_lenghts))
         print("NUMBER CONSENSUS:", nr_consensus)
         print("Number of centers:", len(M), len(partition))
         print("partition sizes(identical strings are collapsed here and therefore counted as one): ", sorted([len(partition[p]) +1 for p in  partition], reverse = True))

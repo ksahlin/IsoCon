@@ -9,6 +9,7 @@ python:
 # command to install dependencies
 install:
   - pip install -r requirements.txt
+  # - pip install coveralls
 # os:
 #   - linux
 #   - osx
@@ -18,3 +19,5 @@ branches:
   - master
 # command to run tests
 script: python  IsoCon pipeline -fl_reads test/data/simulated_pacbio_reads.fa -outfolder test/out/ 
+# after_success:
+#  - coveralls

@@ -115,39 +115,8 @@ def construct_approximate_nearest_neighbor_graph(S, params, edge_creating_min_tr
     print("TOTAL UNIQUE STRINGS:", len(G.nodes()))
     print("TOTAL NON CONVERGED STRINGS:", len(not_in_clusters))
 
-    # unique_strings = {seq : acc for acc, seq in S.items()}
-    # S_prime = {acc : seq for seq, acc in unique_strings.items()}
     ##################################
     ##################################
-
-    ############# OLD ################
-    # G_star = {}
-    # # adding self edges to strings that has converged
-    # s_to_acc = {s : acc for acc, s in S.items()} 
-    # for acc, s in S.items():
-    #     if s not in G_star:
-    #         G_star[s] = {}
-    #     else:
-    #         if s in G_star[s]:
-    #             G_star[s][s] += 1  
-    #         else:
-    #             G_star[s][s] = 2
-
-    # # check if converged, that is, if all nodes has self edges here, there will be no other edges added.
-    # converged = False
-    # not_in_clusters = set()
-    # for s, nbr_dict in G_star.items():
-    #     if len(nbr_dict) == 0:
-    #         not_in_clusters.add(s)
-
-    # if len(not_in_clusters) == 0:
-    #     converged = True
-    #     return G_star, converged
-
-    # unique_strings = set(S.values())
-    ##################################
-    ##################################
-
 
 
     paf_files, acc_to_strings = minimap_alignment_module.minimap_partition(unique_strings, not_in_clusters, params)
@@ -176,37 +145,6 @@ def construct_approximate_nearest_neighbor_graph(S, params, edge_creating_min_tr
 
     for s in isolated_nodes:
         assert s in G
-
-    ############ OLD #################
-    ##################################
-
-    # #add remaining edges to  G_star and alignment_graph
-    # for s1 in best_exact_matches:
-    #     # already have weighted self edge, i.e., identical sequence
-    #     if s1 in G_star[s1]:
-    #         # print("here!", G_star[s1][s1])
-    #         continue
-    #     for s2 in best_exact_matches[s1]:
-    #         assert s2 not in G_star[s1]
-    #         G_star[s1][s2] = 1
-    #         (edit_distance, s1_alignment, s2_alignment) = best_exact_matches[s1][s2]
-    #         alignment_graph[s1][s2] = (edit_distance, s1_alignment, s2_alignment)
-
-    # # finally, nodes here are the one where we didn't find any alignments to another sequence, point these isolated nodes to themself
-    # # with indegree 1
-    # # we also check that theu are not "leaves" in G^* 
-    # # that is, a sequence that has no nearest_neighbor but is a nearest_neighbor to some other sequence, this should not happen in G^*
-    # G_star_transposed = functions.transpose(G_star)
-
-    # for s in G_star:
-    #     if len(G_star[s]) == 0:
-    #         assert s not in G_star_transposed
-    #         G_star[s][s] = 1
-    #         alignment_graph[s][s] = (0, s, s)
-    #         # print("ISOLATED")
-    ##################################
-    ##################################
-
 
     return G, graph_has_converged
 

@@ -47,7 +47,7 @@ from modules import isocon_statistical_test
 from modules import isocon_parameters
 from modules.input_output import write_output, fasta_parser
 from modules import partitions
-from modules import identify_barcodes
+# from modules import identify_barcodes
 
 def clean_dir(params):
     keep_files = set(["logfile.txt", "candidates_converged.fa", "final_candidates.fa", "not_converged.fa", "cluster_info.tsv"])
@@ -185,41 +185,34 @@ if __name__ == '__main__':
     pipeline_required = pipeline.add_argument_group('required arguments')
     pipeline_required.add_argument('-fl_reads', required=True, type=str, help='Fast<a/q> file pacbio Reads of Insert. ')
     pipeline_required.add_argument('-outfolder', required=True, type=str, help='Outfolder. ')
-    # pipeline.add_argument('--nontargeted', action='store_true', help='Uses minimap to find nearest_neighbors instead of our exact approach disigned for targeted sequnecing. ')
+
     pipeline.add_argument('--ccs', type=str, help='BAM/SAM file with CCS sequence predictions. ')
-    # pipeline.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ') 
+
+    pipeline.add_argument('--nr_cores', dest='nr_cores', type=int, default = 16, help='Number of cores to use. [default = 16]')
     pipeline.add_argument('--verbose', dest='verbose', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     pipeline.add_argument('--neighbor_search_depth', type=int, default=2**32, help='Maximum number of pairwise alignments in search matrix to find nearest_neighbor. [default =2**32]')
     pipeline.add_argument('--min_exon_diff', type=int, default=20, help='Minimum consequtive base pair difference between two neigborss in order to remove edge. If more than this nr of consequtive base pair difference, its likely an exon difference. [default =20]')
-    pipeline.add_argument('--p_value_threshold', type=float, default=0.01, help='Threshold for statistical test, filter everythin below this threshold . [default = 0.01]')
-    pipeline.add_argument('--nr_cores', dest='nr_cores', type=int, default = 16, help='Number of cores to use. ')
-    pipeline.add_argument('--max_phred_q_trusted', dest='max_phred_q_trusted', type=int, default = 43, help='Maximum PHRED quality score trusted (T), linerarly remaps quality score interval [0,93] --> [0, T]. Quality scores may have some uncertainty since T is estimated from a consensus caller algorithm. ')
     pipeline.add_argument('--min_candidate_support', type=int, default=2, help='Required minimum number of reads converged to the same sequence to be included in statistical test. [default 2]')
-    # pipeline.add_argument('--minimap_bin_size', type=int, default=1000, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if nearest_neighbor is smaller).')
+
+    pipeline.add_argument('--p_value_threshold', type=float, default=0.01, help='Threshold for statistical test, filter everythin below this threshold . [default = 0.01]')
+    pipeline.add_argument('--max_phred_q_trusted', dest='max_phred_q_trusted', type=int, default = 43, help='Maximum PHRED quality score trusted (T), linerarly remaps quality score interval [0,93] --> [0, T]. Quality scores may have some uncertainty since T is estimated from a consensus caller algorithm. ')
     pipeline.add_argument('--ignore_ends_len', type=int, default=15, help='Number of bp to ignore in ends. If two candidates are identical except in ends of this size, they are collapsed and the longest common substing is chosen to represent them. In statistical test step, the nearest neighbors are found based on ignoring the ends of this size. Also indels "hanging off" ends of this size will not be tested. [default 15].')
     pipeline.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder. [default = False]')
     pipeline.add_argument('--prefilter_candidates', action='store_true', help='Filter candidates if they are not consensus over any base pair in the candidate transcript formed from them, this can reduce runtime without significant loss in true candidates. [default = False]')
     pipeline.set_defaults(which='pipeline')
 
 
-    # # create the parser for the "remove_barcodes" command
-    # remove_barcodes = subparsers.add_parser('remove_barcodes', help='Remove barcodes from sequences.')
-    # remove_barcodes.add_argument('-fl_reads', type=str, help='Path to the consensus fasta file')
-    # remove_barcodes.add_argument('outfolder', type=str, help='Output folder to results')
-    # remove_barcodes.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
-    # remove_barcodes.set_defaults(which='remove_barcodes')
-
     # create the parser for the "get_candidates" command
     get_candidates = subparsers.add_parser('get_candidates', help='Get candidate transcripts with nearest_neighbor approach.')
     get_candidates_required = get_candidates.add_argument_group('required arguments')
     get_candidates_required.add_argument('-fl_reads', type=str, required=True, help='Full length RoIs. ')
     get_candidates_required.add_argument('-outfolder', type=str, required=True, help='Outfolder. ')
+    
+    get_candidates.add_argument('--nr_cores', dest='nr_cores', type=int, default = 16, help='Number of cores to use. [default = 16]')
+    get_candidates.add_argument('--verbose', dest='verbose', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     get_candidates.add_argument('--neighbor_search_depth', type=int, default=2**32, help='Maximum number of pairwise alignments in search matrix to find nearest_neighbor. [default =2**32]')
     get_candidates.add_argument('--min_exon_diff', type=int, default=20, help='Minimum consequtive base pair difference between two neigborss in order to remove edge. If more than this nr of consequtive base pair difference, its likely an exon difference. [default =20]')
-    # get_candidates.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
     get_candidates.add_argument('--min_candidate_support', type=int, default=2, help='Required minimum number of reads converged to the same sequence to be included in statistical test.')
-    # get_candidates.add_argument('--minimap_bin_size', type=int, default=1000, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if nearest_neighbor is smaller).')
-    get_candidates.add_argument('--verbose', dest='verbose', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
     get_candidates.add_argument('--ignore_ends_len', type=int, default=15, help='Number of bp to ignore in ends. If two candidates are identical expept in ends of this size, they are collapses and the longest common substing is chosen to represent them. In statistical test step, nearest_neighbors are found based on ignoring the ends of this size. Also indels in ends will not be tested. [default ignore_ends_len=15].')
     get_candidates.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
     get_candidates.add_argument('--prefilter_candidates', action='store_true', help='Filter candidates if they are not consensus over at least one base pair, this can reduce runtime without significant loss in true candidates.')
@@ -230,14 +223,19 @@ if __name__ == '__main__':
     stat_filter = subparsers.add_parser('stat_filter', help='Get candidate transcripts with nearest_neighbor approach.')
     stat_filter_required = stat_filter.add_argument_group('required arguments')
     stat_filter_required.add_argument('-fl_reads', type=str, required=True, help='Full length RoIs. ')
-    stat_filter_required.add_argument('-candidates', type=str, help='Already generated candidates. ')
-    # stat_filter_required.add_argument('-candidate_alignments', type=str, help='Already generated read to candidate alignments. ')
+    stat_filter_required.add_argument('-candidates', type=str, required=True, help='Already generated candidates. ')
     stat_filter_required.add_argument('-outfolder', type=str, required=True, help='Outfolder. ')
+
+    stat_filter.add_argument('--ccs', type=str, help='BAM/SAM file with CCS sequence predictions. ')
+
+    stat_filter.add_argument('--nr_cores', dest='nr_cores', type=int, default = 16, help='Number of cores to use. [default = 16]')
     stat_filter.add_argument('--verbose', dest='verbose', action='store_true', help='This will print more information abount workflow and provide plots of similarity network etc. ')
-    stat_filter.add_argument('--min_candidate_support', type=int, default=2, help='Required minimum number of reads converged to the same sequence to be included in statistical test. Can only be applies if fasta accessions comes from previous step in pipline')
+    stat_filter.add_argument('--neighbor_search_depth', type=int, default=2**32, help='Maximum number of pairwise alignments in search matrix to find nearest_neighbor. [default =2**32]')
     stat_filter.add_argument('--min_exon_diff', type=int, default=20, help='Minimum consequtive base pair difference between two neigborss in order to remove edge. If more than this nr of consequtive base pair difference, its likely an exon difference. [default =20]')
-    # stat_filter.add_argument('--minimap_bin_size', type=int, default=400, help='Create an edge in candidate graph if the two candidates has edit distance lower or equal to this threshold (even if nearest_neighbor is smaller).')
-    # stat_filter.add_argument('--barcodes', type=str, help='If targeted approach. A fasta file with barcodes to search for in ends of transcripts. ')
+    stat_filter.add_argument('--min_candidate_support', type=int, default=2, help='Required minimum number of reads converged to the same sequence to be included in statistical test. Can only be applies if fasta accessions comes from previous step in pipline')
+    stat_filter.add_argument('--ignore_ends_len', type=int, default=15, help='Number of bp to ignore in ends. If two candidates are identical expept in ends of this size, they are collapses and the longest common substing is chosen to represent them. In statistical test step, nearest_neighbors are found based on ignoring the ends of this size. Also indels in ends will not be tested. [default ignore_ends_len=15].')
+    stat_filter.add_argument('--p_value_threshold', type=float, default=0.01, help='Threshold for statistical test, filter everythin below this threshold . [default = 0.01]')
+    stat_filter.add_argument('--max_phred_q_trusted', dest='max_phred_q_trusted', type=int, default = 43, help='Maximum PHRED quality score trusted (T), linerarly remaps quality score interval [0,93] --> [0, T]. Quality scores may have some uncertainty since T is estimated from a consensus caller algorithm. ')
     stat_filter.add_argument('--cleanup', action='store_true', help='Remove everything except logfile.txt, candidates_converged.fa and final_candidates.fa in output folder.')
     stat_filter.set_defaults(which='stat_filter')
 
