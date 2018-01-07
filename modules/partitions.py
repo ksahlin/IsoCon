@@ -34,16 +34,16 @@ def partition_strings(S, params):
         # print("Subgraph of size", len(subgraph.nodes()), "nr edges:", len(subgraph.edges()), [len(x) for x in subgraph.nodes()] )
         while subgraph:
  
-            edit_distances_to_m = {"XXXXX" : 0}
+            # edit_distances_to_m = {"XXXXX" : 0}
             processed = set()
             biggest_reachable_comp_size = 0
             biggest_reachable_comp_weight = 0
             biggest_reachable_comp_nodes = set()
             biggest_reachable_comp_center = "XXXXX"
-
+            biggest_reachable_comp_center_nr_nbrs = 0
 
             for m in subgraph:
-                edit_distances_to_m[m] = 0
+                # edit_distances_to_m[m] = 0
                 
                 if m in processed:
                     continue
@@ -64,7 +64,7 @@ def partition_strings(S, params):
                     processed.add(n2)
                     reachable_comp.add(n2)
                     reachable_comp_weight += subgraph.node[n2]["degree"]
-                    edit_distances_to_m[m] +=  subgraph.node[n2]["degree"] * subgraph[n1][n2]["edit_distance"]
+                    # edit_distances_to_m[m] +=  subgraph.node[n2]["degree"] * subgraph[n1][n2]["edit_distance"]
                     assert subgraph.node[n2]["degree"] == 1
                 ####################################################
                 ####################################################
@@ -78,35 +78,54 @@ def partition_strings(S, params):
                     biggest_reachable_comp_nodes = set(reachable_comp)
                     biggest_reachable_comp_size = len(reachable_comp)
                     biggest_reachable_comp_center = m
+                    biggest_reachable_comp_center_nr_nbrs = len(subgraph.neighbors(m))
 
                 # elif reachable_comp_weight >= biggest_reachable_comp_weight:
                 elif reachable_comp_weight == biggest_reachable_comp_weight:
                     # print("HEEERE!!",reachable_comp_weight, biggest_reachable_comp_weight)
-                    if edit_distances_to_m[m] < edit_distances_to_m[biggest_reachable_comp_center]:
-                        # print("tie but smaller edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_center])
+                    if biggest_reachable_comp_center_nr_nbrs < len(subgraph.neighbors(m)):
+                        biggest_reachable_comp_weight = reachable_comp_weight
                         biggest_reachable_comp_nodes = set(reachable_comp)
                         biggest_reachable_comp_size = len(reachable_comp)
                         biggest_reachable_comp_center = m
-
-                    elif edit_distances_to_m[m] > edit_distances_to_m[biggest_reachable_comp_center]:
-                        # print("tie but bigger edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_center])
-                        pass
-                    else:
-                        if biggest_reachable_comp_weight > 1:
-                            # print("tie both in weighted partition size and total edit distance. Choosing lexographically smaller center")
-                            # print(" weighted partition size:", biggest_reachable_comp_weight, " total edit distance:", edit_distances_to_m[m])
-                            pass
-                        
-                        if m < biggest_reachable_comp_center:
+                        biggest_reachable_comp_center_nr_nbrs = len(subgraph.neighbors(m))   
+                    
+                    elif biggest_reachable_comp_center_nr_nbrs == len(subgraph.neighbors(m)):
+                        if m < biggest_reachable_comp_center: # just pick lexicographically smallest to remove non determinism
+                            biggest_reachable_comp_weight = reachable_comp_weight
                             biggest_reachable_comp_nodes = set(reachable_comp)
+                            biggest_reachable_comp_size = len(reachable_comp)
                             biggest_reachable_comp_center = m
-                        else:
-                            pass
-                elif reachable_comp_weight > biggest_reachable_comp_weight:
+                            biggest_reachable_comp_center_nr_nbrs = len(subgraph.neighbors(m))                             
+
+
+                    # if edit_distances_to_m[m] < edit_distances_to_m[biggest_reachable_comp_center]:
+                    #     # print("tie but smaller edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_center])
+                    #     biggest_reachable_comp_nodes = set(reachable_comp)
+                    #     biggest_reachable_comp_size = len(reachable_comp)
+                    #     biggest_reachable_comp_center = m
+
+                    # elif edit_distances_to_m[m] > edit_distances_to_m[biggest_reachable_comp_center]:
+                    #     # print("tie but bigger edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_center])
+                    #     pass
+                    # else:
+                    #     if biggest_reachable_comp_weight > 1:
+                    #         # print("tie both in weighted partition size and total edit distance. Choosing lexographically smaller center")
+                    #         # print(" weighted partition size:", biggest_reachable_comp_weight, " total edit distance:", edit_distances_to_m[m])
+                    #         pass
+                        
+                    #     if m < biggest_reachable_comp_center:
+                    #         biggest_reachable_comp_nodes = set(reachable_comp)
+                    #         biggest_reachable_comp_center = m
+                    #     else:
+                    #         pass
+
+                elif biggest_reachable_comp_weight < reachable_comp_weight:
                     biggest_reachable_comp_weight = reachable_comp_weight
                     biggest_reachable_comp_nodes = set(reachable_comp)
                     biggest_reachable_comp_size = len(reachable_comp)
                     biggest_reachable_comp_center = m
+                    biggest_reachable_comp_center_nr_nbrs = len(subgraph.neighbors(m))                  
 
 
             if biggest_reachable_comp_weight == 0: # if there were no edges! partition is center itself

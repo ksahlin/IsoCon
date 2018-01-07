@@ -116,7 +116,7 @@ Runs only the statistical filtering of candidates.
 ```
 IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> -candidates <candidate_transcripts.fa>  [--ccs </path/to/filename.ccs.bam>]
 ```
-**Observe that `candidate_transcripts.fa` does not have to come from IsoCon's algorithm. For example, this could be a set of already validated transcripts to which one would like to see if they occur in the CCS reads.**
+Observe that `candidate_transcripts.fa` does not have to come from IsoCon's error correction algorithm. For example, this could either be a set of already validated transcripts to which one would like to see if they occur in the CCS reads, or they could be Illumina (or in other ways) corrected CCS reads.
 
 
 ### Parameters

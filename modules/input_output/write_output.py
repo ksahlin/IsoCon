@@ -26,7 +26,7 @@ def print_candidates(out_file_name, C, significance_test_values, partition_of_X,
         reads_to_consensus_tsv_file.close()
 
     final_candidate_count = 0
-    for c_acc, seq in C.items():
+    for c_acc, seq in sorted(C.items()):
         p_value, correction_factor, support, N_t, delta_size = significance_test_values[c_acc] 
         if params.verbose:
             print(c_acc, "Support:", support, "P-value:", p_value, "correction factor:", correction_factor, "delta size:", delta_size, "partition size:", N_t)
@@ -52,7 +52,7 @@ def print_candidates_from_nearest_neighbors(out_file_candidates_name, M, m_to_ac
     final_candidate_count = 0
     # m_to_acc = {}
     # alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)      
-    for i, (m, support) in enumerate(M.items()):
+    for i, (m, support) in enumerate(sorted(M.items())):
         # m_acc = "read_" + str(i) + "_support_" + str(support)
         m_acc = m_to_acc[m] 
         out_file_candidates.write(">{0}\n{1}\n".format(m_acc, m))
