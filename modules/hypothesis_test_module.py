@@ -15,16 +15,23 @@ def do_statistical_tests_per_edge(nearest_neighbor_graph, C, X, partition_of_X, 
     statistical_test_edges = {}
     for c_acc in nearest_neighbor_graph:
         statistical_test_edges[c_acc] = {}
+        reads_to_c = { x_acc : X[x_acc] for x_acc in partition_of_X[c_acc]}
+
         for t_acc in nearest_neighbor_graph[c_acc]:
-            reduced_ccs_dict_for_test = {x_acc : ccs_dict[x_acc] for x_acc in (partition_of_X[c_acc] + partition_of_X[t_acc]) if x_acc in ccs_dict} 
-            edge_specific_ccs_reads = { x_acc : X[x_acc] for acc in [c_acc, t_acc] for x_acc in partition_of_X[acc]}
-            statistical_test_edges[c_acc][t_acc] = (c_acc, t_acc, C[c_acc], C[t_acc], edge_specific_ccs_reads, partition_of_X[c_acc], partition_of_X[t_acc], params.ignore_ends_len, reduced_ccs_dict_for_test, params.max_phred_q_trusted) # ADD ALGINMENTS HERE FOR SPEEDUP
+            # edge_specific_reads = { x_acc : X[x_acc] for acc in [c_acc, t_acc] for x_acc in partition_of_X[acc]}
+            reads_to_t = { x_acc : X[x_acc] for x_acc in partition_of_X[t_acc]}
+            edge_specific_reads = { x_acc : X[x_acc] for acc in [c_acc, t_acc] for x_acc in partition_of_X[acc]}
+            if ccs_dict:
+                reduced_ccs_dict_for_test = {x_acc : ccs_dict[x_acc] for x_acc in list(partition_of_X[c_acc] | partition_of_X[t_acc]) if x_acc in ccs_dict} 
+            else:
+                reduced_ccs_dict_for_test = {}
+
+            statistical_test_edges[c_acc][t_acc] = (c_acc, t_acc, C[c_acc], C[t_acc], reads_to_c, reads_to_t, params.ignore_ends_len, reduced_ccs_dict_for_test, params.max_phred_q_trusted) # ADD ALGINMENTS HERE FOR SPEEDUP
 
     if params.nr_cores == 1:
         for c_acc in statistical_test_edges:
-            if len(statistical_test_edges[c_acc]) == 0:
-                p_values[c_acc] = {}
-            for t_acc in statistical_test_edges:
+            p_values[c_acc] = {}
+            for t_acc in statistical_test_edges[c_acc]:
                 (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants) = statistical_test(*statistical_test_edges[c_acc][t_acc])
                 p_values[c_acc][t_acc] =  (p_value, mult_factor_inv, k, N_t, variants)
 
@@ -38,8 +45,9 @@ def do_statistical_tests_per_edge(nearest_neighbor_graph, C, X, partition_of_X, 
         for c_acc in list(statistical_test_edges.keys()):
             if len(statistical_test_edges[c_acc]) == 0:
                 del statistical_test_edges[c_acc]
+
         try:
-            res = pool.map_async(statistical_test_helper, [ (*statistical_test_edges[c_acc][t_acc], {}) for c_acc in statistical_test_edges for t_acc in statistical_test_edges[c_acc]  ] )
+            res = pool.map_async(statistical_test_helper, [ (statistical_test_edges[c_acc][t_acc], {}) for c_acc in statistical_test_edges for t_acc in statistical_test_edges[c_acc]  ] )
             statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -56,7 +64,8 @@ def do_statistical_tests_per_edge(nearest_neighbor_graph, C, X, partition_of_X, 
         for (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants) in statistical_test_results:
             p_values[c_acc][t_acc] = (p_value, mult_factor_inv, k, N_t, variants)
 
-    print("Total number of tests performed this round:", len(statistical_test_results))
+
+    print("Total number of tests performed this round:", len([ 1 for c_acc in statistical_test_edges for t_acc in statistical_test_edges[c_acc]]) )
 
     return p_values
 
@@ -69,13 +78,12 @@ def statistical_test_helper(arguments):
 
 
 
-def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_len):
+def arrange_alignments(t_acc, reads, C, ignore_ends_len):
     partition_dict = {t_acc : {}}
-    for seq_acc in reads_and_candidates_and_ref:
-        if seq_acc in X:
-            partition_dict[t_acc][seq_acc] = (C[t_acc], X[seq_acc])
-        else:
-            partition_dict[t_acc][seq_acc] = (C[t_acc], C[seq_acc])
+    for x_acc in reads:
+        partition_dict[t_acc][x_acc] = (C[t_acc], reads[x_acc])
+    for c_acc in C:
+            partition_dict[t_acc][c_acc] = (C[t_acc], C[c_acc])
 
     exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, nr_cores = 1)    
     exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, nr_cores = 1, ignore_ends_len = ignore_ends_len)
@@ -90,8 +98,8 @@ def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_le
             partition_alignments[t_acc][x_acc] = (edit_dist, aln_t, aln_x, 1)
 
             x_aln_seq = "".join([n for n in aln_x if n != "-"])
-            if x_acc in X:
-                assert X[x_acc] == x_aln_seq
+            if x_acc in reads:
+                assert reads[x_acc] == x_aln_seq
 
     alignment_matrix_to_t, PFM_to_t = functions.create_position_probability_matrix(C[t_acc], partition_alignments[t_acc])
     return alignment_matrix_to_t, PFM_to_t
@@ -99,8 +107,9 @@ def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_le
 
 
 
-def statistical_test( c_acc, t_acc, c_seq, t_seq, edge_specific_ccs_reads, reads_to_c_acc, reads_to_t_acc, ignore_ends_len, reduced_ccs_dict_for_test, max_phred_q_trusted):
-    N_t = len(total_read_in_partition)
+def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, reads_to_t, ignore_ends_len, ccs_dict, max_phred_q_trusted):
+    reads = dict(reads_to_c, **reads_to_t) #reads_to_c | reads_to_t
+    N_t = len(reads)
 
     # no reads supporting neither the candidate nor the reference t
     #  this can happen if after realignment of reads to candidates, all the reads 
@@ -109,13 +118,13 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, edge_specific_ccs_reads, reads
     if N_t == 0: 
         return c_acc, t_acc, 1.0, 1.0, 0, N_t, ""
     
-    reads_and_candidates_and_ref = c_acc + t_acc + reads_to_c_acc + reads_to_t_acc 
 
-    for x_acc in edge_specific_ccs_reads:
-        assert edge_specific_ccs_reads[x_acc] == reduced_ccs_dict_for_test[x_acc].seq
+    if ccs_dict:
+        for x_acc in reads:
+            assert reads[x_acc] == ccs_dict[x_acc].seq
 
     # get multialignment matrix here
-    alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, edge_specific_ccs_reads, {c_acc: c_seq,  t_acc: t_seq}, ignore_ends_len)
+    alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads, {c_acc: c_seq,  t_acc: t_seq}, ignore_ends_len)
 
     # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
     # these are bases that we disregard when testing varinats
@@ -127,7 +136,7 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, edge_specific_ccs_reads, reads
     # get parameter estimates for statistical test
     delta_t = functions.get_difference_coordinates_for_candidates(t_acc, c_acc, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
     # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
-    x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t, reads_to_c_acc + reads_to_t_acc) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
+    x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t, reads) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
     
     if ccs_dict:
         insertions, deletions, substitutions = functions.get_errors_for_partitions(t_acc, len(t_seq), c_acc, alignment_matrix_to_t) 

@@ -365,19 +365,16 @@ def get_errors_for_partitions(target_accession, segment_length, candidate_access
 
 
 
-def get_errors_per_read(target_accession, segment_length, candidate_accessions, alignment_matrix):
+def get_errors_per_read(target_accession, segment_length, c_acc, alignment_matrix):
     errors = {}
     target_alignment = alignment_matrix[target_accession]
-    assert len(candidate_accessions) == 1
-    c_acc = list(candidate_accessions)[0]
-
     # ed_poisson_i, ed_poisson_s, ed_poisson_d = 0, 0, 0
     candidate_alignment = alignment_matrix[c_acc]
 
     for q_acc in alignment_matrix:
         if q_acc == target_accession:
             continue
-        if q_acc in candidate_accessions:
+        if q_acc == c_acc:
             continue  
 
         errors[q_acc] = {}

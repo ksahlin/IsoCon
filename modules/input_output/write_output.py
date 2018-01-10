@@ -27,9 +27,10 @@ def print_candidates(out_file_name, C, significance_test_values, partition_of_X,
 
     final_candidate_count = 0
     for c_acc, seq in sorted(C.items()):
-        p_value, correction_factor, support, N_t, delta_size = significance_test_values[c_acc] 
+        # print(significance_test_values[c_acc])
+        c_acc, t_acc, p_value, correction_factor, support, N_t, delta_size = significance_test_values[c_acc] 
         if params.verbose:
-            print(c_acc, "Support:", support, "P-value:", p_value, "correction factor:", correction_factor, "delta size:", delta_size, "partition size:", N_t)
+            print(c_acc, "Support:", support, "P-value:", p_value, "correction factor:", correction_factor, "delta size:", delta_size, "partition size:", N_t, "tested to", t_acc)
 
         if final:
             out_file.write(">{0}\n{1}\n".format(c_acc + "_" + str(support) + "_" + str(p_value) + "_" + str(N_t) + "_" + str(delta_size) , seq))

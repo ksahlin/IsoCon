@@ -250,6 +250,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
 
 
         if to_realign:
+            print(len(to_realign), "reads to realign.")
             write_output.print_reads(remaining_to_align_read_file, to_realign)
             # align reads that is not yet assigned to candidate here
             G_star_rem, partition_of_remaining_X = partitions.partition_strings_2set(to_realign, C, remaining_to_align_read_file, temp_candidate_file.name, params)
@@ -292,6 +293,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         # Since indata is the same, the test is guaranteed to give same siginficance values as previous step        
         
         previous_significance_values = {}
+        # print(nearest_neighbor_graph)
         for c_acc in list(nearest_neighbor_graph.keys()):
             # skip to test candidates with more reads than their respective references, because its redundant computation that will lead to significant values anyway..
             # for c_acc in nearest_neighbor_graph[t_acc].keys():
@@ -301,46 +303,53 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
             previous_significance_values[c_acc] = {}
             to_remove = set()
             for t_acc in list(nearest_neighbor_graph[c_acc].keys()):
-                if (c_acc, t_acc) in previous_edges[c_acc] and (previous_partition_of_X[t_acc] == partition_of_X[t_acc] ) and  (previous_partition_of_X[c_acc] == partition_of_X[c_acc]):
+                if (c_acc, t_acc) in previous_edges[c_acc] and ( previous_partition_of_X[t_acc] == partition_of_X[t_acc] ) and  (previous_partition_of_X[c_acc] == partition_of_X[c_acc]):
+                    # print("here", (c_acc, t_acc) in previous_edges[c_acc] and ( previous_partition_of_X[t_acc] == partition_of_X[t_acc] ) and  (previous_partition_of_X[c_acc] == partition_of_X[c_acc]))
                     previous_significance_values[c_acc][t_acc] = significance_values[c_acc][t_acc]
                     to_remove.add((c_acc, t_acc))
                     if params.verbose:
                         print("TEST IDENTICAL TO PREVIOUS STEP, SKIPPING FOR", t_acc, c_acc)
                 else: 
-                    print("Modified")
-            previous_edges[c_acc]  = set([(t_acc, c_acc) for c_acc in list(nearest_neighbor_graph[t_acc].keys())])
-            for t_acc, c_acc in to_remove:
+                    pass
+                    # print("Modified")
+            previous_edges[c_acc]  = set([(c_acc, t_acc) for t_acc in list(nearest_neighbor_graph[c_acc].keys())])
+            for c_acc, t_acc in to_remove:
                 del nearest_neighbor_graph[c_acc][t_acc]
-        significance_values = {}
+        # print(nearest_neighbor_graph)
         #####################################################################################################
 
 
         # get all candidats that serve as null-hypothesis references and have neighbors subject to testing
         # these are all candidates that are nearest_neighbors to some other, isolated nodes are not tested
         # candidatate in G_star_C
-        nr_of_tests_this_round = len([ 1 for c_acc in nearest_neighbor_graph for t_acc in nearest_neighbor_graph[t_acc] ] )
+        nr_of_tests_this_round = len([ 1 for c_acc in nearest_neighbor_graph for t_acc in nearest_neighbor_graph[c_acc] ] )
         print("NUMBER OF CANDIDATES LEFT:", len(C), ". Number statistical tests in this round:", nr_of_tests_this_round)
+        if nr_of_tests_this_round > 0:
+            new_significance_values = hypothesis_test_module.do_statistical_tests_per_edge(nearest_neighbor_graph, C, X, partition_of_X, ccs_dict, params )
+            
+            for c_acc in new_significance_values:
+                for t_acc in new_significance_values[c_acc]:
+                    previous_significance_values[c_acc][t_acc] = new_significance_values[c_acc][t_acc]
 
-        # if realignment_to_avoid_local_max == 1:
-        #     new_significance_values = hypothesis_test_module.do_statistical_tests_all_c_to_t(nearest_neighbor_graph, C, X, partition_of_X, params )
-        # else:
-        new_significance_values = hypothesis_test_module.do_statistical_tests_per_edge(nearest_neighbor_graph, C, X, partition_of_X, ccs_dict, params )
-        previous_significance_values.update(new_significance_values)
-        significance_values = copy.deepcopy(previous_significance_values)
-        
-        highest_significance_values_list = []
+            # previous_significance_values.update(new_significance_values)
+            significance_values = copy.deepcopy(previous_significance_values)
+        else:
+            significance_values = copy.deepcopy(previous_significance_values)
+
+        assert len(significance_values) == len(C)
+        highest_significance_values = {}
         for c_acc in significance_values:
             p_val_max = 0.0
-            highest = (c_acc, "", "not_tested", 1.0, 0, partition_of_X[c_acc], "") 
+            highest = (c_acc, "", "not_tested", 1.0, "NA", len(partition_of_X[c_acc]), "") 
             for t_acc in significance_values[c_acc]:
                 (p_value, mult_factor_inv, k, N_t, variants) = significance_values[c_acc][t_acc]
                 if p_value >= p_val_max:
                     p_val_max = p_value
                     highest = (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants)
-            highest_significance_values_list.append( (highest) )
+            highest_significance_values[c_acc] =  highest
 
-        if len(highest_significance_values_list) > 0:
-            corrected_pvals = [p_value*mult_factor_inv  for (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants) in highest_significance_values_list  if p_value != "not_tested" ]
+        if len(highest_significance_values) > 0:
+            corrected_pvals = [p_value*mult_factor_inv  for c_acc, (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants) in highest_significance_values.items()  if p_value != "not_tested" ]
             if len(corrected_pvals) == 0:
                 p_val_threshold = params.p_value_threshold #1.0
             else:
@@ -354,30 +363,9 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
                 p_val_threshold = corrected_pvals_median if corrected_pvals_median > params.p_value_threshold else params.p_value_threshold
                 print("Filtering threshold (p_val*mult_correction_factor):",  p_val_threshold)
 
-
-        # new_significance_values_list = list(new_significance_values.items())
-        # if len(new_significance_values_list) > 0:
-        #     corrected_pvals = [p_value*mult_factor_inv for c_acc, (p_value, mult_factor_inv, k, N_t, variants) in new_significance_values_list if p_value != "not_tested" ]
-        #     if len(corrected_pvals) == 0:
-        #         p_val_threshold = params.p_value_threshold #1.0
-        #     else:
-        #         corrected_pvals.sort()
-        #         if len(corrected_pvals) % 2 == 0:
-        #             corrected_pvals_median = (corrected_pvals[int(len(corrected_pvals)/2)-1] + corrected_pvals[int(len(corrected_pvals)/2)]) / 2.0
-        #         else:
-        #             corrected_pvals_median = corrected_pvals[int(len(corrected_pvals)/2)]
-        #         print("Median corrected p-val:", corrected_pvals_median)
-
-        #         nr_candidates_tested = len([c_acc for c_acc,  tuple_vals in new_significance_values_list if tuple_vals[0] != "not_tested"])
-        #         print("Number of unique candidates tested:",  nr_candidates_tested)
-
-        #         # p_val_threshold = max(corrected_pvals_median, 1.0/float(nr_candidates_tested)) 
-        #         p_val_threshold = corrected_pvals_median if corrected_pvals_median > params.p_value_threshold else params.p_value_threshold
-        #         print("Filtering threshold (p_val*mult_correction_factor):",  p_val_threshold)
-
         previous_partition_of_X = copy.deepcopy(partition_of_X)
         to_realign = {}
-        for c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants in highest_significance_values_list:
+        for c_acc, (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants) in highest_significance_values.items():
             if p_value == "not_tested":
                 if params.verbose:
                     print("Did not test", c_acc)
@@ -391,17 +379,18 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
                     to_realign[x_acc] = X[x_acc]
                 del partition_of_X[c_acc]
 
+
         print("nr candidates left:", len(C))
         candidate_file = os.path.join(params.outfolder, "candidates_after_step_{0}.fa".format(step))
         step += 1
 
-        significance_values = new_significance_values.copy()
+        # significance_values = new_significance_values.copy()
         
         if len(C) == 0: # no candidates were significant!
             break
 
         # print("LEN SIGN:", len(significance_values), len(C))
-        write_output.print_candidates(candidate_file, C, significance_values, partition_of_X, X, params)
+        write_output.print_candidates(candidate_file, C, highest_significance_values, partition_of_X, X, params)
 
         # do a last realingment to avoind local maxima of reads
 
@@ -418,6 +407,6 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
 
     final_out_file_name =  os.path.join(params.outfolder, "final_candidates.fa")
     tsv_info = os.path.join(params.outfolder, "cluster_info.tsv")
-    write_output.print_candidates(final_out_file_name, C, significance_values, partition_of_X, X, params, final = True, reads_to_consensus_tsv = tsv_info)
+    write_output.print_candidates(final_out_file_name, C, highest_significance_values, partition_of_X, X, params, final = True, reads_to_consensus_tsv = tsv_info)
 
     return C
