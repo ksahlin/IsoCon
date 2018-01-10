@@ -167,23 +167,22 @@ def get_invariant_multipliers(delta_t, alignment_matrix, t_acc):
     return u_iv
 
 
-def get_difference_coordinates_for_candidates(target_accession, candidate_accessions, alignment_matrix):
+def get_difference_coordinates_for_candidates(target_accession, c_acc, alignment_matrix):
     position_differences = {}
     target_alignment = alignment_matrix[target_accession]
     
-    for c_acc in candidate_accessions:
-        position_differences[c_acc] = {}
-        candidate_alignment = alignment_matrix[c_acc]
-        for j in range(len(candidate_alignment)):
-            c_base = candidate_alignment[j]
-            t_base = target_alignment[j]
-            if c_base != t_base:
-                if t_base == "-":
-                    position_differences[c_acc][j] = ("I", c_base)
-                elif c_base == "-":
-                    position_differences[c_acc][j] = ("D", c_base)
-                else:
-                    position_differences[c_acc][j] = ("S", c_base)
+    position_differences[c_acc] = {}
+    candidate_alignment = alignment_matrix[c_acc]
+    for j in range(len(candidate_alignment)):
+        c_base = candidate_alignment[j]
+        t_base = target_alignment[j]
+        if c_base != t_base:
+            if t_base == "-":
+                position_differences[c_acc][j] = ("I", c_base)
+            elif c_base == "-":
+                position_differences[c_acc][j] = ("D", c_base)
+            else:
+                position_differences[c_acc][j] = ("S", c_base)
 
         # print("nr v:",len(position_differences[c_acc]))
     return position_differences
@@ -431,11 +430,9 @@ def get_errors_per_read(target_accession, segment_length, candidate_accessions, 
     # print(errors)
     return errors
 
-def reads_supporting_candidate(target_accession, candidate_accessions, alignment_matrix, Delta_t, partition_of_X):
-    assert len(candidate_accessions) == 1
-    c_acc = list(candidate_accessions)[0]
+def reads_supporting_candidate(target_accession, c_acc, alignment_matrix, Delta_t, reads):
     x = []
-    for q_acc in partition_of_X[c_acc].union(partition_of_X[target_accession]):
+    for q_acc in reads:
         if q_acc not in alignment_matrix:
             print("READ {0} ALIGNED TO {1} BUT FAILED TO ALIGN TO {2}".format(q_acc, c_acc, target_accession) )
             continue

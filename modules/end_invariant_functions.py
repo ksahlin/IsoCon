@@ -417,7 +417,7 @@ def partition_highest_reachable_with_edge_degrees(G_star, params):
     return G_star, partition, M
 
 
-def get_nearest_neighbors_graph_transposed_under_ignored_ends(candidate_transcripts, args):
+def get_nearest_neighbors_graph_under_ignored_ends(candidate_transcripts, args):
     seq_to_acc = {seq: acc for (acc, seq) in candidate_transcripts.items()}
     seq_to_acc_list = list(seq_to_acc.items())
     seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
@@ -432,30 +432,15 @@ def get_nearest_neighbors_graph_transposed_under_ignored_ends(candidate_transcri
                     print("had ed > 10 statistical test", acc1, acc2)
 
 
-    no_ref_to_test_to = set()
     for acc1 in  nearest_neighbor_graph:
-        seq1 = candidate_transcripts[acc1]
-
-        if len(nearest_neighbor_graph[acc1]) == 0: # all isolated nodes in this graph
-            no_ref_to_test_to.add(acc1)
-
         if args.verbose:
             for acc2 in nearest_neighbor_graph[acc1]:
-                seq2 = candidate_transcripts[acc2]
                 if nearest_neighbor_graph[acc1][acc2] > 0:
                     print("To be tested:", acc1, acc2,  nearest_neighbor_graph[acc1][acc2])
     
-    nearest_neighbor_graph_transposed = functions.transpose(nearest_neighbor_graph)
 
-    # isolated_nodes = set(candidate_transcripts.keys()) -  set(nearest_neighbor_graph_transposed)
-    # print("isolated:",isolated_nodes )
-    # for c_isolated in isolated_nodes:
-    #     nearest_neighbor_graph_transposed[c_isolated] = {}
-    print("Number of transcripts that are not tested (too divergent from other transcripts):", len(no_ref_to_test_to))
-    for c_isolated in no_ref_to_test_to:
-        nearest_neighbor_graph_transposed[c_isolated] = {}
-
-    return nearest_neighbor_graph_transposed
+    assert len(candidate_transcripts) == len(nearest_neighbor_graph)
+    return nearest_neighbor_graph
 
 def collapse_candidates_under_ends_invariant(candidate_transcripts, candidate_support, params):
     print("Candidates before edge invariants:", len(candidate_transcripts))

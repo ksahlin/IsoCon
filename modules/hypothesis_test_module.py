@@ -10,62 +10,36 @@ from modules.SW_alignment_module import sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences_keeping_accession
 from modules import ccs_info
 
-def do_statistical_tests_per_edge(nearest_neighbor_graph_transposed, C, X, partition_of_X, ccs_dict, params):
+def do_statistical_tests_per_edge(nearest_neighbor_graph, C, X, partition_of_X, ccs_dict, params):
     p_values = {}
-    actual_tests = 0
-    
-    # separate partition_of_X and X, C here into subsets for each t in nearest_neighbor graph to speed up parallelization when lots of reads
-    partition_of_X_per_candidate = {}
-    all_X_in_partition = {}
-    C_for_minmizer = {}
-    candidates_to = {}
-    for t_acc in nearest_neighbor_graph_transposed:
-        candidates_to[t_acc] = {}
-        partition_of_X_per_candidate[t_acc] = {}
-        C_for_minmizer[t_acc] = {}
-        all_X_in_partition[t_acc] = {}
-        for c_acc in nearest_neighbor_graph_transposed[t_acc]:
-            candidates_to[t_acc][c_acc] = {c_acc : nearest_neighbor_graph_transposed[t_acc][c_acc] }
-            partition_of_X_per_candidate[t_acc][c_acc] = {acc : set([x_acc for x_acc in partition_of_X[acc]]) for acc in [c_acc, t_acc]}
-            C_for_minmizer[t_acc][c_acc] = { acc : C[acc] for acc in [c_acc, t_acc] }
-            all_X_in_partition[t_acc][c_acc] = { x_acc : X[x_acc] for acc in [t_acc, c_acc] for x_acc in partition_of_X[acc]}
-
+    statistical_test_edges = {}
+    for c_acc in nearest_neighbor_graph:
+        statistical_test_edges[c_acc] = {}
+        for t_acc in nearest_neighbor_graph[c_acc]:
+            reduced_ccs_dict_for_test = {x_acc : ccs_dict[x_acc] for x_acc in (partition_of_X[c_acc] + partition_of_X[t_acc]) if x_acc in ccs_dict} 
+            edge_specific_ccs_reads = { x_acc : X[x_acc] for acc in [c_acc, t_acc] for x_acc in partition_of_X[acc]}
+            statistical_test_edges[c_acc][t_acc] = (c_acc, t_acc, C[c_acc], C[t_acc], edge_specific_ccs_reads, partition_of_X[c_acc], partition_of_X[t_acc], params.ignore_ends_len, reduced_ccs_dict_for_test, params.max_phred_q_trusted) # ADD ALGINMENTS HERE FOR SPEEDUP
 
     if params.nr_cores == 1:
-        for t_acc in nearest_neighbor_graph_transposed:
-        #     if len(nearest_neighbor_graph_transposed[t_acc]) == 0:
-        #         p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
-        #         continue
-        #     print("t", t_acc)
-            
-            for c_acc in nearest_neighbor_graph_transposed[t_acc]:
-                p_vals = statistical_test(t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len, ccs_dict, params.max_phred_q_trusted)
+        for c_acc in statistical_test_edges:
+            if len(statistical_test_edges[c_acc]) == 0:
+                p_values[c_acc] = {}
+            for t_acc in statistical_test_edges:
+                (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants) = statistical_test(*statistical_test_edges[c_acc][t_acc])
+                p_values[c_acc][t_acc] =  (p_value, mult_factor_inv, k, N_t, variants)
 
-                for tested_cand_acc, (p_value, mult_factor_inv, k, N_t, variants) in p_vals.items():
-                    if p_value == "not_tested":
-                        assert tested_cand_acc not in p_values # should only be here once
-                        p_values[tested_cand_acc] = (p_value, mult_factor_inv, k, N_t, variants)
-
-                    elif tested_cand_acc in p_values: # new most insignificant p_value
-                        actual_tests += 1
-                        if p_value * mult_factor_inv > p_values[tested_cand_acc][0] * p_values[tested_cand_acc][1]:
-                            p_values[tested_cand_acc] = (p_value, mult_factor_inv, k, N_t, variants)
-
-                    else: # not tested before
-                        actual_tests += 1
-                        p_values[tested_cand_acc] = (p_value, mult_factor_inv, k, N_t, variants)
-
-        for t_acc in nearest_neighbor_graph_transposed:
-            if t_acc not in p_values:
-                p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), "" )
     else:
         ####### parallelize statistical tests #########
         # pool = Pool(processes=mp.cpu_count())
         original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
         signal.signal(signal.SIGINT, original_sigint_handler)
-        pool = Pool(processes=mp.cpu_count())
+        pool = Pool(processes=params.nr_cores)
+
+        for c_acc in list(statistical_test_edges.keys()):
+            if len(statistical_test_edges[c_acc]) == 0:
+                del statistical_test_edges[c_acc]
         try:
-            res = pool.map_async(statistical_test_helper, [ ( (t_acc, all_X_in_partition[t_acc][c_acc], C_for_minmizer[t_acc][c_acc], partition_of_X_per_candidate[t_acc][c_acc], candidates_to[t_acc][c_acc], params.ignore_ends_len, ccs_dict, params.max_phred_q_trusted), {}) for t_acc in nearest_neighbor_graph_transposed for c_acc in nearest_neighbor_graph_transposed[t_acc]  ] )
+            res = pool.map_async(statistical_test_helper, [ (*statistical_test_edges[c_acc][t_acc], {}) for c_acc in statistical_test_edges for t_acc in statistical_test_edges[c_acc]  ] )
             statistical_test_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -76,25 +50,13 @@ def do_statistical_tests_per_edge(nearest_neighbor_graph_transposed, C, X, parti
             pool.close()
         pool.join()
 
-        for all_tests_to_a_given_target in statistical_test_results:
-            for c_acc, (p_value, mult_factor_inv, k, N_t, variants) in list(all_tests_to_a_given_target.items()): 
-                if p_value ==  "not_tested":
-                    assert c_acc not in p_values # should only be here once
-                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, variants)
+        for c_acc in nearest_neighbor_graph:
+            p_values[c_acc] = {}
 
-                elif c_acc in p_values: # new most insignificant p_value
-                    actual_tests += 1
-                    if p_value * mult_factor_inv > p_values[c_acc][0] * p_values[c_acc][1]:
-                        p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, variants)
-                else: # not tested before
-                    actual_tests += 1
-                    p_values[c_acc] = (p_value, mult_factor_inv, k, N_t, variants)
+        for (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants) in statistical_test_results:
+            p_values[c_acc][t_acc] = (p_value, mult_factor_inv, k, N_t, variants)
 
-        for t_acc in nearest_neighbor_graph_transposed:
-            if t_acc not in p_values:
-                p_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), "" )
-
-    print("Total number of tests performed this round:", actual_tests)
+    print("Total number of tests performed this round:", len(statistical_test_results))
 
     return p_values
 
@@ -135,7 +97,85 @@ def arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_le
     return alignment_matrix_to_t, PFM_to_t
 
 
-def statistical_test(t_acc, X, C, partition_of_X, candidates, ignore_ends_len, ccs_dict, max_phred_q_trusted):
+
+
+def statistical_test( c_acc, t_acc, c_seq, t_seq, edge_specific_ccs_reads, reads_to_c_acc, reads_to_t_acc, ignore_ends_len, reduced_ccs_dict_for_test, max_phred_q_trusted):
+    N_t = len(total_read_in_partition)
+
+    # no reads supporting neither the candidate nor the reference t
+    #  this can happen if after realignment of reads to candidates, all the reads 
+    # to noth c and t got assigned to other candidates -- based on nearest_neighbor graph 
+    # (should be rare) 
+    if N_t == 0: 
+        return c_acc, t_acc, 1.0, 1.0, 0, N_t, ""
+    
+    reads_and_candidates_and_ref = c_acc + t_acc + reads_to_c_acc + reads_to_t_acc 
+
+    for x_acc in edge_specific_ccs_reads:
+        assert edge_specific_ccs_reads[x_acc] == reduced_ccs_dict_for_test[x_acc].seq
+
+    # get multialignment matrix here
+    alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, edge_specific_ccs_reads, {c_acc: c_seq,  t_acc: t_seq}, ignore_ends_len)
+
+    # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
+    # these are bases that we disregard when testing varinats
+    # We get individual cut positions depending on which candidate is being tested -- we dont want to include ends spanning over the reference or candidate
+    # we cut at the start position in c or t that comes last, and the end position in c or t that comes first
+    if ignore_ends_len > 0:
+        alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
+
+    # get parameter estimates for statistical test
+    delta_t = functions.get_difference_coordinates_for_candidates(t_acc, c_acc, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
+    # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
+    x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t, reads_to_c_acc + reads_to_t_acc) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
+    
+    if ccs_dict:
+        insertions, deletions, substitutions = functions.get_errors_for_partitions(t_acc, len(t_seq), c_acc, alignment_matrix_to_t) 
+        invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)
+        probability = functions.get_ccs_position_prob_per_read(t_acc, len(t_seq), alignment_matrix_to_t, invariant_factors_for_candidate, c_acc, delta_t, ccs_dict, insertions, deletions, substitutions, max_phred_q_trusted) 
+    else:
+        errors = functions.get_errors_per_read(t_acc, len(t_seq), c_acc, alignment_matrix_to_t) 
+        invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)
+        probability = functions.get_prob_of_error_per_read(t_acc, len(t_seq), c_acc, errors, invariant_factors_for_candidate) 
+
+    #TODO: do exact only if partition less than, say 200? Otherwise poisson approx
+    # p_value = CLT_test(probability, weight, x)
+    # p_value = poisson_approx_test(probability, weight, x)
+    # p_value = exact_test(probability, weight, x)
+    # print("exact p:", p_value )
+    # print()
+    # print(sorted(errors.values()))
+    # print(sorted(probability.values()))
+    # print("Weighted raghavan p:", p_value )
+
+    delta_size = len(delta_t[c_acc])
+    variant_types = "".join([ str(delta_t[c_acc][j][0]) for j in  delta_t[c_acc] ])
+    if delta_size == 0:
+        print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
+        p_value = 0.0
+    else:
+        p_value = raghavan_upper_pvalue_bound(probability, x)
+
+
+    # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, correction_factor, p_value * correction_factor,  len(x), N_t, delta_size) )
+    # significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
+    if ccs_dict:
+        # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
+        return (c_acc, t_acc, p_value, 1.0, len(x), N_t, variant_types)
+    else:
+        correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
+        # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
+        return (c_acc, t_acc, p_value, correction_factor, len(x), N_t, variant_types)
+
+
+
+
+
+
+
+
+
+def statistical_test_OLD(t_acc, X, C, partition_of_X, candidates, ignore_ends_len, ccs_dict, max_phred_q_trusted):
     significance_values = {}
     t_seq = C[t_acc]
     if len(candidates) == 0:
