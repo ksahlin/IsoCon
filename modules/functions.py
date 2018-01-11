@@ -188,10 +188,8 @@ def get_difference_coordinates_for_candidates(target_accession, c_acc, alignment
     return position_differences
 
 
-def get_ccs_position_prob_per_read(target_accession, target_length, alignment_matrix, invariant_factors_for_candidate, candidate_accessions, Delta_t, ccs_dict, insertions, deletions, substitutions, max_phred_q_trusted):
+def get_ccs_position_prob_per_read(target_accession, target_length, alignment_matrix, invariant_factors_for_candidate, c_acc, Delta_t, ccs_dict, insertions, deletions, substitutions, max_phred_q_trusted):
     probability = {}
-    assert len(candidate_accessions) == 1
-    c_acc = list(candidate_accessions)[0]
     target_alignment = alignment_matrix[target_accession]
     candidate_alignment = alignment_matrix[c_acc]
     delta_size = float(len(invariant_factors_for_candidate[c_acc]))
@@ -213,7 +211,7 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
     for q_acc in alignment_matrix:
         if q_acc == target_accession:
             continue
-        if q_acc in candidate_accessions:
+        if q_acc == c_acc:
             continue  
 
         probability[q_acc] = 1.0
@@ -293,11 +291,9 @@ def get_prob_of_error_per_read(target_accession, segment_length, candidate_acces
     return probability
 
 
-def get_errors_for_partitions(target_accession, segment_length, candidate_accessions, alignment_matrix):
+def get_errors_for_partitions(target_accession, segment_length, c_acc, alignment_matrix):
     errors = {}
     target_alignment = alignment_matrix[target_accession]
-    assert len(candidate_accessions) == 1
-    c_acc = list(candidate_accessions)[0]
 
     # ed_poisson_i, ed_poisson_s, ed_poisson_d = 0, 0, 0
     candidate_alignment = alignment_matrix[c_acc]
@@ -305,7 +301,7 @@ def get_errors_for_partitions(target_accession, segment_length, candidate_access
     for q_acc in alignment_matrix:
         if q_acc == target_accession:
             continue
-        if q_acc in candidate_accessions:
+        if q_acc == c_acc:
             continue  
         query_alignment = alignment_matrix[q_acc]
 
