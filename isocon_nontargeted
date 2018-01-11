@@ -75,7 +75,7 @@ def run_get_candidates(params):
     #     # need to redirect path to reads to the new path with modified reads as well
     #     filtered_file = identify_barcodes.remove_barcodes_fcn(params.read_file, params)
     #     params.read_file = filtered_file
-    candidate_file = isocon_get_candidates.find_candidate_transcripts(params.read_file, params)
+    candidates_file_name, read_partition, to_realign  = isocon_get_candidates.find_candidate_transcripts(params.read_file, params)
     total_elapsed = time() - total_start
     write_output.logger('TOTAL TIME ELAPSED FOR nearest_neighbor APPROACH:{0}'.format(str(total_elapsed)), params.logfile)
 
@@ -113,11 +113,13 @@ def run_stat_filter(params):
         print("Candidate file is empty!")
         sys.exit(0)
 
-    original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.fl_reads, 'r'))}
-    filtered_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
-    G_star, partition_of_X =  partitions.partition_strings_2set(original_reads, filtered_candidates, params.fl_reads, params.candidates, params)
-    to_realign = {}
-    isocon_statistical_test.stat_filter_candidates(params.fl_reads, params.candidates, partition_of_X, to_realign, params)
+    to_realign = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.fl_reads, 'r'))}
+    # filtered_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
+    # G_star, partition_of_X =  partitions.partition_strings_2set(original_reads, filtered_candidates, params.fl_reads, params.candidates, params)
+    read_partition = {acc: {} for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
+    # print("transcript_90_support_2" in partition_of_X)
+    
+    isocon_statistical_test.stat_filter_candidates(params.fl_reads, params.candidates, read_partition, to_realign, params)
     total_elapsed = time() - total_start
     if params.cleanup:
         clean_dir(params)
@@ -150,7 +152,7 @@ def run_pipeline(params):
     #     params.read_file = filtered_file
 
     nearest_neighbor_start = time() 
-    candidate_file, partition_of_X, to_realign = isocon_get_candidates.find_candidate_transcripts(params.read_file, params)
+    candidate_file, read_partition, to_realign = isocon_get_candidates.find_candidate_transcripts(params.read_file, params)
     # for x_acc in alignments_of_reads_to_candidates:
     #     assert len(alignments_of_reads_to_candidates[x_acc]) == 1
     nearest_neighbor_elapsed = time() - nearest_neighbor_start
@@ -161,7 +163,7 @@ def run_pipeline(params):
     # candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
     # G_star, partition_of_X = partitions.partition_strings_2set(original_reads, candidates, params.read_file, candidate_file, params)
 
-    isocon_statistical_test.stat_filter_candidates(params.read_file, candidate_file, partition_of_X, to_realign, params)
+    isocon_statistical_test.stat_filter_candidates(params.read_file, candidate_file, read_partition, to_realign, params)
     stats_elapsed = time() - stats_start
     write_output.logger('TIME ELAPSED FOR STATISTICAL TEST OF CANDIDATES:{0}'.format(str(stats_elapsed)), params.logfile)
 

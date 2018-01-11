@@ -5,28 +5,30 @@ import multiprocessing as mp
 import sys
 import math
 
+from decimal import * 
+getcontext().prec = 100
+
 from modules import functions
 from modules.SW_alignment_module import sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences_keeping_accession
 from modules import ccs_info
 
-def do_statistical_tests_per_edge(nearest_neighbor_graph, C, X, partition_of_X, ccs_dict, params):
+def do_statistical_tests_per_edge(nearest_neighbor_graph, C, X, read_partition, ccs_dict, params):
     p_values = {}
     statistical_test_edges = {}
     for c_acc in nearest_neighbor_graph:
         statistical_test_edges[c_acc] = {}
-        reads_to_c = { x_acc : X[x_acc] for x_acc in partition_of_X[c_acc]}
+        reads_to_c = { x_acc : X[x_acc] for x_acc in read_partition[c_acc]}
 
         for t_acc in nearest_neighbor_graph[c_acc]:
-            # edge_specific_reads = { x_acc : X[x_acc] for acc in [c_acc, t_acc] for x_acc in partition_of_X[acc]}
-            reads_to_t = { x_acc : X[x_acc] for x_acc in partition_of_X[t_acc]}
-            edge_specific_reads = { x_acc : X[x_acc] for acc in [c_acc, t_acc] for x_acc in partition_of_X[acc]}
+            read_alignments_to_t = read_partition[t_acc]  # { read_acc : (t_aln, c_aln, (match, mism, indel)), ...}  #{ x_acc : X[x_acc] for x_acc in read_partition[t_acc]}
+            edge_specific_reads = { x_acc : X[x_acc] for acc in [c_acc, t_acc] for x_acc in read_partition[acc]}
             if ccs_dict:
-                reduced_ccs_dict_for_test = {x_acc : ccs_dict[x_acc] for x_acc in list(partition_of_X[c_acc] | partition_of_X[t_acc]) if x_acc in ccs_dict} 
+                reduced_ccs_dict_for_test = {x_acc : ccs_dict[x_acc] for x_acc in list(read_partition[c_acc].keys()) + list(read_partition[t_acc].keys()) if x_acc in ccs_dict} 
             else:
                 reduced_ccs_dict_for_test = {}
 
-            statistical_test_edges[c_acc][t_acc] = (c_acc, t_acc, C[c_acc], C[t_acc], reads_to_c, reads_to_t, params.ignore_ends_len, reduced_ccs_dict_for_test, params.max_phred_q_trusted) # ADD ALGINMENTS HERE FOR SPEEDUP
+            statistical_test_edges[c_acc][t_acc] = (c_acc, t_acc, C[c_acc], C[t_acc], reads_to_c, read_alignments_to_t, params.ignore_ends_len, reduced_ccs_dict_for_test, params.max_phred_q_trusted) # ADD ALGINMENTS HERE FOR SPEEDUP
 
     if params.nr_cores == 1:
         for c_acc in statistical_test_edges:
@@ -78,10 +80,10 @@ def statistical_test_helper(arguments):
 
 
 
-def arrange_alignments(t_acc, reads, C, ignore_ends_len):
+def arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, C, ignore_ends_len):
     partition_dict = {t_acc : {}}
-    for x_acc in reads:
-        partition_dict[t_acc][x_acc] = (C[t_acc], reads[x_acc])
+    for x_acc in reads_to_c:
+        partition_dict[t_acc][x_acc] = (C[t_acc], reads_to_c[x_acc])
     for c_acc in C:
             partition_dict[t_acc][c_acc] = (C[t_acc], C[c_acc])
 
@@ -93,13 +95,21 @@ def arrange_alignments(t_acc, reads, C, ignore_ends_len):
     for t_acc in exact_alignments:
         partition_alignments[t_acc] = {}
         for x_acc in exact_alignments[t_acc]:
-            aln_t, aln_x, (matches, mismatches, indels) = exact_alignments[t_acc][x_acc]
+            aln_t, aln_read, (matches, mismatches, indels) = exact_alignments[t_acc][x_acc]
             edit_dist = mismatches + indels
-            partition_alignments[t_acc][x_acc] = (edit_dist, aln_t, aln_x, 1)
+            partition_alignments[t_acc][x_acc] = (edit_dist, aln_t, aln_read, 1)
 
-            x_aln_seq = "".join([n for n in aln_x if n != "-"])
-            if x_acc in reads:
-                assert reads[x_acc] == x_aln_seq
+            x_aln_seq = "".join([n for n in aln_read if n != "-"])
+            if x_acc in reads_to_c:
+                assert reads_to_c[x_acc] == x_aln_seq
+
+    for read_acc in read_alignments_to_t:
+        aln_t, aln_read, (matches, mismatches, indels) = read_alignments_to_t[read_acc]
+        edit_dist = mismatches + indels
+        partition_alignments[t_acc][read_acc] = (edit_dist, aln_t, aln_read, 1)
+        x_aln_seq = "".join([n for n in aln_read if n != "-"])
+        if x_acc in read_alignments_to_t:
+            assert read_alignments_to_t[x_acc] == x_aln_seq
 
     alignment_matrix_to_t, PFM_to_t = functions.create_position_probability_matrix(C[t_acc], partition_alignments[t_acc])
     return alignment_matrix_to_t, PFM_to_t
@@ -107,8 +117,8 @@ def arrange_alignments(t_acc, reads, C, ignore_ends_len):
 
 
 
-def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, reads_to_t, ignore_ends_len, ccs_dict, max_phred_q_trusted):
-    reads = dict(reads_to_c, **reads_to_t) #reads_to_c | reads_to_t
+def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to_t, ignore_ends_len, ccs_dict, max_phred_q_trusted):
+    reads = set(reads_to_c.keys()) | set(read_alignments_to_t.keys())  # dict(reads_to_c, **reads_to_t) #reads_to_c | reads_to_t
     N_t = len(reads)
 
     # no reads supporting neither the candidate nor the reference t
@@ -124,7 +134,7 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, reads_to_t, ignore
             assert reads[x_acc] == ccs_dict[x_acc].seq
 
     # get multialignment matrix here
-    alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads, {c_acc: c_seq,  t_acc: t_seq}, ignore_ends_len)
+    alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, {c_acc: c_seq,  t_acc: t_seq}, ignore_ends_len)
 
     # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
     # these are bases that we disregard when testing varinats
@@ -184,125 +194,120 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, reads_to_t, ignore
 
 
 
-def statistical_test_OLD(t_acc, X, C, partition_of_X, candidates, ignore_ends_len, ccs_dict, max_phred_q_trusted):
-    significance_values = {}
-    t_seq = C[t_acc]
-    if len(candidates) == 0:
-        significance_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
-        return significance_values
+# def statistical_test_OLD(t_acc, X, C, partition_of_X, candidates, ignore_ends_len, ccs_dict, max_phred_q_trusted):
+#     significance_values = {}
+#     t_seq = C[t_acc]
+#     if len(candidates) == 0:
+#         significance_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
+#         return significance_values
 
-    reads = set([x_acc for c_acc in candidates for x_acc in partition_of_X[c_acc]] )
-    reads.update(partition_of_X[t_acc])
+#     reads = set([x_acc for c_acc in candidates for x_acc in partition_of_X[c_acc]] )
+#     reads.update(partition_of_X[t_acc])
 
-    #### Bug FIX ############
-    total_read_in_partition = len(partition_of_X[t_acc])
-    reads_in_partition = set(partition_of_X[t_acc])
-    # print(partition_of_X[t_acc])
-    for c_acc in candidates:
-        # for x_acc in partition_of_X[c_acc]:
-        #     if x_acc in reads_in_partition:
-        #         print("Already in partition:", x_acc)
-        #         print(x_acc in partition_of_X[t_acc])
-        #         print("candidate:", c_acc)
-        #     else:
-        #         reads_in_partition.add(x_acc)
-        total_read_in_partition += len(partition_of_X[c_acc])
-        # print(partition_of_X[c_acc])
+#     #### Bug FIX ############
+#     total_read_in_partition = len(partition_of_X[t_acc])
+#     reads_in_partition = set(partition_of_X[t_acc])
+#     # print(partition_of_X[t_acc])
+#     for c_acc in candidates:
+#         # for x_acc in partition_of_X[c_acc]:
+#         #     if x_acc in reads_in_partition:
+#         #         print("Already in partition:", x_acc)
+#         #         print(x_acc in partition_of_X[t_acc])
+#         #         print("candidate:", c_acc)
+#         #     else:
+#         #         reads_in_partition.add(x_acc)
+#         total_read_in_partition += len(partition_of_X[c_acc])
+#         # print(partition_of_X[c_acc])
 
-    ############################
+#     ############################
 
-    N_t = len(reads)
+#     N_t = len(reads)
 
-    # no reads supporting neither the candidate nor the reference t
-    #  this can happen if after realignment of reads to candidates, all the reads 
-    # to noth c and t got assigned to other candidates -- based on nearest_neighbor graph 
-    # (should be rare) 
-    if N_t == 0: 
-        significance_values[t_acc] = (1.0, 1.0, len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
-        return significance_values
+#     # no reads supporting neither the candidate nor the reference t
+#     #  this can happen if after realignment of reads to candidates, all the reads 
+#     # to noth c and t got assigned to other candidates -- based on nearest_neighbor graph 
+#     # (should be rare) 
+#     if N_t == 0: 
+#         significance_values[t_acc] = (1.0, 1.0, len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
+#         return significance_values
     
 
-    # print("N_t:", N_t, "reads in partition:", total_read_in_partition, "ref:", t_acc )
-    # print("Nr candidates:", len(candidates), candidates)
-    assert total_read_in_partition == N_t # each read should be uiquely assinged to a candidate
-    reads_and_candidates = reads.union( [c_acc for c_acc in candidates]) 
-    reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
+#     # print("N_t:", N_t, "reads in partition:", total_read_in_partition, "ref:", t_acc )
+#     # print("Nr candidates:", len(candidates), candidates)
+#     assert total_read_in_partition == N_t # each read should be uiquely assinged to a candidate
+#     reads_and_candidates = reads.union( [c_acc for c_acc in candidates]) 
+#     reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
 
-    # for x_acc in X:
-    #     assert X[x_acc] == ccs_dict[x_acc].seq
+#     # for x_acc in X:
+#     #     assert X[x_acc] == ccs_dict[x_acc].seq
 
-    # get multialignment matrix here
-    alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_len)
+#     # get multialignment matrix here
+#     alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_len)
 
-    # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
-    # these are bases that we disregard when testing varinats
-    # We get individual cut positions depending on which candidate is being tested -- we dont want to include ends spanning over the reference or candidate
-    # we cut at the start position in c or t that comes last, and the end position in c or t that comes first
-    assert len(list(candidates)) == 1
-    for c_acc in list(candidates):
-        if ignore_ends_len > 0:
-            alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
+#     # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
+#     # these are bases that we disregard when testing varinats
+#     # We get individual cut positions depending on which candidate is being tested -- we dont want to include ends spanning over the reference or candidate
+#     # we cut at the start position in c or t that comes last, and the end position in c or t that comes first
+#     assert len(list(candidates)) == 1
+#     for c_acc in list(candidates):
+#         if ignore_ends_len > 0:
+#             alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
 
-        # get parameter estimates for statistical test
-        candidate_accessions = set( [ c_acc for c_acc in candidates] )
-        delta_t = functions.get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
-        # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
-        x = functions.reads_supporting_candidate(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
+#         # get parameter estimates for statistical test
+#         candidate_accessions = set( [ c_acc for c_acc in candidates] )
+#         delta_t = functions.get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
+#         # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
+#         x = functions.reads_supporting_candidate(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
         
-        if ccs_dict:
-            insertions, deletions, substitutions = functions.get_errors_for_partitions(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
-            invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)
-            # empirical_probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
-            # min_uncertainty = functions.get_min_uncertainty_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t, invariant_factors_for_candidate) 
+#         if ccs_dict:
+#             insertions, deletions, substitutions = functions.get_errors_for_partitions(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
+#             invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)
+#             # empirical_probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
+#             # min_uncertainty = functions.get_min_uncertainty_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t, invariant_factors_for_candidate) 
 
-            probability = functions.get_ccs_position_prob_per_read(t_acc, len(t_seq), alignment_matrix_to_t, invariant_factors_for_candidate, candidate_accessions, delta_t, ccs_dict, insertions, deletions, substitutions, max_phred_q_trusted) 
-            # weight = {q_acc : ccs_info.p_error_to_qual(ccs_probability[q_acc]) for q_acc in ccs_probability.keys()}
-            # print("emp:", sum( list(empirical_probability.values()) ), candidate_accessions )
-            # print("ccs:", sum( list(probability.values()) ), candidate_accessions )
-            # print("Max:", sum( [ max(ccs_probability[q_acc], min_uncertainty[q_acc] ) for q_acc in ccs_probability] ), candidate_accessions )
-            # probability = {  q_acc : max(ccs_probability[q_acc], min_uncertainty[q_acc] ) for q_acc in ccs_probability }
-        else:
-            errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
-            # weight = functions.get_weights_per_read(t_acc, len(t_seq), candidate_accessions, errors) 
-            invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)
-            probability = functions.get_prob_of_error_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
+#             probability = functions.get_ccs_position_prob_per_read(t_acc, len(t_seq), alignment_matrix_to_t, invariant_factors_for_candidate, candidate_accessions, delta_t, ccs_dict, insertions, deletions, substitutions, max_phred_q_trusted) 
+#             # weight = {q_acc : ccs_info.p_error_to_qual(ccs_probability[q_acc]) for q_acc in ccs_probability.keys()}
+#             # print("emp:", sum( list(empirical_probability.values()) ), candidate_accessions )
+#             # print("ccs:", sum( list(probability.values()) ), candidate_accessions )
+#             # print("Max:", sum( [ max(ccs_probability[q_acc], min_uncertainty[q_acc] ) for q_acc in ccs_probability] ), candidate_accessions )
+#             # probability = {  q_acc : max(ccs_probability[q_acc], min_uncertainty[q_acc] ) for q_acc in ccs_probability }
+#         else:
+#             errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
+#             # weight = functions.get_weights_per_read(t_acc, len(t_seq), candidate_accessions, errors) 
+#             invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)
+#             probability = functions.get_prob_of_error_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
 
-        #TODO: do exact only if partition less than, say 200? Otherwise poisson approx
-        # p_value = CLT_test(probability, weight, x)
-        # p_value = poisson_approx_test(probability, weight, x)
-        # p_value = exact_test(probability, weight, x)
-        # print("exact p:", p_value )
-        # print()
-        # print(sorted(errors.values()))
-        # print(sorted(probability.values()))
-        # print("Weighted raghavan p:", p_value )
+#         #TODO: do exact only if partition less than, say 200? Otherwise poisson approx
+#         # p_value = CLT_test(probability, weight, x)
+#         # p_value = poisson_approx_test(probability, weight, x)
+#         # p_value = exact_test(probability, weight, x)
+#         # print("exact p:", p_value )
+#         # print()
+#         # print(sorted(errors.values()))
+#         # print(sorted(probability.values()))
+#         # print("Weighted raghavan p:", p_value )
 
-        delta_size = len(delta_t[c_acc])
-        variant_types = "".join([ str(delta_t[c_acc][j][0]) for j in  delta_t[c_acc] ])
-        if delta_size == 0:
-            print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
-            p_value = 0.0
-        else:
-            p_value = raghavan_upper_pvalue_bound(probability, x)
-
-
-        # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, correction_factor, p_value * correction_factor,  len(x), N_t, delta_size) )
-        # significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
-        if ccs_dict:
-            # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
-            significance_values[c_acc] = (p_value, 1.0, len(x), N_t, variant_types)
-        else:
-            correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
-            # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
-            significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, variant_types)
-
-    return significance_values
+#         delta_size = len(delta_t[c_acc])
+#         variant_types = "".join([ str(delta_t[c_acc][j][0]) for j in  delta_t[c_acc] ])
+#         if delta_size == 0:
+#             print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
+#             p_value = 0.0
+#         else:
+#             p_value = raghavan_upper_pvalue_bound(probability, x)
 
 
+#         # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, correction_factor, p_value * correction_factor,  len(x), N_t, delta_size) )
+#         # significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
+#         if ccs_dict:
+#             # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
+#             significance_values[c_acc] = (p_value, 1.0, len(x), N_t, variant_types)
+#         else:
+#             correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
+#             # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
+#             significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, variant_types)
 
+#     return significance_values
 
-from decimal import * 
-getcontext().prec = 100
 
 def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
     """ 

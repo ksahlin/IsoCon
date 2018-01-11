@@ -29,18 +29,18 @@ from modules import end_invariant_functions
 from modules import ccs_info
 
 
-# def vizualize_test_graph(C_seq_to_acc, partition_of_X, partition_of_C):
+# def vizualize_test_graph(C_seq_to_acc, read_partition, partition_of_C):
 #     import networkx as nx
 #     import matplotlib.pyplot as plt
 #     D=nx.DiGraph()
 #     lables = {}
 #     for c1 in partition_of_C:
 #         c1_acc = C_seq_to_acc[c1]
-#         reads_to_c1 = [X[x_acc] for x_acc in  partition_of_X[c1_acc] ]
+#         reads_to_c1 = [X[x_acc] for x_acc in  read_partition[c1_acc] ]
 #         w_c1 = len(reads_to_c1)
 #         for c2 in  partition_of_C[c1]:
 #             c2_acc = C_seq_to_acc[c2]
-#             reads_to_c2 = [X[x_acc] for x_acc in  partition_of_X[c2_acc] ]
+#             reads_to_c2 = [X[x_acc] for x_acc in  read_partition[c2_acc] ]
 #             w_c2 = len(reads_to_c2)
 #             D.add_edge(c2,c1, weight = str(w_c2) + "->" + str(w_c1)  )
 #     labels = nx.get_edge_attributes(D, 'weight')
@@ -146,15 +146,16 @@ def get_nearest_neighbor_graph(candidate_transcripts):
 #     ###################################################################
 #     ###################################################################
 
-def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign, params):
+def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign, params):
     modified = True
 
     ############ GET READS AND CANDIDATES #################
     X_original = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
     print("Total original reads", len(X_original))
-    x_assigned_to_cluster = set([ x_acc for c_acc in partition_of_X for x_acc in partition_of_X[c_acc] ])
-    X = {acc: seq for (acc, seq) in X_original.items() if acc in x_assigned_to_cluster or acc in  to_realign }    # just set X to partition_of_X + to_realign here
+    x_assigned_to_cluster = set([ x_acc for c_acc in read_partition for x_acc in read_partition[c_acc] ])
+    X = {acc: seq for (acc, seq) in X_original.items() if acc in x_assigned_to_cluster or acc in to_realign }    # just set X to read_partition + to_realign here
 
+    print("Original reads in fasta file:", len(X_original))
     print("Reads included in statistical testing:", len(X))
     if os.stat(candidate_file).st_size == 0:
         out_file_name = os.path.join(params.outfolder, "final_candidates.fa")
@@ -164,10 +165,6 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         sys.exit(0)
     else:
         C = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(candidate_file, 'r'))}
-
-    # # realign everything
-    # to_realign = X      
-    # partition_of_X = { c_acc : set() for c_acc in C.keys()}
 
     ################################################################
 
@@ -179,20 +176,6 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         ccs_dict = ccs_info.modify_strings_and_acc(ccs_dict_raw, X_ids, X)
         for x_acc in X:
             assert X[x_acc] == ccs_dict[x_acc].seq
-            # if "GTTCGACAGCTCAACCTCTATGGATTTAGTAAAATTCAAC" in ccs_dict[x_acc].seq:
-            #     print("rare variant in read!", x_acc)
-        # print("BUG SEARCH")
-        # for q_acc in partition_of_X["transcript_3_support_15"]:
-        #     print()
-        #     ccs_record = ccs_dict[q_acc]
-        #     # print(ccs_record.qual[575:610], ccs_record.seq[575:610])
-        #     index = ccs_record.seq.find("TCAGCCTCT")
-        #     print(ccs_record.qual[index + 9:index + 15], ccs_record.seq[index + 9:index + 15])
-        #     p_error = ccs_record.get_p_error_in_base(index+ 9)
-        #     print(ccs_record.seq)
-        #     # print(X[q_acc])
-        #     print(index, p_error, "supporting transcript_3_support_15")
-        # sys.exit()
 
     else:
         ccs_dict = {}
@@ -205,7 +188,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
     print("Number of reads to realign:", len(to_realign))
     step = 1
     prefilter = True
-    previous_partition_of_X = copy.deepcopy(partition_of_X) #{ c_acc : set() for c_acc in C.keys()}
+    previous_partition_of_X = copy.deepcopy(read_partition) #{ c_acc : set() for c_acc in C.keys()}
     previous_components = { c_acc : set() for c_acc in C.keys()}
     previous_edges = { c_acc : set() for c_acc in C.keys()}
     significance_values = {}   
@@ -229,23 +212,16 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         temp_candidate_file.close()
         #######################################################
 
-        # # create partition
-        # partition_of_X = { c_acc : set() for c_acc in C.keys()}
-        # for x_acc in alignments_of_x_to_c:
-        #     for c_acc in alignments_of_x_to_c[x_acc]:
-        #         partition_of_X[c_acc].add(x_acc)
-
         if params.verbose:
-            for c_acc in partition_of_X:
-                print(c_acc, "has {0} reads assigned to it.".format(len(partition_of_X[c_acc])))
+            for c_acc in read_partition:
+                print(c_acc, "has {0} reads assigned to it.".format(len(read_partition[c_acc])))
 
         ############ GET READ SUPORT AND ALIGNMENTS #################
 
         if realignment_to_avoid_local_max == 1:
             print("REALIGNING EVERYTHING FINAL STEP")
             to_realign = X      
-            partition_of_X = { c_acc : set() for c_acc in C.keys()}
-            # alignments_of_x_to_c = {}
+            read_partition = { c_acc : {} for c_acc in C.keys()}
 
 
 
@@ -253,18 +229,29 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
             print(len(to_realign), "reads to realign.")
             write_output.print_reads(remaining_to_align_read_file, to_realign)
             # align reads that is not yet assigned to candidate here
-            G_star_rem, partition_of_remaining_X = partitions.partition_strings_2set(to_realign, C, remaining_to_align_read_file, temp_candidate_file.name, params)
+            G_star_rem, partition_of_realigned_reads = partitions.partition_strings_2set(to_realign, C, remaining_to_align_read_file, temp_candidate_file.name, params)
+            realigned_reads_to_candidates = {}
+            for c_acc in partition_of_realigned_reads:
+                realigned_reads_to_candidates[c_acc] = {}
+                for read_acc in partition_of_realigned_reads[c_acc]:
+                    realigned_reads_to_candidates[c_acc][read_acc] = (C[c_acc], X[read_acc]) 
+
+            edit_distances_of_c_to_reads = edlib_align_sequences_keeping_accession(realigned_reads_to_candidates, nr_cores = params.nr_cores)
+            alignments_of_c_to_reads = sw_align_sequences_keeping_accession(edit_distances_of_c_to_reads, nr_cores = params.nr_cores)
+
+            # structure: read_partition[c_acc][read_acc] = (c_aln, read_aln, (matches, mismatches, indels))
 
             # add reads to best candidate given new alignments
-            for c_acc in partition_of_remaining_X:
-                partition_of_X[c_acc].update(partition_of_remaining_X[c_acc])
-                if len(partition_of_X[c_acc]) == 0:
+            for c_acc in alignments_of_c_to_reads:
+                for read_acc in alignments_of_c_to_reads[c_acc]:
+                    read_partition[c_acc][read_acc] = alignments_of_c_to_reads[c_acc][read_acc]
+                if len(read_partition[c_acc]) == 0:
                     print(c_acc, "removed as it has no supporting reads")
                     del C[c_acc]
-                    del partition_of_X[c_acc]
+                    del read_partition[c_acc]
                 else:
                     if params.verbose:
-                        print(c_acc, "Now has {0} reads assigned to it, after aligning reads that are not assigned.".format(len(partition_of_X[c_acc])))
+                        print(c_acc, "Now has {0} reads assigned to it, after aligning reads that are not assigned.".format(len(read_partition[c_acc])))
 
             # add the alignments to alignment structure
             # for x_acc in remaining_alignments_of_x_to_c.keys():
@@ -297,14 +284,14 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         for c_acc in list(nearest_neighbor_graph.keys()):
             # skip to test candidates with more reads than their respective references, because its redundant computation that will lead to significant values anyway..
             # for c_acc in nearest_neighbor_graph[t_acc].keys():
-            #     if len(partition_of_X[c_acc]) >= 2*len(partition_of_X[t_acc]):
+            #     if len(read_partition[c_acc]) >= 2*len(read_partition[t_acc]):
             #         print("skipping test for dominant candidate {0} to ref {1}".format(c_acc, t_acc))
             #         del nearest_neighbor_graph[t_acc][c_acc]
             previous_significance_values[c_acc] = {}
             to_remove = set()
             for t_acc in list(nearest_neighbor_graph[c_acc].keys()):
-                if (c_acc, t_acc) in previous_edges[c_acc] and ( previous_partition_of_X[t_acc] == partition_of_X[t_acc] ) and  (previous_partition_of_X[c_acc] == partition_of_X[c_acc]):
-                    # print("here", (c_acc, t_acc) in previous_edges[c_acc] and ( previous_partition_of_X[t_acc] == partition_of_X[t_acc] ) and  (previous_partition_of_X[c_acc] == partition_of_X[c_acc]))
+                if (c_acc, t_acc) in previous_edges[c_acc] and ( previous_partition_of_X[t_acc] == read_partition[t_acc] ) and  (previous_partition_of_X[c_acc] == read_partition[c_acc]):
+                    # print("here", (c_acc, t_acc) in previous_edges[c_acc] and ( previous_partition_of_X[t_acc] == read_partition[t_acc] ) and  (previous_partition_of_X[c_acc] == read_partition[c_acc]))
                     previous_significance_values[c_acc][t_acc] = significance_values[c_acc][t_acc]
                     to_remove.add((c_acc, t_acc))
                     if params.verbose:
@@ -325,7 +312,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         nr_of_tests_this_round = len([ 1 for c_acc in nearest_neighbor_graph for t_acc in nearest_neighbor_graph[c_acc] ] )
         print("NUMBER OF CANDIDATES LEFT:", len(C), ". Number statistical tests in this round:", nr_of_tests_this_round)
         if nr_of_tests_this_round > 0:
-            new_significance_values = hypothesis_test_module.do_statistical_tests_per_edge(nearest_neighbor_graph, C, X, partition_of_X, ccs_dict, params )
+            new_significance_values = hypothesis_test_module.do_statistical_tests_per_edge(nearest_neighbor_graph, C, X, read_partition, ccs_dict, params )
             
             for c_acc in new_significance_values:
                 for t_acc in new_significance_values[c_acc]:
@@ -340,7 +327,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
         highest_significance_values = {}
         for c_acc in significance_values:
             p_val_max = 0.0
-            highest = (c_acc, "", "not_tested", 1.0, "NA", len(partition_of_X[c_acc]), "") 
+            highest = (c_acc, "", "not_tested", 1.0, "NA", len(read_partition[c_acc]), "") 
             for t_acc in significance_values[c_acc]:
                 (p_value, mult_factor_inv, k, N_t, variants) = significance_values[c_acc][t_acc]
                 if p_value >= p_val_max:
@@ -363,7 +350,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
                 p_val_threshold = corrected_pvals_median if corrected_pvals_median > params.p_value_threshold else params.p_value_threshold
                 print("Filtering threshold (p_val*mult_correction_factor):",  p_val_threshold)
 
-        previous_partition_of_X = copy.deepcopy(partition_of_X)
+        previous_partition_of_X = copy.deepcopy(read_partition)
         to_realign = {}
         for c_acc, (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants) in highest_significance_values.items():
             if p_value == "not_tested":
@@ -375,9 +362,9 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
                 print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "variants:", variants )
                 del C[c_acc] 
                 modified = True
-                for x_acc in partition_of_X[c_acc]:
+                for x_acc in read_partition[c_acc]:
                     to_realign[x_acc] = X[x_acc]
-                del partition_of_X[c_acc]
+                del read_partition[c_acc]
 
 
         print("nr candidates left:", len(C))
@@ -390,7 +377,7 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
             break
 
         # print("LEN SIGN:", len(significance_values), len(C))
-        write_output.print_candidates(candidate_file, C, highest_significance_values, partition_of_X, X, params)
+        write_output.print_candidates(candidate_file, C, highest_significance_values, read_partition, X, params)
 
         # do a last realingment to avoind local maxima of reads
 
@@ -407,6 +394,6 @@ def stat_filter_candidates(read_file, candidate_file, partition_of_X, to_realign
 
     final_out_file_name =  os.path.join(params.outfolder, "final_candidates.fa")
     tsv_info = os.path.join(params.outfolder, "cluster_info.tsv")
-    write_output.print_candidates(final_out_file_name, C, highest_significance_values, partition_of_X, X, params, final = True, reads_to_consensus_tsv = tsv_info)
+    write_output.print_candidates(final_out_file_name, C, highest_significance_values, read_partition, X, params, final = True, reads_to_consensus_tsv = tsv_info)
 
     return C

@@ -425,11 +425,11 @@ def get_errors_per_read(target_accession, segment_length, c_acc, alignment_matri
 
 def reads_supporting_candidate(target_accession, c_acc, alignment_matrix, Delta_t, reads):
     x = []
-    for q_acc in reads:
-        if q_acc not in alignment_matrix:
-            print("READ {0} ALIGNED TO {1} BUT FAILED TO ALIGN TO {2}".format(q_acc, c_acc, target_accession) )
+    for read_acc in reads:
+        if read_acc not in alignment_matrix:
+            print("READ {0} ALIGNED TO {1} BUT FAILED TO ALIGN TO {2}".format(read_acc, c_acc, target_accession) )
             continue
-        query_alignment = alignment_matrix[q_acc]    
+        query_alignment = alignment_matrix[read_acc]    
         support = 1
         for delta in Delta_t[c_acc]:
             q_base = query_alignment[delta]
@@ -438,7 +438,7 @@ def reads_supporting_candidate(target_accession, c_acc, alignment_matrix, Delta_
                 support = 0
 
         if support:
-            x.append(q_acc)
+            x.append(read_acc)
     return x
 
 

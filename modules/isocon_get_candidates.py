@@ -324,68 +324,17 @@ def find_candidate_transcripts(read_file, params):
         if acc not in alignments_of_x_to_m_filtered:
             if acc not in not_converged:
                 to_realign[acc] = seq
+    
+    read_partition = functions.transpose(alignments_of_x_to_m_filtered)
+    for c_acc in read_partition:
+        for read_acc in read_partition[c_acc]:
+            read_aln, c_aln, (matches, mismatches, indels) = read_partition[c_acc][read_acc]
+            read_partition[c_acc][read_acc] = (c_aln, read_aln, (matches, mismatches, indels))
+    # assert set(read_partition.keys()) == set(partition_of_X.keys())
+    # for c_acc in read_partition:
+    #     assert set(read_partition[c_acc].keys()) == set(partition_of_X[c_acc])
 
-    return candidates_file_name, partition_of_X, to_realign 
-
-
-
-# def collapse_contained_sequences(alignments_of_x_to_m, C, params):
-#     print("Number nearest_neighbors before collapsing identical super strings of a string:", len(C))
-
-#     alignments_of_x_to_m_transposed = transpose(alignments_of_x_to_m)   
-#     m_to_acc = {}
-#     C_sorted_strings = sorted(C, key=lambda m: len(m))
-#     for i, m in enumerate(sorted(C, key=len)):
-#         print("length:",len(m))
-#         if i == len(C_sorted_strings) - 1:
-#             print("last sequence, skipping!") 
-#             break
-#         if m in C:
-#             # support = C[m]
-#             all_perfect_super_strings = find_all_perfect_superstrings(m, i, C_sorted_strings, params.ignore_ends_len)
-#             if len(all_perfect_super_strings) > 0:
-#                 print("number of superstrings:", len(all_perfect_super_strings))
-#             for ss in all_perfect_super_strings: # remove super string of m and move all reads supporting ss to m
-#                 if ss in C: # has not already been collapsed from shorter perfect substring
-#                     reads_to_ss = alignments_of_x_to_m_transposed[ss]
-#                     alignments_of_x_to_m_transposed[m].update(reads_to_ss)
-#                     C[m] += len(reads_to_ss)
-#                     del alignments_of_x_to_m_transposed[ss]
-#                     del C[ss]
-#                 else:
-#                     print("Already collapsed")
-#                     assert ss not in alignments_of_x_to_m_transposed
-
-#         else:
-#             print("seq was a superstring") 
-
-#     alignments_of_x_to_m = transpose(alignments_of_x_to_m_transposed)
-#     print("Number nearest_neighbors after collapsing identical super strings of a string:", len(C))
-#     return alignments_of_x_to_m, C
-
-
-# def find_all_perfect_superstrings(m, i, C_sorted_strings, ignore_ends_len):
-#     all_super_strings = set()
-#     for j in range(i+1, len(C_sorted_strings)):
-#         under_diff = True
-#         ss_candidate = C_sorted_strings[j]
-        
-#         # Stop criterion here if ss_length is longer than m + 2*ignore_ends_len we can stop searching since strings are sorteb by length
-#         if len(ss_candidate) - len(m) > 2*ignore_ends_len:
-#             break
-
-#         ed, locations, cigar = edlib_traceback(m, ss_candidate, mode="HW", task="locations", k=0)
-#         for start, stop in locations:
-#             if start > ignore_ends_len or len(ss_candidate) - stop - 1  > ignore_ends_len:
-#                 print("perfect but larger diff than ignore_ends_len:", start, len(ss_candidate) - stop - 1 )
-#                 under_diff = False
-#                 break
-
-#         if ed == 0 and under_diff: # candidate was perfect super string and not too large discrepancy
-#             print("perfect ss, start and stop on ss: {0}".format(locations))
-#             all_super_strings.add(ss_candidate)
-
-#     return all_super_strings
+    return candidates_file_name, read_partition, to_realign
 
 
 
@@ -446,7 +395,7 @@ def filter_candidates(alignments_of_x_to_c, C, params):
             aln_x, aln_m, (matches, mismatches, indels) = alignments_of_x_to_m_filtered[x_acc][m]
             del alignments_of_x_to_m_filtered[x_acc][m]
             ed =  mismatches + indels
-            alignments_of_x_to_m_filtered[x_acc][m_acc] = (ed, aln_x, aln_m)
+            alignments_of_x_to_m_filtered[x_acc][m_acc] = (aln_x, aln_m, (matches, mismatches, indels))
 
     return alignments_of_x_to_m_filtered, m_to_acc, C, partition_of_X
 

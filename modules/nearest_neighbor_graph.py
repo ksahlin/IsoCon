@@ -299,7 +299,7 @@ def compute_nearest_neighbor_graph(S, has_converged, params):
 
 def get_exact_nearest_neighbor_graph_2set(seq_to_acc_list_sorted_all, target_accessions, params):
 
-    if params.nr_cores:
+    if params.nr_cores == 1:
         best_edit_distances = get_nearest_neighbors_2set(seq_to_acc_list_sorted_all, 0, seq_to_acc_list_sorted_all, target_accessions, params.neighbor_search_depth)
 
         # implement check here to se that all seqs got a nearest_neighbor, if not, print which noes that did not get a nearest_neighbor computed.!
@@ -309,8 +309,8 @@ def get_exact_nearest_neighbor_graph_2set(seq_to_acc_list_sorted_all, target_acc
         # pool = Pool(processes=mp.cpu_count())
         original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
         signal.signal(signal.SIGINT, original_sigint_handler)
-        pool = Pool(processes=mp.cpu_count())
-        chunk_size = max(int(len(seq_to_acc_list_sorted_all) / (10*mp.cpu_count())), 20 )
+        pool = Pool(processes=params.nr_cores)
+        chunk_size = max(int(len(seq_to_acc_list_sorted_all) / (10*params.nr_cores)), 20 )
         chunks = [(i, seq_to_acc_list_sorted_all[i:i + chunk_size]) for i in range(0, len(seq_to_acc_list_sorted_all), chunk_size)] 
         print([i for i in range(0, len(seq_to_acc_list_sorted_all), chunk_size)])
         print([len(ch) for i,ch in chunks])
