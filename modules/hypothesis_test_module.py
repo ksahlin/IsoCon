@@ -110,7 +110,7 @@ def arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, C, ignore_ends_l
         x_aln_seq = "".join([n for n in aln_read if n != "-"])
         if x_acc in read_alignments_to_t:
             assert read_alignments_to_t[x_acc] == x_aln_seq
-
+    print("saved re-aligning",len(read_alignments_to_t), "sequences")
     alignment_matrix_to_t = functions.create_multialignment_matrix(C[t_acc], partition_alignments[t_acc])
     # PFM_to_t = functions.create_position_frequency_matrix(alignment_matrix_to_t, partition_alignments[t_acc])
 

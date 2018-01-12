@@ -512,6 +512,22 @@ def create_multialignment_matrix(m, partition):
         query_to_target_positioned_dict[q_acc] = (s_positioned, target_vector_start_position, target_vector_end_position)
 
     alignment_matrix = create_multialignment_format(query_to_target_positioned_dict, 0, 2*len(m))
+    # print(len(alignment_matrix[q_acc]))
+    # alignment_matrix_slow = create_multialignment_format_slow(query_to_target_positioned_dict, 0, 2*len(m))
+    # print(len(alignment_matrix_slow[q_acc]))
+    # for q_acc in alignment_matrix_slow:
+    #     for pos in range(len(alignment_matrix_slow[q_acc])):
+    #         if alignment_matrix_slow[q_acc][pos] != alignment_matrix[q_acc][pos]:
+    #             print(pos)
+    #             for q_tmp in alignment_matrix_slow:
+    #                 print(alignment_matrix_slow[q_tmp][pos -10 : pos + 10])
+    #             print("NNEEEEEEW")
+    #             for q_tmp in alignment_matrix:
+    #                 print(alignment_matrix[q_tmp][pos -10 : pos + 10])
+
+                # sys.exit()
+    # assert alignment_matrix == alignment_matrix_slow
+    
 
     # N_t = sum([container_tuple[3] for q_acc, container_tuple in partition.items()]) # total number of sequences in partition
     # print("total seq multiset:", N_t, "total seqs in set:", len(partition))
@@ -570,6 +586,7 @@ def position_query_to_alignment(query_aligned, target_aligned, target_alignment_
 
 
 
+
 def create_multialignment_format(query_to_target_positioned_dict, start, stop):
     """
         only create multialignment format of the query sequences that cover the region [start,stop] start stop is the vector 
@@ -601,10 +618,18 @@ def create_multialignment_format(query_to_target_positioned_dict, start, stop):
             
             max_ins_len = len(max_insertion)
             all_max_ins = set([ins for (ins, acc) in insertions if len(ins) == max_ins_len])
-            # if max_ins_len > 4:
-            #     print(j, all_max_ins, max_insertion, q_acc_max_ins)
-            # if len(all_max_ins) > 1 and max_ins_len == 2:
-            #     print("pos", j, all_max_ins)
+
+            # longest insertion is one base pair, there is a fixed quich arrangement
+            if max_ins_len == 1:                
+                # for q_acc in segments:
+                #     alignment_matrix[q_acc].append('-')
+                #     alignment_matrix[q_acc].append(segments[q_acc][j])
+                #     alignment_matrix[q_acc].append('-')
+                for q_acc in segments:
+                    alignment_matrix[q_acc].append(segments[q_acc][j])
+                continue
+
+
             max_insertion = sorted(all_max_ins)[0] 
             max_insertion = "-" + max_insertion + "-"  # pad the max insertion
 
@@ -682,6 +707,126 @@ def create_multialignment_format(query_to_target_positioned_dict, start, stop):
                 alignment_matrix[q_acc].append(segments[q_acc][j])
     # print(alignment_matrix)
     return alignment_matrix
+
+
+
+
+
+
+
+# def create_multialignment_format_slow(query_to_target_positioned_dict, start, stop):
+#     """
+#         only create multialignment format of the query sequences that cover the region [start,stop] start stop is the vector 
+#         coordinates where vector is of size 2*len(target) + 1
+#     """
+#     assert len(query_to_target_positioned_dict) > 0
+#     target_vector_length = len( list(query_to_target_positioned_dict.values())[0][0])
+#     assert stop < target_vector_length # vector coordinates are 0-indexed
+
+#     # get allreads alignments covering interesting segment
+#     # row_accessions = []
+#     segments = {}
+#     for q_acc, (q_to_t_pos, t_vector_start, t_vector_end) in query_to_target_positioned_dict.items():
+#         if t_vector_start <= start and t_vector_end >= stop: # read cover region
+#             segment = q_to_t_pos[start - t_vector_start : stop - t_vector_start +1 ]
+#             # row_accessions.append(q_acc)
+#             segments[q_acc] = segment
+
+
+#     # create alignment matrix of segment
+#     alignment_matrix = {}
+#     for q_acc in segments:
+#         alignment_matrix[q_acc] = []
+
+#     for j in range(0, stop - start + 1):
+#         if (start + j) % 2 == 0:  # we are between a target base pairs (need to check the longest one)
+#             insertions = [(segments[q_acc][j], q_acc) for q_acc in segments]
+#             max_insertion, q_acc_max_ins = max(insertions, key= lambda x : len(x[0]))
+            
+#             max_ins_len = len(max_insertion)
+#             all_max_ins = set([ins for (ins, acc) in insertions if len(ins) == max_ins_len])
+#             # if max_ins_len > 4:
+#             #     print(j, all_max_ins, max_insertion, q_acc_max_ins)
+#             # if len(all_max_ins) > 1 and max_ins_len == 2:
+#             #     print("pos", j, all_max_ins)
+#             max_insertion = sorted(all_max_ins)[0] 
+#             max_insertion = "-" + max_insertion + "-"  # pad the max insertion
+
+#             for q_acc in segments:
+#                 # check if identical substring in biggest insertion first:
+#                 q_ins = segments[q_acc][j]
+#                 q_insertion_modified = ""
+
+#                 if q_ins == "-":
+#                     # print("LOOL")
+#                     q_insertion_modified = "-"*len(max_insertion)
+
+#                 if not q_insertion_modified:
+#                     pos = max_insertion.find(q_ins) 
+#                     q_insertion_modified = ""
+#                     if pos >=0:
+#                         if pos >= 1:
+#                             pass
+#                             # print("here perfect new!! q: {0} max: {1}, new q_ins:{2}".format(q_ins, max_insertion,  "-"*pos + max_insertion[ pos : pos + len(q_ins) ] + "-"* len(max_insertion[ pos + len(q_ins) : ])))
+                        
+#                         q_insertion_modified = "-"*pos + max_insertion[ pos : pos + len(q_ins) ] + "-"* len(max_insertion[ pos + len(q_ins) : ])
+
+
+#                 if not q_insertion_modified:
+#                     # else, check if smaller deletion can be aligned from left to write, e.g. say max deletion is GACG
+#                     # then an insertion AG may be aligned as -A-G. Take this alignment instead
+#                     q_insertion_modified = min_ed(max_insertion, q_ins)
+#                     # q_insertion_modified = thread_to_max_ins(max_insertion, q_ins)
+#                     # if q_insertion_modified:
+#                     #     print("new threaded:", q_insertion_modified2)
+#                     #     print("threaded:", q_insertion_modified)
+
+#                 if not q_insertion_modified:
+#                     # otherwise just shift left
+#                     # print("Not solved: q:{0}, max: {1}".format(q_ins, max_insertion))
+#                     # check if there is at least one matching character we could align to
+#                     max_p = 0
+#                     max_matches = 0
+#                     for p in range(0, len(max_insertion) - len(q_ins) + 1 ):
+#                         nr_matches = len([1 for c1, c2 in zip(q_ins, max_insertion[p: p + len(q_ins) ] ) if c1 == c2])
+#                         if nr_matches > max_matches:
+#                             max_p = p
+#                             max_matches = nr_matches
+
+#                     if max_p > 0:
+#                         q_insertion_modified = "-"*max_p + q_ins + "-"*len(max_insertion[max_p + len(q_ins) : ])
+#                         # print("specially solved: q:{0} max:{1} ".format(q_insertion_modified, max_insertion) )
+
+#                 if not q_insertion_modified:
+#                     q_insertion_modified = []
+#                     for p in range(len(max_insertion)):
+#                         # all shorter insertions are left shifted -- identical indels are guaranteed to be aligned
+#                         # however, no multialignment is performed among the indels
+#                         if p < len(q_ins):
+#                             q_insertion_modified.append(q_ins[p])
+#                         else:
+#                             q_insertion_modified.append("-")
+                
+#                 # if max_ins_len > 4:
+#                 #     print("q:{0} max:{1},q_original:{2} ".format(q_insertion_modified, max_insertion, q_ins) )
+
+#                 # if q_ins != "-" and q_ins != "".join([n for n in q_insertion_modified if n != "-"]):
+#                 #     print("BUG: q:{0} max:{1},q_original:{2} pos:{3}, new:{4} ".format(q_insertion_modified, max_insertion, q_ins, j, q_insertion_modified2) )
+#                 #     # sys.exit()
+
+#                 #### finally add to alignment matrix
+#                 # if len(q_insertion_modified) != len(max_insertion):
+#                 #     print(q_insertion_modified, max_insertion, q_ins)
+#                 assert len(q_insertion_modified) == len(max_insertion)
+#                 for p in range(len(max_insertion)):
+#                     alignment_matrix[q_acc].append(q_insertion_modified[p])
+
+#         else: # we are on a target base pair -- all varinats must be exactly A,C,G,T, - i.e., length 1
+#             for q_acc in segments:
+#                 alignment_matrix[q_acc].append(segments[q_acc][j])
+#     # print(alignment_matrix)
+#     return alignment_matrix
+
 
 
 def min_ed(max_insertion, q_ins):
