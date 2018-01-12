@@ -299,6 +299,8 @@ def find_candidate_transcripts(read_file, params):
     candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
     write_output.print_candidates_from_nearest_neighbors(candidates_file_name, c_acc_to_seq, params)
     # sys.exit()
+    not_converged_reads = open(os.path.join(params.outfolder, "not_converged.fa"), "w")
+    not_converged_reads.close()
 
     return candidates_file_name, read_partition, to_realign
 
