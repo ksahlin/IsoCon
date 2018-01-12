@@ -5,7 +5,6 @@ import datetime
 
 from modules.SW_alignment_module import sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences_keeping_accession
-from modules.functions import create_position_probability_matrix, transpose
 
 def logger(message, logfile, timestamp=True):
     if timestamp:

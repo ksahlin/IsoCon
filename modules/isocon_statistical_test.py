@@ -17,7 +17,7 @@ from itertools import combinations
 from time import time
 import pysam
 
-from modules.functions import transpose, create_position_probability_matrix
+# from modules.functions import transpose, create_position_probability_matrix
 from modules import functions
 from modules import partitions
 from modules import graphs

@@ -442,7 +442,34 @@ def reads_supporting_candidate(target_accession, c_acc, alignment_matrix, Delta_
     return x
 
 
-def create_position_probability_matrix(m, partition):
+def create_position_frequency_matrix(alignment_matrix, partition):
+    # PFM = []
+    nr_columns = len( alignment_matrix[ list(alignment_matrix)[0] ]) # just pick a key
+
+    # for j in range(nr_columns): # for each column
+    #     PFM.append({"A": 0, "C": 0, "G": 0, "T": 0, "-": 0})
+    #     for s in alignment_matrix:
+    #         nucl = alignment_matrix[s][j]
+    #         indegree = partition[s][3]
+    #         PFM[j][nucl] += indegree
+
+    PFM2 = [{"A": 0, "C": 0, "G": 0, "T": 0, "-": 0} for j in range(nr_columns)]
+    for s in alignment_matrix:
+        s_aln = alignment_matrix[s]
+        indegree = partition[s][3]
+        for j in range(nr_columns): # for each column
+            nucl = s_aln[j]
+            PFM2[j][nucl] += indegree
+
+    # print(len(PFM), len(PFM2))
+    # assert PFM == PFM2
+    # for p in range(len(PFM)):
+    #     assert PFM[p] == PFM2[p]
+    #     print(PFM[p] == PFM2[p])
+    return PFM2
+
+
+def create_multialignment_matrix(m, partition):
     """
         a partition is a dictionary of pairwise alignments for a given center m. "partition has the following
         structure:  partition = {s : (edit_distance, m_alignment, s_alignment, degree_of_s)}
@@ -488,15 +515,16 @@ def create_position_probability_matrix(m, partition):
 
     # N_t = sum([container_tuple[3] for q_acc, container_tuple in partition.items()]) # total number of sequences in partition
     # print("total seq multiset:", N_t, "total seqs in set:", len(partition))
-    PFM = []
-    for j in range(len(alignment_matrix[q_acc])): # for each column
-        PFM.append({"A": 0, "C": 0, "G": 0, "T": 0, "-": 0})
-        for s in alignment_matrix:
-            nucl = alignment_matrix[s][j]
-            indegree = partition[s][3]
-            PFM[j][nucl] += indegree
+    # PFM = []
+    # for j in range(len(alignment_matrix[q_acc])): # for each column
+    #     PFM.append({"A": 0, "C": 0, "G": 0, "T": 0, "-": 0})
+    #     for s in alignment_matrix:
+    #         nucl = alignment_matrix[s][j]
+    #         indegree = partition[s][3]
+    #         PFM[j][nucl] += indegree
     # print( "matrix length:", len(alignment_matrix[m]))
-    return alignment_matrix, PFM
+    return alignment_matrix
+
 
 def transpose(dct):
     d = defaultdict(dict)

@@ -111,8 +111,10 @@ def arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, C, ignore_ends_l
         if x_acc in read_alignments_to_t:
             assert read_alignments_to_t[x_acc] == x_aln_seq
 
-    alignment_matrix_to_t, PFM_to_t = functions.create_position_probability_matrix(C[t_acc], partition_alignments[t_acc])
-    return alignment_matrix_to_t, PFM_to_t
+    alignment_matrix_to_t = functions.create_multialignment_matrix(C[t_acc], partition_alignments[t_acc])
+    # PFM_to_t = functions.create_position_frequency_matrix(alignment_matrix_to_t, partition_alignments[t_acc])
+
+    return alignment_matrix_to_t #, PFM_to_t
 
 
 
@@ -134,7 +136,7 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
             assert reads_to_c[x_acc] == ccs_dict[x_acc].seq
 
     # get multialignment matrix here
-    alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, {c_acc: c_seq,  t_acc: t_seq}, ignore_ends_len)
+    alignment_matrix_to_t =  arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, {c_acc: c_seq,  t_acc: t_seq}, ignore_ends_len)
 
     # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
     # these are bases that we disregard when testing varinats

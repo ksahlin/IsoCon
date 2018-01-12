@@ -7,7 +7,7 @@ import copy
 import random
 from collections import Counter
 
-from modules.functions import create_position_probability_matrix
+from modules.functions import create_multialignment_matrix, create_position_frequency_matrix
 
 def correct_strings(partition_alignments, seq_to_acc, ccs_dict, step, nr_cores = 1, verbose = False):
     S_prime = {}
@@ -165,7 +165,9 @@ def correct_to_consensus_ccs_qual(m, partition, seq_to_acc, step, ccs_dict):
     
     if len(partition) > 1:
         # all strings has not converged
-        alignment_matrix, PFM = create_position_probability_matrix(m, partition) 
+        alignment_matrix = create_multialignment_matrix(m, partition) 
+        PFM = create_position_frequency_matrix(alignment_matrix, partition)
+
         for s_before in partition:
             s_after = "".join([n for n in alignment_matrix[s_before] if n != "-"])
             assert s_before == s_after
@@ -266,7 +268,8 @@ def correct_to_consensus(m, partition, seq_to_acc, step, verbose):
 
     if len(partition) > 1 and N_t > 2:
         # all strings has not converged
-        alignment_matrix, PFM = create_position_probability_matrix(m, partition) 
+        alignment_matrix = create_multialignment_matrix(m, partition) 
+        PFM = create_position_frequency_matrix(alignment_matrix, partition)
         for s_before in partition:
             s_after = "".join([n for n in alignment_matrix[s_before] if n != "-"])
             assert s_before == s_after
