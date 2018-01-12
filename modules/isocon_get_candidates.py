@@ -238,166 +238,249 @@ def find_candidate_transcripts(read_file, params):
     
         # sys.exit()
    
-    C = {}
-    for m in M:
-        N_t = partition_alignments[m][m][3] #sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
-        if N_t > 1: # has converged to a consensus
-            C[m] = N_t   
-
-
-    original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
-    original_reads_seq_to_accs =  defaultdict(list)
-    for (acc, seq) in original_reads.items():
-        original_reads_seq_to_accs[seq].append(acc)
-    # original_reads_seq_to_acc = { seq : acc for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
-    reads_to_nearest_neighbors = {}
-    # [for m, partition in partition_alignments.items() for s in partition]
-
-    not_converged_reads = open(os.path.join(params.outfolder, "not_converged.fa"), "w")
-    not_converged = set()
-    for read_acc, seq in original_reads.items():
-        corrected_s = S[read_acc]
-        if corrected_s in C:
-            if C[corrected_s] >= params.min_candidate_support:
-                reads_to_nearest_neighbors[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
-            else:
-                if params.verbose:
-                    print("nearest_neighbor did not pass threshold. It had support of {0} reads.".format(C[corrected_s]))
-                    print(read_acc)
-                del C[corrected_s]
+ 
+    ######################
+    ###### NEW ###########
+    c_seq_to_read_acc = {}
+    for read_acc, seq in S.items():
+        if seq in c_seq_to_read_acc:
+            c_seq_to_read_acc[seq].append(read_acc)
         else:
-            if corrected_s in original_reads_seq_to_accs:
-                if params.verbose:
-                    print("Read neither converged nor was it corrected (local pair r1 <---> r2 nearest_neighbor or a isolated alignment with exon difference filtered out before each correction)")
-                    print(read_acc)
-                not_converged_reads.write(">{0}_not_corrected_not_converged\n{1}\n".format(read_acc, seq))
-                not_converged.add(read_acc)
+            c_seq_to_read_acc[seq] = [read_acc]
 
-            else: # partially corrected but not converged
-                not_converged_reads.write(">{0}\n{1}\n".format(read_acc, seq))
-                not_converged.add(read_acc)
-                if params.verbose:
-                    print("Read partially corrected but not converged")
-                    print(read_acc)
-                not_converged_reads.write(">{0}_corrected_but_not_converged_version\n{1}\n".format(read_acc, corrected_s))
-
-    not_converged_reads.close()
-    edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_nearest_neighbors, nr_cores = params.nr_cores)
-    alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m, nr_cores = params.nr_cores)
-
+    c_acc_to_seq = {}
+    c_acc_to_support = {}            
+    for i, m in enumerate(sorted(M)):
+        N_t = partition_alignments[m][m][3] #sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
+        c_acc = "transcript_" + str(i) + "_support_" + str(N_t)
+        c_acc_to_seq[c_acc] = m 
+        c_acc_to_support[c_acc] = N_t
 
     if params.ignore_ends_len > 0:
-        C_temp_accession_to_support = {}
-        C_temp_accession_to_seq = {}
-        for i, (seq, support) in enumerate(sorted(C.items(), key=lambda x: x[0])): # to assure consisent naming, sort lexocographically on candidates
-            c_acc = "transcript_" + str(i) + "_support_" + str(support)
-            C_temp_accession_to_support[c_acc] = support
-            C_temp_accession_to_seq[c_acc] = seq
-
-        remaining_c_after_invariant = end_invariant_functions.collapse_candidates_under_ends_invariant(C_temp_accession_to_seq, C_temp_accession_to_support, params)
-        alignments_of_x_to_m_transposed = functions.transpose(alignments_of_x_to_m)   
+        remaining_c_after_invariant = end_invariant_functions.collapse_candidates_under_ends_invariant(c_acc_to_seq, c_acc_to_support, params)
+        # print(remaining_c_after_invariant)
+        # sys.exit()
         for c_acc in remaining_c_after_invariant:
-            c_seq = C_temp_accession_to_seq[ c_acc ] 
-            c_support = C_temp_accession_to_support[ c_acc ]
-
+            c_seq = c_acc_to_seq[ c_acc ] 
             for removed_c_acc in remaining_c_after_invariant[c_acc]:
-                c_removed_support = C_temp_accession_to_support[ removed_c_acc ]
-                c_removed_seq = C_temp_accession_to_seq[ removed_c_acc ] 
-                reads_to_removed_cand = alignments_of_x_to_m_transposed[ c_removed_seq ]
-                alignments_of_x_to_m_transposed[c_seq].update(reads_to_removed_cand)
-                
-                C[c_seq] += len(reads_to_removed_cand)
-                del alignments_of_x_to_m_transposed[c_removed_seq]
-                del C[c_removed_seq]
-        
-        alignments_of_x_to_m = functions.transpose(alignments_of_x_to_m_transposed)
+                removed_c_seq = c_acc_to_seq[ removed_c_acc ]
+                reads_to_removed_c_acc = c_seq_to_read_acc[removed_c_seq]
 
-        # alignments_of_x_to_m, C  = collapse_contained_sequences(alignments_of_x_to_m, C, params)
+                for read_acc in reads_to_removed_c_acc:
+                    c_seq_to_read_acc[c_seq].append(read_acc)
 
-    alignments_of_x_to_m_filtered, m_to_acc, C_filtered, partition_of_X = filter_candidates(alignments_of_x_to_m, C, params)
-        
-    candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
-    write_output.print_candidates_from_nearest_neighbors(candidates_file_name, C_filtered, m_to_acc, params)
+                del c_acc_to_seq[ removed_c_acc ]
+                del c_acc_to_support[ removed_c_acc ]
+                del c_seq_to_read_acc[ removed_c_seq ]
+
+    original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
+    assert len(S) == len(original_reads)
+    c_to_reads = {}
+    for c_acc, c_seq in c_acc_to_seq.items():
+        c_to_reads[c_acc] = {}
+        for read_acc in c_seq_to_read_acc[c_seq]:
+            c_to_reads[c_acc][read_acc] = (c_seq, original_reads[read_acc])
+
+    c_to_reads_edit_distances = edlib_align_sequences_keeping_accession(c_to_reads, nr_cores = params.nr_cores)
+    read_partition = sw_align_sequences_keeping_accession(c_to_reads_edit_distances, nr_cores = params.nr_cores)
 
     to_realign = {}
-    for acc, seq in original_reads.items():
-        if acc not in alignments_of_x_to_m_filtered:
-            if acc not in not_converged:
-                to_realign[acc] = seq
-    
-    read_partition = functions.transpose(alignments_of_x_to_m_filtered)
-    for c_acc in read_partition:
-        for read_acc in read_partition[c_acc]:
-            read_aln, c_aln, (matches, mismatches, indels) = read_partition[c_acc][read_acc]
-            read_partition[c_acc][read_acc] = (c_aln, read_aln, (matches, mismatches, indels))
-    # assert set(read_partition.keys()) == set(partition_of_X.keys())
-    # for c_acc in read_partition:
-    #     assert set(read_partition[c_acc].keys()) == set(partition_of_X[c_acc])
+    for c_acc in list(c_acc_to_seq.keys()):
+        support = c_acc_to_support[c_acc]
+        if support < params.min_candidate_support:
+            if params.verbose:
+                c_seq = c_acc_to_seq[c_acc]
+                print("nearest_neighbor did not pass threshold. It had support of {0} reads.".format(support))
+                print(c_seq_to_read_acc[c_seq])
+            del c_acc_to_seq[c_acc]
+            for read_acc in c_seq_to_read_acc[c_seq]:
+                to_realign[read_acc] = original_reads[read_acc]
+
+    candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
+    write_output.print_candidates_from_nearest_neighbors(candidates_file_name, c_acc_to_seq, params)
+    # sys.exit()
 
     return candidates_file_name, read_partition, to_realign
 
 
+    ##################################################################
+    ##################################################################
 
-def filter_candidates(alignments_of_x_to_c, C, params):
-    alignments_of_x_to_c_transposed = functions.transpose(alignments_of_x_to_c)   
 
-    m_to_acc = {}
 
-    for i, (m, support) in enumerate(list(sorted(C.items(), key=lambda x: x[0]))):
-        m_acc = "transcript_" + str(i) + "_support_" + str(support)
-        m_to_acc[m] = m_acc
+    # C = {}
+    # for m in M:
+    #     N_t = partition_alignments[m][m][3] #sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
+    #     if N_t > 1: # has converged to a consensus
+    #         C[m] = N_t   
+
+
+    # original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
+    # original_reads_seq_to_accs =  defaultdict(list)
+    # for (acc, seq) in original_reads.items():
+    #     original_reads_seq_to_accs[seq].append(acc)
+    # # original_reads_seq_to_acc = { seq : acc for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
+    # reads_to_nearest_neighbors = {}
+    # # [for m, partition in partition_alignments.items() for s in partition]
+
+    # not_converged_reads = open(os.path.join(params.outfolder, "not_converged.fa"), "w")
+    # not_converged = set()
+    # for read_acc, seq in original_reads.items():
+    #     corrected_s = S[read_acc]
+    #     if corrected_s in C:
+    #         if C[corrected_s] >= params.min_candidate_support:
+    #             reads_to_nearest_neighbors[read_acc] = { corrected_s : (original_reads[read_acc], corrected_s)}
+    #         else:
+    #             if params.verbose:
+    #                 print("nearest_neighbor did not pass threshold. It had support of {0} reads.".format(C[corrected_s]))
+    #                 print(read_acc)
+    #             del C[corrected_s]
+    #     else:
+    #         if corrected_s in original_reads_seq_to_accs:
+    #             if params.verbose:
+    #                 print("Read neither converged nor was it corrected (local pair r1 <---> r2 nearest_neighbor or a isolated alignment with exon difference filtered out before each correction)")
+    #                 print(read_acc)
+    #             not_converged_reads.write(">{0}_not_corrected_not_converged\n{1}\n".format(read_acc, seq))
+    #             not_converged.add(read_acc)
+
+    #         else: # partially corrected but not converged
+    #             not_converged_reads.write(">{0}\n{1}\n".format(read_acc, seq))
+    #             not_converged.add(read_acc)
+    #             if params.verbose:
+    #                 print("Read partially corrected but not converged")
+    #                 print(read_acc)
+    #             not_converged_reads.write(">{0}_corrected_but_not_converged_version\n{1}\n".format(read_acc, corrected_s))
+
+    # not_converged_reads.close()
+
+
+    # edit_distances_of_x_to_m = edlib_align_sequences_keeping_accession(reads_to_nearest_neighbors, nr_cores = params.nr_cores)
+    # alignments_of_x_to_m = sw_align_sequences_keeping_accession(edit_distances_of_x_to_m, nr_cores = params.nr_cores)
+
+    # reads_to_nearest_neighbors_transposed = functions.transpose(reads_to_nearest_neighbors)
+
+    # if params.ignore_ends_len > 0:
+    #     C_temp_accession_to_support = {}
+    #     C_temp_accession_to_seq = {}
+    #     for i, (seq, support) in enumerate(sorted(C.items(), key=lambda x: x[0])): # to assure consisent naming, sort lexocographically on candidates
+    #         c_acc = "transcript_" + str(i) + "_support_" + str(support)
+    #         C_temp_accession_to_support[c_acc] = support
+    #         C_temp_accession_to_seq[c_acc] = seq
+
+    #     remaining_c_after_invariant = end_invariant_functions.collapse_candidates_under_ends_invariant(C_temp_accession_to_seq, C_temp_accession_to_support, params)
+    #     alignments_of_x_to_m_transposed = functions.transpose(alignments_of_x_to_m)   
+    #     for c_acc in remaining_c_after_invariant:
+    #         # c_seq = C_temp_accession_to_seq[ c_acc ] 
+    #         # c_support = C_temp_accession_to_support[ c_acc ]
+
+    #         for removed_c_acc in remaining_c_after_invariant[c_acc]:
+    #             ## new
+    #             reads_to_removed_c_acc = set(reads_to_nearest_neighbors_transposed[removed_c_acc].keys())
+    #             for read_acc in reads_to_removed_c_acc:
+    #                 reads_to_nearest_neighbors[c_acc]
+    #             ########
+
+    #             c_removed_support = C_temp_accession_to_support[ removed_c_acc ]
+    #             c_removed_seq = C_temp_accession_to_seq[ removed_c_acc ] 
+    #             reads_to_removed_cand = alignments_of_x_to_m_transposed[ c_removed_seq ]
+    #             alignments_of_x_to_m_transposed[c_seq].update(reads_to_removed_cand)
+                
+    #             C[c_seq] += len(reads_to_removed_cand)
+    #             del alignments_of_x_to_m_transposed[c_removed_seq]
+    #             del C[c_removed_seq]
         
-        #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
-        # add extra constraint that the candidate has to have majority on _each_ position in c here otherwise most likely error
-        if support >= params.min_candidate_support:
-            if params.prefilter_candidates:
-                # print("needs to be consensus over each base pair")
-                partition_alignments_c = {m : (0, m, m, 1)}  # format: (edit_dist, aln_c, aln_x, 1)
-                for x_acc in alignments_of_x_to_c_transposed[m]:
-                    aln_x, aln_m, (matches, mismatches, indels) = alignments_of_x_to_c_transposed[m][x_acc]
-                    ed = mismatches + indels
-                    partition_alignments_c[x_acc] = (ed, aln_m, aln_x, 1) 
-                    # print(ed, aln_x, aln_m)
+    #     alignments_of_x_to_m = functions.transpose(alignments_of_x_to_m_transposed)
 
-                alignment_matrix_to_c, PFM_to_c = functions.create_position_probability_matrix(m, partition_alignments_c)
-                c_alignment = alignment_matrix_to_c[m]
-                is_consensus = True
-                for j in range(len(PFM_to_c)):
-                    c_v =  c_alignment[j]
-                    candidate_count = PFM_to_c[j][c_v]
-                    max_v_j = max(PFM_to_c[j], key = lambda x: PFM_to_c[j][x] )
-                    max_count = PFM_to_c[j][max_v_j]
-                    if candidate_count < max_count:
-                        print("not consensus at:", j)
-                        is_consensus = False                    
+    #     # alignments_of_x_to_m, C  = collapse_contained_sequences(alignments_of_x_to_m, C, params)
 
-                    # for v in PFM_to_c[j]:
-                    #     if v != c_v and candidate_count <= PFM_to_c[j][v]: # needs to have at least one more in support than the second best as we have added c itself to the multialignment
-                    #         print("not consensus at:", j)
-                    #         is_consensus = False
+    # alignments_of_x_to_m_filtered, m_to_acc, C_filtered, partition_of_X = filter_candidates(alignments_of_x_to_m, C, params)
+        
+    # candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
+    # write_output.print_candidates_from_nearest_neighbors(candidates_file_name, C_filtered, m_to_acc, params)
 
-                if not is_consensus:
-                    print("Read with support {0} were not consensus".format(str(support)))
-                    del alignments_of_x_to_c_transposed[m]
-                    del C[m]
-        else:
-            print("deleting:")
-            del alignments_of_x_to_c_transposed[m]
-            del C[m]
+    # to_realign = {}
+    # for acc, seq in original_reads.items():
+    #     if acc not in alignments_of_x_to_m_filtered:
+    #         if acc not in not_converged:
+    #             to_realign[acc] = seq
+    
+    # read_partition = functions.transpose(alignments_of_x_to_m_filtered)
+    # for c_acc in read_partition:
+    #     for read_acc in read_partition[c_acc]:
+    #         read_aln, c_aln, (matches, mismatches, indels) = read_partition[c_acc][read_acc]
+    #         read_partition[c_acc][read_acc] = (c_aln, read_aln, (matches, mismatches, indels))
+    #         if read_acc == "m151210_031012_42146_c100926392550000001823199905121697_s1_p0/90101/1162_45_CCS_strand=-;fiveseen=1;polyAseen=0;threeseen=1;fiveend=26;polyAend=-1;threeend=1143;primer=1;chimera=0":
+    #             print((c_aln, read_aln, (matches, mismatches, indels)), len(c_aln))
+    #             print(c_acc ) #C_filtered[c_acc], len(C_filtered[c_acc]))
+    #             # print(C_filtered.keys())
+    #             print(c_aln in m_to_acc)
+    #             print(c_aln+"T" in m_to_acc)
+    #             sys.exit()
 
-    partition_of_X = { m_to_acc[c] : set(alignments_of_x_to_c_transposed[c].keys()) for c in  alignments_of_x_to_c_transposed}
+    # return candidates_file_name, read_partition, to_realign
 
-    # we now have an accession of nearest_neighbor, change to this accession insetad of storing sequence
-    alignments_of_x_to_m_filtered = functions.transpose(alignments_of_x_to_c_transposed)
-    for x_acc in list(alignments_of_x_to_m_filtered.keys()):
-        for m in list(alignments_of_x_to_m_filtered[x_acc].keys()):
-            m_acc = m_to_acc[m]
-            aln_x, aln_m, (matches, mismatches, indels) = alignments_of_x_to_m_filtered[x_acc][m]
-            del alignments_of_x_to_m_filtered[x_acc][m]
-            ed =  mismatches + indels
-            alignments_of_x_to_m_filtered[x_acc][m_acc] = (aln_x, aln_m, (matches, mismatches, indels))
 
-    return alignments_of_x_to_m_filtered, m_to_acc, C, partition_of_X
+
+# def filter_candidates(alignments_of_x_to_c, C, params):
+#     alignments_of_x_to_c_transposed = functions.transpose(alignments_of_x_to_c)   
+
+#     m_to_acc = {}
+
+#     for i, (m, support) in enumerate(list(sorted(C.items(), key=lambda x: x[0]))):
+#         m_acc = "transcript_" + str(i) + "_support_" + str(support)
+#         m_to_acc[m] = m_acc
+        
+#         #require support from at least 4 reads if not tested (consensus transcript had no close neighbors)
+#         # add extra constraint that the candidate has to have majority on _each_ position in c here otherwise most likely error
+#         if support >= params.min_candidate_support:
+#             if params.prefilter_candidates:
+#                 # print("needs to be consensus over each base pair")
+#                 partition_alignments_c = {m : (0, m, m, 1)}  # format: (edit_dist, aln_c, aln_x, 1)
+#                 for x_acc in alignments_of_x_to_c_transposed[m]:
+#                     aln_x, aln_m, (matches, mismatches, indels) = alignments_of_x_to_c_transposed[m][x_acc]
+#                     ed = mismatches + indels
+#                     partition_alignments_c[x_acc] = (ed, aln_m, aln_x, 1) 
+#                     # print(ed, aln_x, aln_m)
+
+#                 alignment_matrix_to_c, PFM_to_c = functions.create_position_probability_matrix(m, partition_alignments_c)
+#                 c_alignment = alignment_matrix_to_c[m]
+#                 is_consensus = True
+#                 for j in range(len(PFM_to_c)):
+#                     c_v =  c_alignment[j]
+#                     candidate_count = PFM_to_c[j][c_v]
+#                     max_v_j = max(PFM_to_c[j], key = lambda x: PFM_to_c[j][x] )
+#                     max_count = PFM_to_c[j][max_v_j]
+#                     if candidate_count < max_count:
+#                         print("not consensus at:", j)
+#                         is_consensus = False                    
+
+#                     # for v in PFM_to_c[j]:
+#                     #     if v != c_v and candidate_count <= PFM_to_c[j][v]: # needs to have at least one more in support than the second best as we have added c itself to the multialignment
+#                     #         print("not consensus at:", j)
+#                     #         is_consensus = False
+
+#                 if not is_consensus:
+#                     print("Read with support {0} were not consensus".format(str(support)))
+#                     del alignments_of_x_to_c_transposed[m]
+#                     del C[m]
+#         else:
+#             print("deleting:")
+#             del alignments_of_x_to_c_transposed[m]
+#             del C[m]
+
+#     partition_of_X = { m_to_acc[c] : set(alignments_of_x_to_c_transposed[c].keys()) for c in  alignments_of_x_to_c_transposed}
+
+#     # we now have an accession of nearest_neighbor, change to this accession insetad of storing sequence
+#     alignments_of_x_to_m_filtered = functions.transpose(alignments_of_x_to_c_transposed)
+#     for x_acc in list(alignments_of_x_to_m_filtered.keys()):
+#         for m in list(alignments_of_x_to_m_filtered[x_acc].keys()):
+#             m_acc = m_to_acc[m]
+#             aln_x, aln_m, (matches, mismatches, indels) = alignments_of_x_to_m_filtered[x_acc][m]
+#             del alignments_of_x_to_m_filtered[x_acc][m]
+#             ed =  mismatches + indels
+#             alignments_of_x_to_m_filtered[x_acc][m_acc] = (aln_x, aln_m, (matches, mismatches, indels))
+
+#     return alignments_of_x_to_m_filtered, m_to_acc, C, partition_of_X
 
 
 

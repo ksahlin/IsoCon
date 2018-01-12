@@ -130,8 +130,8 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
     
 
     if ccs_dict:
-        for x_acc in reads:
-            assert reads[x_acc] == ccs_dict[x_acc].seq
+        for x_acc in reads_to_c:
+            assert reads_to_c[x_acc] == ccs_dict[x_acc].seq
 
     # get multialignment matrix here
     alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, {c_acc: c_seq,  t_acc: t_seq}, ignore_ends_len)

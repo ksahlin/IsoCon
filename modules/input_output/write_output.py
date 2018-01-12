@@ -44,19 +44,15 @@ def print_candidates(out_file_name, C, significance_test_values, partition_of_X,
     out_file.close()
 
 
-def print_candidates_from_nearest_neighbors(out_file_candidates_name, M, m_to_acc, params):
+def print_candidates_from_nearest_neighbors(out_file_candidates_name, C, params):
     """
         alignments_of_x_to_c has format
         {x_acc : {y_acc : (x_alignment, y_alignment, (matches, mismatches, indels)) } }
     """
     out_file_candidates = open(out_file_candidates_name, "w")
     final_candidate_count = 0
-    # m_to_acc = {}
-    # alignments_of_x_to_c_transposed = transpose(alignments_of_x_to_c)      
-    for i, (m, support) in enumerate(sorted(M.items())):
-        # m_acc = "read_" + str(i) + "_support_" + str(support)
-        m_acc = m_to_acc[m] 
-        out_file_candidates.write(">{0}\n{1}\n".format(m_acc, m))
+    for c_acc, c_seq in sorted(C.items()):
+        out_file_candidates.write(">{0}\n{1}\n".format(c_acc, c_seq))
         final_candidate_count += 1
 
     print("Final candidate count: ", final_candidate_count)
