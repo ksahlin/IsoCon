@@ -327,7 +327,7 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
         highest_significance_values = {}
         for c_acc in significance_values:
             p_val_max = 0.0
-            highest = (c_acc, "", "not_tested", 1.0, "NA", len(read_partition[c_acc]), "") 
+            highest = (c_acc, "", "not_tested", 1.0, len(read_partition[c_acc]), len(read_partition[c_acc]), "") 
             for t_acc in significance_values[c_acc]:
                 (p_value, mult_factor_inv, k, N_t, variants) = significance_values[c_acc][t_acc]
                 if p_value >= p_val_max:

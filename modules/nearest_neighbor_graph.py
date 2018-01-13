@@ -30,7 +30,7 @@ def get_exact_nearest_neighbor_graph(seq_to_acc_list_sorted, has_converged, para
         pool = Pool(processes=params.nr_cores)
 
         # here we split the input into chunks
-        chunk_size = max(int(len(seq_to_acc_list_sorted) / (10*mp.cpu_count())), 20 )
+        chunk_size = max(int(len(seq_to_acc_list_sorted) / (10*params.nr_cores)), 20 )
         ref_seq_chunks = [ ( max(0, i - params.neighbor_search_depth -1), seq_to_acc_list_sorted[max(0, i - params.neighbor_search_depth -1) : i + chunk_size + params.neighbor_search_depth +1 ]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size) ]
         chunks = [(i, seq_to_acc_list_sorted[i:i + chunk_size]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size)] 
 
