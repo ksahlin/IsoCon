@@ -468,7 +468,10 @@ def create_position_frequency_matrix(alignment_matrix, partition):
     #     print(PFM[p] == PFM2[p])
     return PFM2
 
+
 from time import time
+import io
+import cProfile, pstats #, StringIO
 
 def create_multialignment_matrix(m, partition):
     """
@@ -513,13 +516,31 @@ def create_multialignment_matrix(m, partition):
         query_to_target_positioned_dict[q_acc] = (s_positioned, target_vector_start_position, target_vector_end_position)
 
     start = time()
+    # pr = cProfile.Profile()
+    # pr.enable()
     alignment_matrix = create_multialignment_format(query_to_target_positioned_dict, 0, 2*len(m))
+    # pr.disable()
+    # s = io.StringIO()
+    # sortby = 'cumulative'
+    # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    # ps.print_stats()
+    # print(s.getvalue())
     total_elapsed = time() - start
     print("Old", len(alignment_matrix[q_acc]), total_elapsed)
+    
     start = time()
+    # pr = cProfile.Profile()
+    # pr.enable()
     alignment_matrix_new = create_multialignment_format_NEW(query_to_target_positioned_dict, 0, 2*len(m))
+    # pr.disable()
+    # s = io.StringIO()
+    # sortby = 'cumulative'
+    # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    # ps.print_stats()
+    # print(s.getvalue())
     total_elapsed = time() - start
     print("New", len(alignment_matrix_new[q_acc]),total_elapsed)
+
     for q_acc in alignment_matrix:
         for pos in range(len(alignment_matrix[q_acc])):
             if alignment_matrix[q_acc][pos] != alignment_matrix[q_acc][pos]:
@@ -658,36 +679,41 @@ def create_multialignment_format_NEW(query_to_target_positioned_dict, start, sto
     # get allreads alignments covering interesting segment
     # row_accessions = []
     segments = {}
+    segment_lists = []
     for q_acc, (q_to_t_pos, t_vector_start, t_vector_end) in query_to_target_positioned_dict.items():
         if t_vector_start <= start and t_vector_end >= stop: # read cover region
             segment = q_to_t_pos[start - t_vector_start : stop - t_vector_start +1 ]
             # row_accessions.append(q_acc)
             segments[q_acc] = segment
+            segment_lists.append(segment)
 
     # 1
-    position_insertions = [[] for i in range(len(segment))]
+    unique_insertions = [set(i) for i in zip(*segment_lists)]
+    # unique_insertions = [set() for i in range(len(segment))]
     nr_pos = len(segments[q_acc])
-    for q_acc in segments:
-        [ position_insertions[p].append(segments[q_acc][p]) for p in range(nr_pos) ]
+    # for q_acc in segments:
+    #     segment = segments[q_acc]
+    #     [ unique_insertions[p].add(segment[p]) for p in range(nr_pos) ]
+
 
     # 2
-    unique_insertions = []
-    for p in range(nr_pos):
-        unique_insertions.append(set(position_insertions[p]))
+    # unique_insertions = []
+    # for p in range(nr_pos):
+    #     unique_insertions.append(set(position_insertions[p]))
 
     # 3
     max_insertions = []
     for p in range(nr_pos):
         max_ins_len = len(max(unique_insertions[p], key=len))
-        max_ins = sorted([ins for ins in unique_insertions[p] if len(ins) == max_ins_len ])[0]
-        if len(max_ins) > 1:
+        if max_ins_len > 1:
+            max_ins = sorted([ins for ins in unique_insertions[p] if len(ins) == max_ins_len ])[0]
             assert p % 2 == 0 # has to be between positions in reference
             max_ins =  "-" + max_ins + "-" 
             max_insertions.append(max_ins)    
         else:
-            max_insertions.append(max_ins)    
+            max_insertions.append("-")    
 
-    total_matrix_length = sum([len(max_ins) for max_ins in max_insertions]) # we now have all info to get total_matrix_length  
+    # total_matrix_length = sum([len(max_ins) for max_ins in max_insertions]) # we now have all info to get total_matrix_length  
 
     # 4
     position_solutions = {max_ins : {} for max_ins in max_insertions}
@@ -749,11 +775,15 @@ def create_multialignment_format(query_to_target_positioned_dict, start, stop):
 
     for j in range(0, stop - start + 1):
         if (start + j) % 2 == 0:  # we are between a target base pairs (need to check the longest one)
-            insertions = [(segments[q_acc][j], q_acc) for q_acc in segments]
-            max_insertion, q_acc_max_ins = max(insertions, key= lambda x : len(x[0]))
+            # insertions = [(segments[q_acc][j], q_acc) for q_acc in segments]
+            # max_insertion, q_acc_max_ins = max(insertions, key= lambda x : len(x[0]))
+            # max_ins_len = len(max_insertion)
+            # all_max_ins = set([ins for (ins, acc) in insertions if len(ins) == max_ins_len])
             
+            insertions = set([segments[q_acc][j] for q_acc in segments])
+            max_insertion = max(insertions, key= len)
             max_ins_len = len(max_insertion)
-            all_max_ins = set([ins for (ins, acc) in insertions if len(ins) == max_ins_len])
+            all_max_ins = set([ins for ins in insertions if len(ins) == max_ins_len])
 
             # longest insertion is one base pair, there is a fixed quich arrangement
             if max_ins_len == 1:                
