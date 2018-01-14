@@ -72,11 +72,67 @@ def do_statistical_tests_per_edge(nearest_neighbor_graph, C, X, read_partition, 
     return p_values
 
 
-
-
 def statistical_test_helper(arguments):
     args, kwargs = arguments
     return statistical_test(*args, **kwargs)
+
+
+
+from time import time
+def arrange_alignments_new(t_acc, c_acc, t_seq, c_seq, reads_to_c, read_alignments_to_t, ignore_ends_len):
+    partition_dict = {t_acc : {}}
+    for x_acc in reads_to_c:
+        partition_dict[t_acc][x_acc] = (t_seq, reads_to_c[x_acc])
+
+    partition_dict[t_acc][c_acc] = (t_seq, c_seq)
+    partition_dict[t_acc][t_acc] = (t_seq, t_seq)
+
+    exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, nr_cores = 1)    
+    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, nr_cores = 1, ignore_ends_len = ignore_ends_len)
+    assert len(exact_alignments) == 1
+    
+    all_reads_to_reference = {} 
+    for read_acc in exact_alignments[t_acc]:
+        # storing tuple: (aln_t, aln_read, (matches, mismatches, indels))
+        (aln_t, aln_read, (matches, mismatches, indels)) = exact_alignments[t_acc][read_acc]
+        all_reads_to_reference[read_acc] =  exact_alignments[t_acc][read_acc]
+        if read_acc in reads_to_c:
+            assert reads_to_c[read_acc] == "".join([n for n in aln_read if n != "-"]) # check that sequence has not been altered
+
+    for read_acc in read_alignments_to_t:
+        all_reads_to_reference[read_acc] = read_alignments_to_t[read_acc]
+
+    print("saved re-aligning",len(read_alignments_to_t), "sequences")
+
+    read_to_target_pairwise = {} # will contain all CCS reads, the candidate, and the reference itself
+    for read_acc in all_reads_to_reference:
+        (aln_t, aln_read, (matches, mismatches, indels)) = all_reads_to_reference[read_acc]
+        read_positioned = functions.order_pairwise_alignments(aln_t, aln_read)
+        read_to_target_pairwise[read_acc] = read_positioned
+        assert len(read_positioned) == 2*len(t_seq) + 1 # vector positions are 0-indexed
+
+    pos_where_c_and_t_differ = [i for i in range(len(read_positioned)) if read_to_target_pairwise[t_acc][i] != read_to_target_pairwise[c_acc][i] ]
+    read_to_target_pairwise_filtered = {} # contains only the regions where c and t differ
+    for read_acc in all_reads_to_reference:
+        read_to_target_pairwise_filtered[read_acc] = [read_to_target_pairwise[read_acc][i] for i in pos_where_c_and_t_differ]
+
+    start = time()
+    # pr = cProfile.Profile()
+    # pr.enable()
+    alignment_matrix_to_t = functions.create_multialignment_format_stat_test(read_to_target_pairwise_filtered)
+    # pr.disable()
+    # s = io.StringIO()
+    # sortby = 'cumulative'
+    # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    # ps.print_stats()
+    # print(s.getvalue())
+    total_elapsed = time() - start
+    print("filtered", len(alignment_matrix_to_t[read_acc]),total_elapsed)
+
+    # PFM_to_t = functions.create_position_frequency_matrix(alignment_matrix_to_t, partition_alignments[t_acc])
+
+    return alignment_matrix_to_t
+
 
 
 
@@ -135,9 +191,22 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
         for x_acc in reads_to_c:
             assert reads_to_c[x_acc] == ccs_dict[x_acc].seq
 
-    # get multialignment matrix here
-    alignment_matrix_to_t =  arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, {c_acc: c_seq,  t_acc: t_seq}, ignore_ends_len)
+    print("NEW")
+    alignment_matrix_to_t = arrange_alignments_new(t_acc, c_acc, t_seq, c_seq, reads_to_c, read_alignments_to_t, ignore_ends_len)
+    if ignore_ends_len > 0: this can cause bug if ins or del first or last bp! fix this within arrange aliment function
+        alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
 
+    # get parameter estimates for statistical test
+    delta_t = functions.get_difference_coordinates_for_candidates(t_acc, c_acc, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
+    # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
+    x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t, reads) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
+    print(len(x), delta_t, t_acc, c_acc)
+    print()
+
+
+    # get multialignment matrix here
+    print("OLD")
+    alignment_matrix_to_t =  arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, {c_acc: c_seq,  t_acc: t_seq}, ignore_ends_len)
     # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
     # these are bases that we disregard when testing varinats
     # We get individual cut positions depending on which candidate is being tested -- we dont want to include ends spanning over the reference or candidate
@@ -149,7 +218,10 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
     delta_t = functions.get_difference_coordinates_for_candidates(t_acc, c_acc, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
     # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
     x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t, reads) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
-    
+    print(len(x), delta_t, t_acc, c_acc)
+    print()
+
+
     if ccs_dict:
         insertions, deletions, substitutions = functions.get_errors_for_partitions(t_acc, len(t_seq), c_acc, alignment_matrix_to_t) 
         invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)

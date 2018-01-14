@@ -203,8 +203,8 @@ def get_ccs_position_prob_per_read(target_accession, target_length, alignment_ma
     # reads can have any basepair at given position.
     # just read of the p-error at the given ccs position and that's it?
     # print(c_acc)
-    tmp_weight_equal = 0
-    tmp_weight_diff = 0
+    # tmp_weight_equal = 0
+    # tmp_weight_diff = 0
 
     # print("t", len("".join([n for n in target_alignment if n != "-"])))
     # print("c", len("".join([n for n in candidate_alignment if n != "-"])))
@@ -515,23 +515,23 @@ def create_multialignment_matrix(m, partition):
         assert target_vector_end_position + 1 == 2*len(m) + 1 # vector positions are 0-indexed
         query_to_target_positioned_dict[q_acc] = (s_positioned, target_vector_start_position, target_vector_end_position)
 
-    start = time()
+    # start = time()
     # pr = cProfile.Profile()
     # pr.enable()
-    alignment_matrix = create_multialignment_format(query_to_target_positioned_dict, 0, 2*len(m))
+    # alignment_matrix = create_multialignment_format(query_to_target_positioned_dict, 0, 2*len(m))
     # pr.disable()
     # s = io.StringIO()
     # sortby = 'cumulative'
     # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
     # ps.print_stats()
     # print(s.getvalue())
-    total_elapsed = time() - start
-    print("Old", len(alignment_matrix[q_acc]), total_elapsed)
+    # total_elapsed = time() - start
+    # print("Old", len(alignment_matrix[q_acc]), total_elapsed)
     
     start = time()
     # pr = cProfile.Profile()
     # pr.enable()
-    alignment_matrix_new = create_multialignment_format_NEW(query_to_target_positioned_dict, 0, 2*len(m))
+    alignment_matrix = create_multialignment_format_NEW(query_to_target_positioned_dict, 0, 2*len(m))
     # pr.disable()
     # s = io.StringIO()
     # sortby = 'cumulative'
@@ -539,20 +539,20 @@ def create_multialignment_matrix(m, partition):
     # ps.print_stats()
     # print(s.getvalue())
     total_elapsed = time() - start
-    print("New", len(alignment_matrix_new[q_acc]),total_elapsed)
+    print("New", len(alignment_matrix[q_acc]),total_elapsed)
 
-    for q_acc in alignment_matrix:
-        for pos in range(len(alignment_matrix[q_acc])):
-            if alignment_matrix[q_acc][pos] != alignment_matrix[q_acc][pos]:
-                print(pos)
-                for q_tmp in alignment_matrix:
-                    print(alignment_matrix[q_tmp][pos -10 : pos + 10])
-                print("NNEEEEEEW")
-                for q_tmp in alignment_matrix:
-                    print(alignment_matrix[q_tmp][pos -10 : pos + 10])
+    # for q_acc in alignment_matrix:
+    #     for pos in range(len(alignment_matrix[q_acc])):
+    #         if alignment_matrix[q_acc][pos] != alignment_matrix_new[q_acc][pos]:
+    #             print(pos)
+    #             for q_tmp in alignment_matrix:
+    #                 print(alignment_matrix[q_tmp][pos -10 : pos + 10])
+    #             print("NNEEEEEEW")
+    #             for q_tmp in alignment_matrix_new:
+    #                 print(alignment_matrix_new[q_tmp][pos -10 : pos + 10])
 
-                # sys.exit()
-    assert alignment_matrix == alignment_matrix_new
+    #             # sys.exit()
+    # assert alignment_matrix == alignment_matrix_new
     
 
     # N_t = sum([container_tuple[3] for q_acc, container_tuple in partition.items()]) # total number of sequences in partition
@@ -609,6 +609,124 @@ def position_query_to_alignment(query_aligned, target_aligned, target_alignment_
     target_vector_end_position = 2*(target_position-1) + 2
 
     return query_positioned, target_vector_start_position, target_vector_end_position
+
+
+
+def create_multialignment_format_stat_test(query_to_target_positioned_dict):
+    """
+            1. From segments datastructure, get a list (coordinate in MAM) of lists insertions that contains all the insertions in that position
+            2. Make data structure unique_indels =  set(insertions) to get all unique insertions in a given position
+            3. Make a list max_insertions containing the lengths of each max_indel in (max_indels >1bp should be padded). From this list we can get the total_matrix_length
+            4. In a data structure position_solutions : {max_indel : {q_ins : solution_list, q_ins2: }, }, 
+                find oplimal solution for each unique indel in unique_indels to max_indel in datastructure  (a list of dicts in each position) 
+            5. for each pos in range(total_matrix_length):
+                1. for q_acc in segments:
+                    1. [ ] if pos odd:
+                        1. [ ] trivial
+                    2. [ ] elif pos even and max_indel == 1:
+                        1. [ ] trivial
+                    3. [ ] else:
+                        1. [ ] [alignmet[q_acc].append(char) for char in solution]
+    """
+    assert len(query_to_target_positioned_dict) > 0
+    # get allreads alignments covering interesting segment
+    segments = {}
+    segment_lists = []
+    for q_acc, segment in query_to_target_positioned_dict.items():
+        segments[q_acc] = segment
+        segment_lists.append(segment)
+
+    # 1
+    unique_insertions = [set(i) for i in zip(*segment_lists)]
+    # unique_insertions = [set() for i in range(len(segment))]
+    nr_pos = len(segments[q_acc])
+    # for q_acc in segments:
+    #     segment = segments[q_acc]
+    #     [ unique_insertions[p].add(segment[p]) for p in range(nr_pos) ]
+
+
+    # 2
+    # unique_insertions = []
+    # for p in range(nr_pos):
+    #     unique_insertions.append(set(position_insertions[p]))
+
+    # 3
+    max_insertions = []
+    for p in range(nr_pos):
+        max_ins_len = len(max(unique_insertions[p], key=len))
+        if max_ins_len > 1:
+            max_ins = sorted([ins for ins in unique_insertions[p] if len(ins) == max_ins_len ])[0]
+            max_ins =  "-" + max_ins + "-" 
+            max_insertions.append(max_ins)    
+        else:
+            max_insertions.append("-")    
+
+    # total_matrix_length = sum([len(max_ins) for max_ins in max_insertions]) # we now have all info to get total_matrix_length  
+
+    # 4
+    position_solutions = {max_ins : {} for max_ins in max_insertions}
+
+    for nucl in ["A", "G", "C", "T", "-"]:
+        position_solutions[nucl] = {"A": ["A"], "G": ["G"], "C": ["C"], "T": ["T"], "-": ["-"]}
+
+    for p in range(nr_pos):
+        max_ins = max_insertions[p]
+        if len(max_ins) > 1:
+            for ins in unique_insertions[p]:
+                if ins not in position_solutions[max_ins]:
+                    position_solutions[max_ins][ins] = get_best_solution(max_ins, ins)
+
+    # 5 create alignment matrix
+    alignment_matrix = {}
+    for q_acc in segments:
+        alignment_matrix[q_acc] = []
+        # tmp_list = []
+        seqs = segments[q_acc]
+        tmp_list = [ position_solutions[max_insertions[p]][seqs[p]] for p in range(nr_pos)]
+
+        # for p in range(nr_pos):
+        #     max_ins = max_insertions[p]
+        #     seq = seqs[p]
+        #     tmp_list.append(position_solutions[max_ins][seq])
+
+        alignment_matrix[q_acc] = [character for sublist in tmp_list for character in sublist]
+
+    # assert total_matrix_length == len(alignment_matrix[q_acc])
+    return alignment_matrix
+
+
+
+def order_pairwise_alignments(target_aligned, query_aligned):
+    """
+        input:      0-indexed target positions
+        returns:    target vector is a list of 2*t_len +1 positions to keep insertions between base pairs    
+                list of strings of nucleotides for each position, start position in target vector list, end position in target vector list
+    """
+
+    query_positioned = [] 
+    target_position = 0 # 0-indexed
+    temp_ins = ""
+    # iterating over alignment positions
+    for p in range(len(target_aligned)):
+        if target_aligned[p] == "-":
+            temp_ins += query_aligned[p]
+        else:
+            if not temp_ins:
+                query_positioned.append("-") 
+            else:
+                query_positioned.append(temp_ins)
+                temp_ins = ""
+
+            query_positioned.append(query_aligned[p])
+
+            target_position += 1
+
+    if not temp_ins:
+        query_positioned.append("-")
+    else:
+        query_positioned.append(temp_ins)
+
+    return query_positioned
 
 
 
