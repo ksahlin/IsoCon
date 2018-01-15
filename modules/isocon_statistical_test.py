@@ -230,13 +230,13 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
             write_output.print_reads(remaining_to_align_read_file, to_realign)
             # align reads that is not yet assigned to candidate here
             G_star_rem, partition_of_realigned_reads = partitions.partition_strings_2set(to_realign, C, remaining_to_align_read_file, temp_candidate_file.name, params)
-            realigned_reads_to_candidates = {}
+            reassigned_reads_to_candidates = {}
             for c_acc in partition_of_realigned_reads:
-                realigned_reads_to_candidates[c_acc] = {}
+                reassigned_reads_to_candidates[c_acc] = {}
                 for read_acc in partition_of_realigned_reads[c_acc]:
-                    realigned_reads_to_candidates[c_acc][read_acc] = (C[c_acc], X[read_acc]) 
+                    reassigned_reads_to_candidates[c_acc][read_acc] = (C[c_acc], X[read_acc]) 
 
-            edit_distances_of_c_to_reads = edlib_align_sequences_keeping_accession(realigned_reads_to_candidates, nr_cores = params.nr_cores)
+            edit_distances_of_c_to_reads = edlib_align_sequences_keeping_accession(reassigned_reads_to_candidates, nr_cores = params.nr_cores)
             alignments_of_c_to_reads = sw_align_sequences_keeping_accession(edit_distances_of_c_to_reads, nr_cores = params.nr_cores)
 
             # structure: read_partition[c_acc][read_acc] = (c_aln, read_aln, (matches, mismatches, indels))
@@ -245,6 +245,8 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
             for c_acc in alignments_of_c_to_reads:
                 for read_acc in alignments_of_c_to_reads[c_acc]:
                     read_partition[c_acc][read_acc] = alignments_of_c_to_reads[c_acc][read_acc]
+
+            for c_acc in list(read_partition.keys()):
                 if len(read_partition[c_acc]) == 0:
                     print(c_acc, "removed as it has no supporting reads")
                     del C[c_acc]
@@ -283,10 +285,11 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
         # print(nearest_neighbor_graph)
         for c_acc in list(nearest_neighbor_graph.keys()):
             # skip to test candidates with more reads than their respective references, because its redundant computation that will lead to significant values anyway..
-            # for c_acc in nearest_neighbor_graph[t_acc].keys():
-            #     if len(read_partition[c_acc]) >= 2*len(read_partition[t_acc]):
-            #         print("skipping test for dominant candidate {0} to ref {1}".format(c_acc, t_acc))
-            #         del nearest_neighbor_graph[t_acc][c_acc]
+            for t_acc in list(nearest_neighbor_graph[c_acc].keys()):
+                if len(read_partition[c_acc]) >= params.min_test_ratio*len(read_partition[t_acc]):
+                    print("skipping test for dominant candidate {0} to ref {1}".format(c_acc, t_acc))
+                    del nearest_neighbor_graph[c_acc][t_acc]
+
             previous_significance_values[c_acc] = {}
             to_remove = set()
             for t_acc in list(nearest_neighbor_graph[c_acc].keys()):

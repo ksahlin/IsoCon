@@ -62,7 +62,7 @@ def cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_end
             break
     cut_end = len(target_alignment) - cut_end
 
-
+    # print(cut_start, cut_end)
     # print("cutting from", len(target_alignment), "positions to", len(target_alignment[ cut_start : cut_end ]) )
     for acc in alignment_matrix_to_t:
         alignment_matrix_to_t[acc] = alignment_matrix_to_t[acc][ cut_start : cut_end ]
@@ -510,7 +510,9 @@ def create_multialignment_matrix(m, partition):
     query_to_target_positioned_dict = {}
     for q_acc in partition:
         (edit_distance, m_alignment, s_alignment, degree_of_s) = partition[q_acc]
+        # s_positioned_new, target_vector_start_position, target_vector_end_position = position_query_to_alignment_NEW(s_alignment, m_alignment, 0)
         s_positioned, target_vector_start_position, target_vector_end_position = position_query_to_alignment(s_alignment, m_alignment, 0)
+        # assert s_positioned_new == s_positioned
         assert target_vector_start_position == 0
         assert target_vector_end_position + 1 == 2*len(m) + 1 # vector positions are 0-indexed
         query_to_target_positioned_dict[q_acc] = (s_positioned, target_vector_start_position, target_vector_end_position)
@@ -609,6 +611,42 @@ def position_query_to_alignment(query_aligned, target_aligned, target_alignment_
     target_vector_end_position = 2*(target_position-1) + 2
 
     return query_positioned, target_vector_start_position, target_vector_end_position
+
+
+# def position_query_to_alignment_NEW(query_aligned, target_aligned, target_alignment_start_position):
+#     """
+#         input:      0-indexed target positions
+#         returns:    target vector is a list of 2*t_len +1 positions to keep insertions between base pairs    
+#                 list of strings of nucleotides for each position, start position in target vector list, end position in target vector list
+#     """
+
+#     query_positioned = ["" for i in range( 2*(len(target_aligned) - target_aligned.count("-")) +1 ) ] 
+#     target_position = target_alignment_start_position # 0-indexed
+#     temp_ins = ""
+#     # iterating over alignment positions
+#     for p in range(len(target_aligned)):
+#         if target_aligned[p] == "-":
+#             temp_ins += query_aligned[p]
+#         else:
+#             if not temp_ins:
+#                 query_positioned[2*target_position] = "-" 
+#             else:
+#                 query_positioned[2*target_position] = temp_ins
+#                 temp_ins = ""
+
+#             query_positioned[2*target_position + 1] = query_aligned[p]
+
+#             target_position += 1
+
+#     if not temp_ins:
+#         query_positioned[2*target_position] = "-" 
+#     else:
+#         query_positioned[2*target_position] = temp_ins
+
+#     target_vector_start_position = 2*target_alignment_start_position
+#     target_vector_end_position = 2*(target_position-1) + 2
+
+#     return query_positioned, target_vector_start_position, target_vector_end_position
 
 
 

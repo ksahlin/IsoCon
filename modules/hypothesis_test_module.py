@@ -19,7 +19,7 @@ def do_statistical_tests_per_edge(nearest_neighbor_graph, C, X, read_partition, 
     for c_acc in nearest_neighbor_graph:
         statistical_test_edges[c_acc] = {}
         reads_to_c = { x_acc : X[x_acc] for x_acc in read_partition[c_acc]}
-
+        read_alignments_to_c = read_partition[c_acc]
         for t_acc in nearest_neighbor_graph[c_acc]:
             read_alignments_to_t = read_partition[t_acc]  # { read_acc : (t_aln, c_aln, (match, mism, indel)), ...}  #{ x_acc : X[x_acc] for x_acc in read_partition[t_acc]}
             edge_specific_reads = { x_acc : X[x_acc] for acc in [c_acc, t_acc] for x_acc in read_partition[acc]}
@@ -28,7 +28,7 @@ def do_statistical_tests_per_edge(nearest_neighbor_graph, C, X, read_partition, 
             else:
                 reduced_ccs_dict_for_test = {}
 
-            statistical_test_edges[c_acc][t_acc] = (c_acc, t_acc, C[c_acc], C[t_acc], reads_to_c, read_alignments_to_t, params.ignore_ends_len, reduced_ccs_dict_for_test, params.max_phred_q_trusted) # ADD ALGINMENTS HERE FOR SPEEDUP
+            statistical_test_edges[c_acc][t_acc] = (c_acc, t_acc, C[c_acc], C[t_acc], reads_to_c, read_alignments_to_t, read_alignments_to_c, params.ignore_ends_len, reduced_ccs_dict_for_test, params.max_phred_q_trusted) # ADD ALGINMENTS HERE FOR SPEEDUP
 
     if params.nr_cores == 1:
         for c_acc in statistical_test_edges:
@@ -79,6 +79,96 @@ def statistical_test_helper(arguments):
 
 
 from time import time
+
+# def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ignore_ends_len):
+#     partition_dict = {t_acc : {}}
+#     partition_dict[t_acc][c_acc] = (t_seq, c_seq)
+#     partition_dict[t_acc][t_acc] = (t_seq, t_seq)
+
+#     exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, nr_cores = 1)    
+#     exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, nr_cores = 1, ignore_ends_len = ignore_ends_len)
+#     print("saved re-aligning", len(read_alignments_to_t) + len(read_alignments_to_c), "sequences")
+
+#     # 1. Find positions differing between reference and candidate
+#     (aln_t, aln_c, (matches, mismatches, indels)) = exact_alignments[t_acc][c_acc]
+#     (aln_t, aln_t, (matches, mismatches, indels)) = exact_alignments[t_acc][t_acc]
+#     candidate_positioned = functions.order_pairwise_alignments(aln_t, aln_c)
+#     ref_positioned = functions.order_pairwise_alignments(aln_t, aln_t)
+#     assert len(candidate_positioned) == len(ref_positioned)
+#     segment_coordinates_where_c_and_t_differ = [i for i in range(len(candidate_positioned)) if candidate_positioned[i] != ref_positioned[i] ]
+#     segments_where_c_and_t_differ = [ (candidate_positioned[i], ref_positioned[i]) for i in range(len(candidate_positioned)) if candidate_positioned[i] != ref_positioned[i] ]
+    
+#     # 2. Order all pairwise segments 
+#     read_to_target_pairwise = {} # will contain all CCS reads, the candidate, and the reference itself
+#     for read_acc in read_alignments_to_t:
+#         (aln_t, aln_read, (matches, mismatches, indels)) = read_alignments_to_t[read_acc]
+#         read_positioned = functions.order_pairwise_alignments(aln_t, aln_read)
+#         read_to_target_pairwise[read_acc] = read_positioned
+#         assert len(read_positioned) == 2*len(t_seq) + 1 # vector positions are 0-indexed
+
+#     read_to_candidate_pairwise = {} # will contain all CCS reads, the candidate, and the reference itself
+#     for read_acc in read_alignments_to_c:
+#         (aln_c, aln_read, (matches, mismatches, indels)) = read_alignments_to_c[read_acc]
+#         read_positioned = functions.order_pairwise_alignments(aln_c, aln_read)
+#         read_to_candidate_pairwise[read_acc] = read_positioned
+#         assert len(read_positioned) == 2*len(c_seq) + 1 # vector positions are 0-indexed
+
+
+#     # 3. Find the variant types 
+#     variant_type = {}
+#     for pos in segment_coordinates_where_c_and_t_differ:
+#         c_segm, t_segm = segments_where_c_and_t_differ[pos]
+#         variant_type[pos] = 
+#         for n_c, n_t in zip(c_segm, t_segm): 
+#             if n_c != n_t and n_c == "-":
+#                 variant_type[pos] = ()
+#         candidate_pos = "".join([n for segm in candidate_positioned[:pos+1] for n in segm if n != "-"])
+#         c_vector_pos = 2*candidate_pos
+
+#     # 4. Which positions in c the segments correspond to and their 
+    
+#     variant_type = {}
+#     for pos in segment_coordinates_where_c_and_t_differ:
+#         c_segm, t_segm = segments_where_c_and_t_differ[pos]
+#         variant_type[pos] = 
+#         for n1, n2 in zip(c_segm, t_segm): 
+        
+#         candidate_pos = "".join([n for segm in candidate_positioned[:pos+1] for n in segm if n != "-"])
+#         c_vector_pos = 2*candidate_pos
+
+#     # 4. get the positons of reads in read_alignments_to_c 
+
+
+    
+
+#     # 1. use pos_where_c_and_t_differ to figure out which segments this corresponds to in reads_to_c,
+#     # 2.  call functions.order_pairwise_alignments with c and read and get the read arranged, then take out the segment in the read that corresponds
+#     #     to the varinat segment in c w.r.t. t obtained in 1. If deletion we need to be careful to include the segment before and after. 
+#     #     we need the length of the list of segments to be identical. Furthermore, variable positions cannot start or end with indel 
+#     # 3. send these segments to create_multialignment_format_stat_test
+
+#     read_to_target_pairwise_filtered = {} # contains only the regions where c and t differ
+#     for read_acc in all_reads_to_reference:
+#         read_to_target_pairwise_filtered[read_acc] = [read_to_target_pairwise[read_acc][i] for i in pos_where_c_and_t_differ]
+
+#     start = time()
+#     # pr = cProfile.Profile()
+#     # pr.enable()
+#     alignment_matrix_to_t = functions.create_multialignment_format_stat_test(read_to_target_pairwise_filtered)
+#     # pr.disable()
+#     # s = io.StringIO()
+#     # sortby = 'cumulative'
+#     # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+#     # ps.print_stats()
+#     # print(s.getvalue())
+#     total_elapsed = time() - start
+#     print("filtered", len(alignment_matrix_to_t[read_acc]),total_elapsed)
+
+#     # PFM_to_t = functions.create_position_frequency_matrix(alignment_matrix_to_t, partition_alignments[t_acc])
+
+#     return alignment_matrix_to_t
+
+
 def arrange_alignments_new(t_acc, c_acc, t_seq, c_seq, reads_to_c, read_alignments_to_t, ignore_ends_len):
     partition_dict = {t_acc : {}}
     for x_acc in reads_to_c:
@@ -112,6 +202,7 @@ def arrange_alignments_new(t_acc, c_acc, t_seq, c_seq, reads_to_c, read_alignmen
         assert len(read_positioned) == 2*len(t_seq) + 1 # vector positions are 0-indexed
 
     pos_where_c_and_t_differ = [i for i in range(len(read_positioned)) if read_to_target_pairwise[t_acc][i] != read_to_target_pairwise[c_acc][i] ]
+
     read_to_target_pairwise_filtered = {} # contains only the regions where c and t differ
     for read_acc in all_reads_to_reference:
         read_to_target_pairwise_filtered[read_acc] = [read_to_target_pairwise[read_acc][i] for i in pos_where_c_and_t_differ]
@@ -132,7 +223,6 @@ def arrange_alignments_new(t_acc, c_acc, t_seq, c_seq, reads_to_c, read_alignmen
     # PFM_to_t = functions.create_position_frequency_matrix(alignment_matrix_to_t, partition_alignments[t_acc])
 
     return alignment_matrix_to_t
-
 
 
 
@@ -166,7 +256,8 @@ def arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, C, ignore_ends_l
         x_aln_seq = "".join([n for n in aln_read if n != "-"])
         if x_acc in read_alignments_to_t:
             assert read_alignments_to_t[x_acc] == x_aln_seq
-    print("saved re-aligning",len(read_alignments_to_t), "sequences")
+    print("Re-aligned",len(reads_to_c), "sequences")
+    print("Saved re-aligning",len(read_alignments_to_t), "sequences")
     alignment_matrix_to_t = functions.create_multialignment_matrix(C[t_acc], partition_alignments[t_acc])
     # PFM_to_t = functions.create_position_frequency_matrix(alignment_matrix_to_t, partition_alignments[t_acc])
 
@@ -175,7 +266,7 @@ def arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, C, ignore_ends_l
 
 
 
-def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to_t, ignore_ends_len, ccs_dict, max_phred_q_trusted):
+def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to_t, read_alignments_to_c, ignore_ends_len, ccs_dict, max_phred_q_trusted):
     reads = set(reads_to_c.keys()) | set(read_alignments_to_t.keys())  # dict(reads_to_c, **reads_to_t) #reads_to_c | reads_to_t
     N_t = len(reads)
 
@@ -191,21 +282,34 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
         for x_acc in reads_to_c:
             assert reads_to_c[x_acc] == ccs_dict[x_acc].seq
 
-    print("NEW")
-    alignment_matrix_to_t = arrange_alignments_new(t_acc, c_acc, t_seq, c_seq, reads_to_c, read_alignments_to_t, ignore_ends_len)
-    if ignore_ends_len > 0: this can cause bug if ins or del first or last bp! fix this within arrange aliment function
-        alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
 
-    # get parameter estimates for statistical test
-    delta_t = functions.get_difference_coordinates_for_candidates(t_acc, c_acc, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
-    # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
-    x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t, reads) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
-    print(len(x), delta_t, t_acc, c_acc)
-    print()
+    # print("NEW NO realign")
+    # alignment_matrix_to_t = arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ignore_ends_len)
+    # if ignore_ends_len > 0:
+    #     alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
+
+    # # get parameter estimates for statistical test
+    # delta_t_new = functions.get_difference_coordinates_for_candidates(t_acc, c_acc, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
+    # # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
+    # x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t_new, reads) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
+    # print(len(x), delta_t_new, t_acc, c_acc)
+    # print()
+
+    # print("NEW")
+    # alignment_matrix_to_t = arrange_alignments_new(t_acc, c_acc, t_seq, c_seq, reads_to_c, read_alignments_to_t, ignore_ends_len)
+    # if ignore_ends_len > 0:
+    #     alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
+
+    # # get parameter estimates for statistical test
+    # delta_t_new = functions.get_difference_coordinates_for_candidates(t_acc, c_acc, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
+    # # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
+    # x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t_new, reads) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
+    # print(len(x), delta_t_new, t_acc, c_acc)
+    # print()
 
 
     # get multialignment matrix here
-    print("OLD")
+    # print("OLD")
     alignment_matrix_to_t =  arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, {c_acc: c_seq,  t_acc: t_seq}, ignore_ends_len)
     # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
     # these are bases that we disregard when testing varinats
@@ -218,8 +322,12 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
     delta_t = functions.get_difference_coordinates_for_candidates(t_acc, c_acc, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
     # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
     x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t, reads) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
-    print(len(x), delta_t, t_acc, c_acc)
-    print()
+    # print(len(x), delta_t, t_acc, c_acc)
+    # for key in delta_t_new:
+    #     if list(delta_t_new[key].values()) != list(delta_t[key].values()):
+    #         print(delta_t_new)
+    #         print(delta_t)
+    #     assert list(delta_t_new[key].values()) == list(delta_t[key].values())
 
 
     if ccs_dict:
@@ -263,124 +371,6 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
 
 
 
-
-
-
-
-
-# def statistical_test_OLD(t_acc, X, C, partition_of_X, candidates, ignore_ends_len, ccs_dict, max_phred_q_trusted):
-#     significance_values = {}
-#     t_seq = C[t_acc]
-#     if len(candidates) == 0:
-#         significance_values[t_acc] = ("not_tested", "NA", len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
-#         return significance_values
-
-#     reads = set([x_acc for c_acc in candidates for x_acc in partition_of_X[c_acc]] )
-#     reads.update(partition_of_X[t_acc])
-
-#     #### Bug FIX ############
-#     total_read_in_partition = len(partition_of_X[t_acc])
-#     reads_in_partition = set(partition_of_X[t_acc])
-#     # print(partition_of_X[t_acc])
-#     for c_acc in candidates:
-#         # for x_acc in partition_of_X[c_acc]:
-#         #     if x_acc in reads_in_partition:
-#         #         print("Already in partition:", x_acc)
-#         #         print(x_acc in partition_of_X[t_acc])
-#         #         print("candidate:", c_acc)
-#         #     else:
-#         #         reads_in_partition.add(x_acc)
-#         total_read_in_partition += len(partition_of_X[c_acc])
-#         # print(partition_of_X[c_acc])
-
-#     ############################
-
-#     N_t = len(reads)
-
-#     # no reads supporting neither the candidate nor the reference t
-#     #  this can happen if after realignment of reads to candidates, all the reads 
-#     # to noth c and t got assigned to other candidates -- based on nearest_neighbor graph 
-#     # (should be rare) 
-#     if N_t == 0: 
-#         significance_values[t_acc] = (1.0, 1.0, len(partition_of_X[t_acc]), len(partition_of_X[t_acc]), -1 )
-#         return significance_values
-    
-
-#     # print("N_t:", N_t, "reads in partition:", total_read_in_partition, "ref:", t_acc )
-#     # print("Nr candidates:", len(candidates), candidates)
-#     assert total_read_in_partition == N_t # each read should be uiquely assinged to a candidate
-#     reads_and_candidates = reads.union( [c_acc for c_acc in candidates]) 
-#     reads_and_candidates_and_ref = reads_and_candidates.union( [t_acc] ) 
-
-#     # for x_acc in X:
-#     #     assert X[x_acc] == ccs_dict[x_acc].seq
-
-#     # get multialignment matrix here
-#     alignment_matrix_to_t, PFM_to_t =  arrange_alignments(t_acc, reads_and_candidates_and_ref, X, C, ignore_ends_len)
-
-#     # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
-#     # these are bases that we disregard when testing varinats
-#     # We get individual cut positions depending on which candidate is being tested -- we dont want to include ends spanning over the reference or candidate
-#     # we cut at the start position in c or t that comes last, and the end position in c or t that comes first
-#     assert len(list(candidates)) == 1
-#     for c_acc in list(candidates):
-#         if ignore_ends_len > 0:
-#             alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
-
-#         # get parameter estimates for statistical test
-#         candidate_accessions = set( [ c_acc for c_acc in candidates] )
-#         delta_t = functions.get_difference_coordinates_for_candidates(t_acc, candidate_accessions, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
-#         # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
-#         x = functions.reads_supporting_candidate(t_acc, candidate_accessions, alignment_matrix_to_t, delta_t, partition_of_X) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
-        
-#         if ccs_dict:
-#             insertions, deletions, substitutions = functions.get_errors_for_partitions(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
-#             invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)
-#             # empirical_probability = functions.get_prob_of_support_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
-#             # min_uncertainty = functions.get_min_uncertainty_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t, invariant_factors_for_candidate) 
-
-#             probability = functions.get_ccs_position_prob_per_read(t_acc, len(t_seq), alignment_matrix_to_t, invariant_factors_for_candidate, candidate_accessions, delta_t, ccs_dict, insertions, deletions, substitutions, max_phred_q_trusted) 
-#             # weight = {q_acc : ccs_info.p_error_to_qual(ccs_probability[q_acc]) for q_acc in ccs_probability.keys()}
-#             # print("emp:", sum( list(empirical_probability.values()) ), candidate_accessions )
-#             # print("ccs:", sum( list(probability.values()) ), candidate_accessions )
-#             # print("Max:", sum( [ max(ccs_probability[q_acc], min_uncertainty[q_acc] ) for q_acc in ccs_probability] ), candidate_accessions )
-#             # probability = {  q_acc : max(ccs_probability[q_acc], min_uncertainty[q_acc] ) for q_acc in ccs_probability }
-#         else:
-#             errors = functions.get_errors_per_read(t_acc, len(t_seq), candidate_accessions, alignment_matrix_to_t) 
-#             # weight = functions.get_weights_per_read(t_acc, len(t_seq), candidate_accessions, errors) 
-#             invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)
-#             probability = functions.get_prob_of_error_per_read(t_acc, len(t_seq), candidate_accessions, errors, invariant_factors_for_candidate) 
-
-#         #TODO: do exact only if partition less than, say 200? Otherwise poisson approx
-#         # p_value = CLT_test(probability, weight, x)
-#         # p_value = poisson_approx_test(probability, weight, x)
-#         # p_value = exact_test(probability, weight, x)
-#         # print("exact p:", p_value )
-#         # print()
-#         # print(sorted(errors.values()))
-#         # print(sorted(probability.values()))
-#         # print("Weighted raghavan p:", p_value )
-
-#         delta_size = len(delta_t[c_acc])
-#         variant_types = "".join([ str(delta_t[c_acc][j][0]) for j in  delta_t[c_acc] ])
-#         if delta_size == 0:
-#             print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
-#             p_value = 0.0
-#         else:
-#             p_value = raghavan_upper_pvalue_bound(probability, x)
-
-
-#         # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, correction_factor, p_value * correction_factor,  len(x), N_t, delta_size) )
-#         # significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
-#         if ccs_dict:
-#             # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
-#             significance_values[c_acc] = (p_value, 1.0, len(x), N_t, variant_types)
-#         else:
-#             correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
-#             # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
-#             significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, variant_types)
-
-#     return significance_values
 
 
 def raghavan_upper_pvalue_bound(probability, x_equal_to_one):

@@ -357,7 +357,7 @@ def get_nearest_neighbors_2set(batch, start_index, seq_to_acc_list_sorted, targe
 
         stop_up = False
         stop_down = False
-
+        processed_reads_to_candidates_alignments = 0
         j = 1
         while True:
         # for j in range(1,len(seq_to_acc_list_sorted)):
@@ -381,6 +381,7 @@ def get_nearest_neighbors_2set(batch, start_index, seq_to_acc_list_sorted, targe
                     stop_up = True
 
             if not stop_down and acc2 in target_accessions:
+                processed_reads_to_candidates_alignments += 1
                 # if seq1 == seq2:
                 #     print("ID:", acc1, acc2)
                 edit_distance = edlib_ed(seq1, seq2, mode="NW", task="distance", k=best_ed)
@@ -394,6 +395,8 @@ def get_nearest_neighbors_2set(batch, start_index, seq_to_acc_list_sorted, targe
                     best_edit_distances[acc1][acc2] = best_ed
 
             if not stop_up and acc3 in target_accessions:
+                processed_reads_to_candidates_alignments += 1
+
                 # if seq1 == seq3:
                 #     print("ID:", acc1, acc3)
 
@@ -410,7 +413,7 @@ def get_nearest_neighbors_2set(batch, start_index, seq_to_acc_list_sorted, targe
             if stop_down and stop_up:
                 break
 
-            if j >= neighbor_search_depth:
+            if processed_reads_to_candidates_alignments >= neighbor_search_depth:
                 break
 
             j += 1

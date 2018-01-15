@@ -76,7 +76,7 @@ def get_nearest_neighbors_helper(arguments):
 
 
 def get_nearest_neighbors_under_ignored_edge_ends(seq_to_acc_list_sorted, params):
-    if params.nr_cores:
+    if params.nr_cores == 1:
         best_edit_distances = get_nearest_neighbors(seq_to_acc_list_sorted, 0, 0, seq_to_acc_list_sorted, params.neighbor_search_depth, params.ignore_ends_len)
 
         # implement check here to se that all seqs got a nearest_neighbor, if not, print which noes that did not get a nearest_neighbor computed.!
@@ -129,7 +129,7 @@ def get_nearest_neighbors_under_ignored_edge_ends(seq_to_acc_list_sorted, params
 
 
 def get_invariants_under_ignored_edge_ends(seq_to_acc_list_sorted, params):
-    if params.nr_cores:
+    if params.nr_cores == 1:
         best_edit_distances = get_nearest_neighbors(seq_to_acc_list_sorted, 0, 0, seq_to_acc_list_sorted, params.neighbor_search_depth, params.ignore_ends_len)
 
         # implement check here to se that all seqs got a nearest_neighbor, if not, print which noes that did not get a nearest_neighbor computed.!
@@ -441,6 +441,7 @@ def get_nearest_neighbors_graph_under_ignored_ends(candidate_transcripts, args):
 
     assert len(candidate_transcripts) == len(nearest_neighbor_graph)
     return nearest_neighbor_graph
+
 
 def collapse_candidates_under_ends_invariant(candidate_transcripts, candidate_support, params):
     print("Candidates before edge invariants:", len(candidate_transcripts))
