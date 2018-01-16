@@ -228,8 +228,8 @@ def arrange_alignments_new(t_acc, c_acc, t_seq, c_seq, reads_to_c, read_alignmen
 
 def arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, C, ignore_ends_len):
     partition_dict = {t_acc : {}}
-    for x_acc in reads_to_c:
-        partition_dict[t_acc][x_acc] = (C[t_acc], reads_to_c[x_acc])
+    for read_acc in reads_to_c:
+        partition_dict[t_acc][read_acc] = (C[t_acc], reads_to_c[read_acc])
     for c_acc in C:
             partition_dict[t_acc][c_acc] = (C[t_acc], C[c_acc])
 
@@ -240,22 +240,20 @@ def arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, C, ignore_ends_l
     assert len(exact_alignments) == 1
     for t_acc in exact_alignments:
         partition_alignments[t_acc] = {}
-        for x_acc in exact_alignments[t_acc]:
-            aln_t, aln_read, (matches, mismatches, indels) = exact_alignments[t_acc][x_acc]
+        for read_acc in exact_alignments[t_acc]:
+            aln_t, aln_read, (matches, mismatches, indels) = exact_alignments[t_acc][read_acc]
             edit_dist = mismatches + indels
-            partition_alignments[t_acc][x_acc] = (edit_dist, aln_t, aln_read, 1)
+            partition_alignments[t_acc][read_acc] = (edit_dist, aln_t, aln_read, 1)
 
             x_aln_seq = "".join([n for n in aln_read if n != "-"])
-            if x_acc in reads_to_c:
-                assert reads_to_c[x_acc] == x_aln_seq
+            if read_acc in reads_to_c:
+                assert reads_to_c[read_acc] == x_aln_seq
 
     for read_acc in read_alignments_to_t:
         aln_t, aln_read, (matches, mismatches, indels) = read_alignments_to_t[read_acc]
         edit_dist = mismatches + indels
         partition_alignments[t_acc][read_acc] = (edit_dist, aln_t, aln_read, 1)
-        x_aln_seq = "".join([n for n in aln_read if n != "-"])
-        if x_acc in read_alignments_to_t:
-            assert read_alignments_to_t[x_acc] == x_aln_seq
+
     print("Re-aligned",len(reads_to_c), "sequences")
     print("Saved re-aligning",len(read_alignments_to_t), "sequences")
     alignment_matrix_to_t = functions.create_multialignment_matrix(C[t_acc], partition_alignments[t_acc])
@@ -268,6 +266,9 @@ def arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, C, ignore_ends_l
 
 def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to_t, read_alignments_to_c, ignore_ends_len, ccs_dict, max_phred_q_trusted):
     reads = set(reads_to_c.keys()) | set(read_alignments_to_t.keys())  # dict(reads_to_c, **reads_to_t) #reads_to_c | reads_to_t
+    shared_reads = set(reads_to_c.keys()) & set(read_alignments_to_t.keys()) 
+    assert not shared_reads
+
     N_t = len(reads)
 
     # no reads supporting neither the candidate nor the reference t

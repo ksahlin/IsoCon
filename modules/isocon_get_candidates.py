@@ -1,8 +1,3 @@
-"""
-    PFM is a list of dicts, where the inner dicts are one per column in the PFM matrix, its keys by characters A, C, G, T, -
-    alignment_matrix is a representation of all alignments in a partition. this is a dictionary where sequences s_i belonging to the 
-    partition as keys and the alignment of s_i with respectt to the alignment matix.
-"""
 from __future__ import print_function
 import os
 import unittest
