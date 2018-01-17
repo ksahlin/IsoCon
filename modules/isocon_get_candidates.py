@@ -245,8 +245,12 @@ def find_candidate_transcripts(read_file, params):
 
     c_acc_to_seq = {}
     c_acc_to_support = {}            
-    for i, m in enumerate(sorted(M)):
-        N_t = partition_alignments[m][m][3] #sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
+    for i, m in enumerate(sorted(c_seq_to_read_acc)):
+        if m in partition_alignments:
+            N_t = partition_alignments[m][m][3] #sum([container_tuple[3] for s, container_tuple in partition_alignments[m].items()])
+        else: 
+            N_t = 1 # did not converge
+
         c_acc = "transcript_" + str(i) + "_support_" + str(N_t)
         c_acc_to_seq[c_acc] = m 
         c_acc_to_support[c_acc] = N_t
@@ -270,6 +274,35 @@ def find_candidate_transcripts(read_file, params):
 
     original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
     assert len(S) == len(original_reads)
+
+    # to_realign = {}
+    for c_acc in list(c_acc_to_seq.keys()):
+        support = c_acc_to_support[c_acc]
+        if support < params.min_candidate_support:
+            c_seq = c_acc_to_seq[c_acc]
+            if params.verbose:
+                print("nearest_neighbor did not pass threshold. It had support of {0} reads.".format(support))
+                print(c_seq_to_read_acc[c_seq])
+            del c_acc_to_seq[c_acc]
+            del c_seq_to_read_acc[c_seq]
+            del c_acc_to_support[c_acc]
+            # for read_acc in c_seq_to_read_acc[c_seq]:
+            #     to_realign[read_acc] = original_reads[read_acc]
+
+    all_reads_assigned_to_candidates = set([read_acc for c_seq in c_seq_to_read_acc for read_acc in c_seq_to_read_acc[c_seq]])
+    unassigned_reads =  set(original_reads.keys()) - all_reads_assigned_to_candidates
+    to_realign = {read_acc : original_reads[read_acc] for read_acc in unassigned_reads}
+    print("Reads assigned to candididates:", len(all_reads_assigned_to_candidates))
+    print("Reads to realign:", len(to_realign))
+    print("Number of initial reads:", len(original_reads))
+
+    candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
+    write_output.print_candidates_from_nearest_neighbors(candidates_file_name, c_acc_to_seq, params)
+    # sys.exit()
+    not_converged_reads = open(os.path.join(params.outfolder, "not_converged.fa"), "w")
+    not_converged_reads.close()
+    assert len(to_realign) + len(all_reads_assigned_to_candidates) == len(original_reads)
+    assert len(c_acc_to_seq) == len(c_seq_to_read_acc)
     c_to_reads = {}
     for c_acc, c_seq in c_acc_to_seq.items():
         c_to_reads[c_acc] = {}
@@ -277,26 +310,9 @@ def find_candidate_transcripts(read_file, params):
             c_to_reads[c_acc][read_acc] = (c_seq, original_reads[read_acc])
 
     c_to_reads_edit_distances = edlib_align_sequences_keeping_accession(c_to_reads, nr_cores = params.nr_cores)
+    print("Total reads in partition (assigned reads after edlib):", len([1 for c_acc in c_to_reads_edit_distances for read_acc in c_to_reads_edit_distances[c_acc] ]))
     read_partition = sw_align_sequences_keeping_accession(c_to_reads_edit_distances, nr_cores = params.nr_cores)
-
-    to_realign = {}
-    for c_acc in list(c_acc_to_seq.keys()):
-        support = c_acc_to_support[c_acc]
-        if support < params.min_candidate_support:
-            if params.verbose:
-                c_seq = c_acc_to_seq[c_acc]
-                print("nearest_neighbor did not pass threshold. It had support of {0} reads.".format(support))
-                print(c_seq_to_read_acc[c_seq])
-            del c_acc_to_seq[c_acc]
-            for read_acc in c_seq_to_read_acc[c_seq]:
-                to_realign[read_acc] = original_reads[read_acc]
-
-    candidates_file_name = os.path.join(params.outfolder, "candidates_converged.fa")
-    write_output.print_candidates_from_nearest_neighbors(candidates_file_name, c_acc_to_seq, params)
-    # sys.exit()
-    not_converged_reads = open(os.path.join(params.outfolder, "not_converged.fa"), "w")
-    not_converged_reads.close()
-
+    print("Total reads in partition (assigned reads after SW):", len([1 for c_acc in read_partition for read_acc in read_partition[c_acc] ]))
     return candidates_file_name, read_partition, to_realign
 
 

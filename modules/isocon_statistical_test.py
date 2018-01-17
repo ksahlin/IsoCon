@@ -12,7 +12,7 @@ import math
 from collections import defaultdict
 from itertools import combinations
 
-
+import re
 # from scipy.stats import poisson
 from time import time
 import pysam
@@ -238,8 +238,23 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
 
             edit_distances_of_c_to_reads = edlib_align_sequences_keeping_accession(reassigned_reads_to_candidates, nr_cores = params.nr_cores)
             alignments_of_c_to_reads = sw_align_sequences_keeping_accession(edit_distances_of_c_to_reads, nr_cores = params.nr_cores)
-
             # structure: read_partition[c_acc][read_acc] = (c_aln, read_aln, (matches, mismatches, indels))
+
+            ##################################
+            ssw_temp = [ alignments_of_c_to_reads[c_acc][read_acc] for c_acc in alignments_of_c_to_reads for read_acc in alignments_of_c_to_reads[c_acc]  ] 
+            pattern = r"[-]{{{min_exon_diff},}}".format( min_exon_diff = str(params.min_exon_diff)  )  # r"[-]{20,}"
+            for c_acc in list(alignments_of_c_to_reads.keys()): 
+                for read_acc in list(alignments_of_c_to_reads[c_acc].keys()):
+                    c_alignment, read_alignment, (matches, mismatches, indels) = alignments_of_c_to_reads[c_acc][read_acc]
+                    missing_exon_s1 = re.search(pattern, c_alignment)
+                    missing_exon_s2 = re.search(pattern, read_alignment)
+                    if missing_exon_s1:
+                        del alignments_of_c_to_reads[c_acc][read_acc]
+                    elif missing_exon_s2:
+                        del alignments_of_c_to_reads[c_acc][read_acc]
+            ssw_after_exon_temp = [ alignments_of_c_to_reads[c_acc][read_acc] for c_acc in alignments_of_c_to_reads for read_acc in alignments_of_c_to_reads[c_acc]  ] 
+            print("Number of alignments that were removed before statistical test because best match to candidate had exon difference larger than {0}bp: {1} ".format(str(params.min_exon_diff) , len(ssw_temp) - len(ssw_after_exon_temp) ))
+            #################################
 
             # add reads to best candidate given new alignments
             for c_acc in alignments_of_c_to_reads:
@@ -353,7 +368,6 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
                 p_val_threshold = corrected_pvals_median if corrected_pvals_median > params.p_value_threshold else params.p_value_threshold
                 print("Filtering threshold (p_val*mult_correction_factor):",  p_val_threshold)
 
-        previous_partition_of_X = copy.deepcopy(read_partition)
         to_realign = {}
         for c_acc, (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants) in highest_significance_values.items():
             if p_value == "not_tested":
@@ -369,6 +383,7 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
                     to_realign[x_acc] = X[x_acc]
                 del read_partition[c_acc]
 
+        previous_partition_of_X = copy.deepcopy(read_partition)
 
         print("nr candidates left:", len(C))
         candidate_file = os.path.join(params.outfolder, "candidates_after_step_{0}.fa".format(step))
