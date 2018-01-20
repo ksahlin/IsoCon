@@ -5,6 +5,8 @@ import multiprocessing as mp
 import sys
 import math
 
+import re 
+
 from decimal import * 
 getcontext().prec = 100
 
@@ -77,75 +79,207 @@ def statistical_test_helper(arguments):
     return statistical_test(*args, **kwargs)
 
 
+def get_mask_start_and_end(aln_t, aln_c):
+    mask_start, mask_end = 0, len(aln_t)
+    p = r"[-]+"
+    for m in re.finditer(p, aln_t):
+        # print(m.start(), m.end())
+        if m.start() == 0:
+            mask_start = m.end()
+        if m.end() == len(aln_t):
+            mask_end = m.start()
+
+    for m in re.finditer(p, aln_c):
+        # print(m.start(), m.end())
+        if m.start() == 0:
+            assert mask_start == 0
+            mask_start = m.end()
+        if m.end() == len(aln_t):
+            assert mask_end == len(aln_t)
+            mask_end = m.start()
+    return mask_start, mask_end
+
 
 from time import time
 
-# def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ignore_ends_len):
+def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ignore_ends_len):
+
+    start_time = time()
+    # pr = cProfile.Profile()
+    # pr.enable()
+
+    partition_dict = {t_acc : {}}
+    partition_dict[t_acc][c_acc] = (t_seq, c_seq)
+    # partition_dict[t_acc][t_acc] = (t_seq, t_seq)
+
+    exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, nr_cores = 1)    
+    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, nr_cores = 1, ignore_ends_len = ignore_ends_len)
+    print("saved re-aligning", len(read_alignments_to_t) + len(read_alignments_to_c), "sequences")
+
+    # 1. Find positions differing between reference and candidate
+    aln_t, aln_c, (matches, mismatches, indels) = exact_alignments[t_acc][c_acc]
+    # mask indels in ends due to legnth differences
+    start, end = get_mask_start_and_end(aln_t, aln_c)
+
+    variants = [ (i,p_t,p_c) for i, (p_t, p_c) in  enumerate(zip(aln_t, aln_c)) if p_t != p_c and start <= i < end ]
+    variant_coords_t = {}
+    variant_coords_c = {}
+    for (i,p_t,p_c) in variants:
+        t_seq_piece = "".join([n for n in aln_t[:i+1] if n != "-"])
+        c_seq_piece = "".join([n for n in aln_c[:i+1] if n != "-"])
+
+        if p_c == "-": # candidate has deletion
+            v = t_seq[len(t_seq_piece)-1 ]
+            p = "[{variant}]+".format(variant=v)
+            m =re.match(p, t_seq[len(t_seq_piece)-1 : ])
+            u_v = len(m.group()) if m else 1
+            variant_coords_t[len(t_seq_piece)-1] = ("D", "-", u_v ) 
+            variant_coords_c[len(c_seq_piece)-1 +1] = ("D", "-", u_v ) # Deletion: we will get the phred base call from the pos immmediately to the right
+
+        elif p_t == "-": # candidate has insertion
+            v = c_seq[len(c_seq_piece)-1 ]
+            p = "[{variant}]+".format(variant=v)
+            m =re.match(p, t_seq[len(t_seq_piece)-1 +1 : ]) # Deletion in t: The invariant lengths start one coord to the right
+            u_v = len(m.group()) + 1 if m else 1 # +1 because there are x+1 ways to insert the same character into a a homoplymer of x characters in order to make an insertion of length x+1 
+
+            variant_coords_t[len(t_seq_piece)-1 +1] = ("I", p_c, u_v ) # Deletion: we will get the phred base call from the pos immmediately to the right
+            variant_coords_c[len(c_seq_piece)-1] = ("I", p_c, u_v )
+
+        else: # get coordinate on ref and cand if substitution
+            variant_coords_t[len(t_seq_piece)-1] = ("S", p_c, 1 )
+            variant_coords_c[len(c_seq_piece)-1] = ("S", p_c, 1 )
+
+    
+    print(variant_coords_t)
+
+    # 2. Check if reads support candidate at given variant positions
+    reads_support = []
+
+    for read_acc in read_alignments_to_c:
+        aln_c, aln_read, (matches, mismatches, indels) = read_alignments_to_c[read_acc]
+        c_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_c) if aln_c[j] != "-"]
+
+        p_i = 1.0
+        support = True
+        for i in variant_coords_c:
+            v_type, v_nucl, u_v = variant_coords_c[i] 
+            c_coord = c_seq[i]
+            alnmt_pos = c_seq_to_coord_in_almnt[i]
+
+            # START HERE
+            # read_coord = "".join([n for n in aln_c[:i+1] if n != "-"])
+            # p_i
+
+            if v_type == "S":
+                if aln_read[alnmt_pos] != v_nucl:
+                    support = False
+
+
+            elif v_type == "I":
+                if aln_read[alnmt_pos] != v_nucl:
+                    support = False
+
+            else:
+                assert v_type == "D"
+                if aln_read[alnmt_pos -1] != aln_c[alnmt_pos -1] or aln_read[alnmt_pos] != aln_c[alnmt_pos]: # read has to match on both position and position immediately before del to support (i.e., no indels in between) 
+                    support = False
+
+
+
+
+    # 3. If CCS: get position specific error rate
+
+
+    # 4. get individual read error rates (again ignoring, any indel differences in ends) 
+
+    # 5. Sum error rates into a final partition them up into a final partition use either get_errors_for_partitions, or get_errors_per_read
+    #    They are about the same
+
+
+    # read_to_target_pairwise = {} # will contain all CCS reads, the candidate, and the reference itself
+    # for read_acc in read_alignments_to_t:
+    #     (aln_t, aln_read, (matches, mismatches, indels)) = read_alignments_to_t[read_acc]
+    #     read_positioned = functions.order_pairwise_alignments(aln_t, aln_read)
+    #     read_to_target_pairwise[read_acc] = read_positioned
+    #     assert len(read_positioned) == 2*len(t_seq) + 1 # vector positions are 0-indexed
+
+    # read_to_candidate_pairwise = {} # will contain all CCS reads, the candidate, and the reference itself
+    # for read_acc in read_alignments_to_c:
+    #     (aln_c, aln_read, (matches, mismatches, indels)) = read_alignments_to_c[read_acc]
+    #     read_positioned = functions.order_pairwise_alignments(aln_c, aln_read)
+    #     read_to_candidate_pairwise[read_acc] = read_positioned
+    #     assert len(read_positioned) == 2*len(c_seq) + 1 # vector positions are 0-indexed
+
+
+    # # 3. Find the variant types 
+    # variant_type = {}
+    # for pos in segment_coordinates_where_c_and_t_differ:
+    #     c_segm, t_segm = segments_where_c_and_t_differ[pos]
+    #     variant_type[pos] = 
+    #     for n_c, n_t in zip(c_segm, t_segm): 
+    #         if n_c != n_t and n_c == "-":
+    #             variant_type[pos] = ()
+    #     candidate_pos = "".join([n for segm in candidate_positioned[:pos+1] for n in segm if n != "-"])
+    #     c_vector_pos = 2*candidate_pos
+
+    # # 4. Which positions in c the segments correspond to and their 
+    
+    # variant_type = {}
+    # for pos in segment_coordinates_where_c_and_t_differ:
+    #     c_segm, t_segm = segments_where_c_and_t_differ[pos]
+    #     variant_type[pos] = 
+    #     for n1, n2 in zip(c_segm, t_segm): 
+        
+    #     candidate_pos = "".join([n for segm in candidate_positioned[:pos+1] for n in segm if n != "-"])
+    #     c_vector_pos = 2*candidate_pos
+
+
+    # pr.disable()
+    # s = io.StringIO()
+    # sortby = 'cumulative'
+    # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    # ps.print_stats()
+    # print(s.getvalue())
+    total_elapsed = time() - start_time
+    print("total new arrange:",total_elapsed)
+
+    return reads_support, variant_coords_t
+
+
+
+# def arrange_alignments_new(t_acc, c_acc, t_seq, c_seq, reads_to_c, read_alignments_to_t, ignore_ends_len):
 #     partition_dict = {t_acc : {}}
+#     for x_acc in reads_to_c:
+#         partition_dict[t_acc][x_acc] = (t_seq, reads_to_c[x_acc])
+
 #     partition_dict[t_acc][c_acc] = (t_seq, c_seq)
 #     partition_dict[t_acc][t_acc] = (t_seq, t_seq)
 
 #     exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, nr_cores = 1)    
 #     exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, nr_cores = 1, ignore_ends_len = ignore_ends_len)
-#     print("saved re-aligning", len(read_alignments_to_t) + len(read_alignments_to_c), "sequences")
-
-#     # 1. Find positions differing between reference and candidate
-#     (aln_t, aln_c, (matches, mismatches, indels)) = exact_alignments[t_acc][c_acc]
-#     (aln_t, aln_t, (matches, mismatches, indels)) = exact_alignments[t_acc][t_acc]
-#     candidate_positioned = functions.order_pairwise_alignments(aln_t, aln_c)
-#     ref_positioned = functions.order_pairwise_alignments(aln_t, aln_t)
-#     assert len(candidate_positioned) == len(ref_positioned)
-#     segment_coordinates_where_c_and_t_differ = [i for i in range(len(candidate_positioned)) if candidate_positioned[i] != ref_positioned[i] ]
-#     segments_where_c_and_t_differ = [ (candidate_positioned[i], ref_positioned[i]) for i in range(len(candidate_positioned)) if candidate_positioned[i] != ref_positioned[i] ]
+#     assert len(exact_alignments) == 1
     
-#     # 2. Order all pairwise segments 
-#     read_to_target_pairwise = {} # will contain all CCS reads, the candidate, and the reference itself
+#     all_reads_to_reference = {} 
+#     for read_acc in exact_alignments[t_acc]:
+#         # storing tuple: (aln_t, aln_read, (matches, mismatches, indels))
+#         (aln_t, aln_read, (matches, mismatches, indels)) = exact_alignments[t_acc][read_acc]
+#         all_reads_to_reference[read_acc] =  exact_alignments[t_acc][read_acc]
+#         if read_acc in reads_to_c:
+#             assert reads_to_c[read_acc] == "".join([n for n in aln_read if n != "-"]) # check that sequence has not been altered
+
 #     for read_acc in read_alignments_to_t:
-#         (aln_t, aln_read, (matches, mismatches, indels)) = read_alignments_to_t[read_acc]
+#         all_reads_to_reference[read_acc] = read_alignments_to_t[read_acc]
+
+#     print("saved re-aligning",len(read_alignments_to_t), "sequences")
+
+#     read_to_target_pairwise = {} # will contain all CCS reads, the candidate, and the reference itself
+#     for read_acc in all_reads_to_reference:
+#         (aln_t, aln_read, (matches, mismatches, indels)) = all_reads_to_reference[read_acc]
 #         read_positioned = functions.order_pairwise_alignments(aln_t, aln_read)
 #         read_to_target_pairwise[read_acc] = read_positioned
 #         assert len(read_positioned) == 2*len(t_seq) + 1 # vector positions are 0-indexed
 
-#     read_to_candidate_pairwise = {} # will contain all CCS reads, the candidate, and the reference itself
-#     for read_acc in read_alignments_to_c:
-#         (aln_c, aln_read, (matches, mismatches, indels)) = read_alignments_to_c[read_acc]
-#         read_positioned = functions.order_pairwise_alignments(aln_c, aln_read)
-#         read_to_candidate_pairwise[read_acc] = read_positioned
-#         assert len(read_positioned) == 2*len(c_seq) + 1 # vector positions are 0-indexed
-
-
-#     # 3. Find the variant types 
-#     variant_type = {}
-#     for pos in segment_coordinates_where_c_and_t_differ:
-#         c_segm, t_segm = segments_where_c_and_t_differ[pos]
-#         variant_type[pos] = 
-#         for n_c, n_t in zip(c_segm, t_segm): 
-#             if n_c != n_t and n_c == "-":
-#                 variant_type[pos] = ()
-#         candidate_pos = "".join([n for segm in candidate_positioned[:pos+1] for n in segm if n != "-"])
-#         c_vector_pos = 2*candidate_pos
-
-#     # 4. Which positions in c the segments correspond to and their 
-    
-#     variant_type = {}
-#     for pos in segment_coordinates_where_c_and_t_differ:
-#         c_segm, t_segm = segments_where_c_and_t_differ[pos]
-#         variant_type[pos] = 
-#         for n1, n2 in zip(c_segm, t_segm): 
-        
-#         candidate_pos = "".join([n for segm in candidate_positioned[:pos+1] for n in segm if n != "-"])
-#         c_vector_pos = 2*candidate_pos
-
-#     # 4. get the positons of reads in read_alignments_to_c 
-
-
-    
-
-#     # 1. use pos_where_c_and_t_differ to figure out which segments this corresponds to in reads_to_c,
-#     # 2.  call functions.order_pairwise_alignments with c and read and get the read arranged, then take out the segment in the read that corresponds
-#     #     to the varinat segment in c w.r.t. t obtained in 1. If deletion we need to be careful to include the segment before and after. 
-#     #     we need the length of the list of segments to be identical. Furthermore, variable positions cannot start or end with indel 
-#     # 3. send these segments to create_multialignment_format_stat_test
+#     pos_where_c_and_t_differ = [i for i in range(len(read_positioned)) if read_to_target_pairwise[t_acc][i] != read_to_target_pairwise[c_acc][i] ]
 
 #     read_to_target_pairwise_filtered = {} # contains only the regions where c and t differ
 #     for read_acc in all_reads_to_reference:
@@ -167,62 +301,6 @@ from time import time
 #     # PFM_to_t = functions.create_position_frequency_matrix(alignment_matrix_to_t, partition_alignments[t_acc])
 
 #     return alignment_matrix_to_t
-
-
-def arrange_alignments_new(t_acc, c_acc, t_seq, c_seq, reads_to_c, read_alignments_to_t, ignore_ends_len):
-    partition_dict = {t_acc : {}}
-    for x_acc in reads_to_c:
-        partition_dict[t_acc][x_acc] = (t_seq, reads_to_c[x_acc])
-
-    partition_dict[t_acc][c_acc] = (t_seq, c_seq)
-    partition_dict[t_acc][t_acc] = (t_seq, t_seq)
-
-    exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, nr_cores = 1)    
-    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, nr_cores = 1, ignore_ends_len = ignore_ends_len)
-    assert len(exact_alignments) == 1
-    
-    all_reads_to_reference = {} 
-    for read_acc in exact_alignments[t_acc]:
-        # storing tuple: (aln_t, aln_read, (matches, mismatches, indels))
-        (aln_t, aln_read, (matches, mismatches, indels)) = exact_alignments[t_acc][read_acc]
-        all_reads_to_reference[read_acc] =  exact_alignments[t_acc][read_acc]
-        if read_acc in reads_to_c:
-            assert reads_to_c[read_acc] == "".join([n for n in aln_read if n != "-"]) # check that sequence has not been altered
-
-    for read_acc in read_alignments_to_t:
-        all_reads_to_reference[read_acc] = read_alignments_to_t[read_acc]
-
-    print("saved re-aligning",len(read_alignments_to_t), "sequences")
-
-    read_to_target_pairwise = {} # will contain all CCS reads, the candidate, and the reference itself
-    for read_acc in all_reads_to_reference:
-        (aln_t, aln_read, (matches, mismatches, indels)) = all_reads_to_reference[read_acc]
-        read_positioned = functions.order_pairwise_alignments(aln_t, aln_read)
-        read_to_target_pairwise[read_acc] = read_positioned
-        assert len(read_positioned) == 2*len(t_seq) + 1 # vector positions are 0-indexed
-
-    pos_where_c_and_t_differ = [i for i in range(len(read_positioned)) if read_to_target_pairwise[t_acc][i] != read_to_target_pairwise[c_acc][i] ]
-
-    read_to_target_pairwise_filtered = {} # contains only the regions where c and t differ
-    for read_acc in all_reads_to_reference:
-        read_to_target_pairwise_filtered[read_acc] = [read_to_target_pairwise[read_acc][i] for i in pos_where_c_and_t_differ]
-
-    start = time()
-    # pr = cProfile.Profile()
-    # pr.enable()
-    alignment_matrix_to_t = functions.create_multialignment_format_stat_test(read_to_target_pairwise_filtered)
-    # pr.disable()
-    # s = io.StringIO()
-    # sortby = 'cumulative'
-    # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-    # ps.print_stats()
-    # print(s.getvalue())
-    total_elapsed = time() - start
-    print("filtered", len(alignment_matrix_to_t[read_acc]),total_elapsed)
-
-    # PFM_to_t = functions.create_position_frequency_matrix(alignment_matrix_to_t, partition_alignments[t_acc])
-
-    return alignment_matrix_to_t
 
 
 
@@ -283,18 +361,18 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
         for x_acc in reads_to_c:
             assert reads_to_c[x_acc] == ccs_dict[x_acc].seq
 
-
-    # print("NEW NO realign")
-    # alignment_matrix_to_t = arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ignore_ends_len)
+    print()
+    print("NEW NO REALIGN")
+    x_new, delta_t_new = arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ignore_ends_len)
     # if ignore_ends_len > 0:
     #     alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
 
-    # # get parameter estimates for statistical test
+    # get parameter estimates for statistical test
     # delta_t_new = functions.get_difference_coordinates_for_candidates(t_acc, c_acc, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
-    # # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
+    # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
     # x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t_new, reads) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
-    # print(len(x), delta_t_new, t_acc, c_acc)
-    # print()
+    # print(len(x_new), delta_t_new, t_acc, c_acc)
+    print()
 
     # print("NEW")
     # alignment_matrix_to_t = arrange_alignments_new(t_acc, c_acc, t_seq, c_seq, reads_to_c, read_alignments_to_t, ignore_ends_len)
@@ -310,7 +388,7 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
 
 
     # get multialignment matrix here
-    # print("OLD")
+    print("OLD")
     alignment_matrix_to_t =  arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, {c_acc: c_seq,  t_acc: t_seq}, ignore_ends_len)
     # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
     # these are bases that we disregard when testing varinats
@@ -323,21 +401,31 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
     delta_t = functions.get_difference_coordinates_for_candidates(t_acc, c_acc, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
     # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
     x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t, reads) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
-    # print(len(x), delta_t, t_acc, c_acc)
-    # for key in delta_t_new:
-    #     if list(delta_t_new[key].values()) != list(delta_t[key].values()):
-    #         print(delta_t_new)
-    #         print(delta_t)
-    #     assert list(delta_t_new[key].values()) == list(delta_t[key].values())
+    invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)
 
+    ############ TMP ############
+    ####################################
+    ####################################
+    print(len(x), delta_t, t_acc, c_acc)
+    assert len(list(delta_t.values())[0]) ==  len(delta_t_new)
+    for key in delta_t:
+        if len(list(delta_t[key].values())) != len(list(delta_t_new.values())) or set(list(delta_t[key].values())) != set(list(delta_t_new.values())):
+            print(delta_t_new)
+            print(delta_t)
+        assert len(list(delta_t[key].values())) == len(list(delta_t_new.values())) and set([ (typ, nuc) for typ, nuc, u_mult in delta_t_new.values()]) == set(list(delta_t[key].values())) 
+    ####################################
+    ####################################
+    print(invariant_factors_for_candidate)
+    new_invarinats = set([ u_mult for typ, nuc, u_mult in delta_t_new.values()])
+    old_invarinats = set([tup_dict.values()[0] for cand, pos_dict in invariant_factors_for_candidate.items() for tup_dict in pos_dict.values() ])
+    assert new_invarinats == old_invarinats
 
     if ccs_dict:
         insertions, deletions, substitutions = functions.get_errors_for_partitions(t_acc, len(t_seq), c_acc, alignment_matrix_to_t) 
-        invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)
         probability = functions.get_ccs_position_prob_per_read(t_acc, len(t_seq), alignment_matrix_to_t, invariant_factors_for_candidate, c_acc, delta_t, ccs_dict, insertions, deletions, substitutions, max_phred_q_trusted) 
     else:
         errors = functions.get_errors_per_read(t_acc, len(t_seq), c_acc, alignment_matrix_to_t) 
-        invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)
+        # invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)
         probability = functions.get_prob_of_error_per_read(t_acc, len(t_seq), c_acc, errors, invariant_factors_for_candidate) 
 
     #TODO: do exact only if partition less than, say 200? Otherwise poisson approx
