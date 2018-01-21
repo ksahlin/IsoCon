@@ -100,65 +100,17 @@ def get_mask_start_and_end(aln_t, aln_c):
     return mask_start, mask_end
 
 
-from time import time
-
-def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ignore_ends_len):
-
-    start_time = time()
-    # pr = cProfile.Profile()
-    # pr.enable()
-
-    partition_dict = {t_acc : {}}
-    partition_dict[t_acc][c_acc] = (t_seq, c_seq)
-    # partition_dict[t_acc][t_acc] = (t_seq, t_seq)
-
-    exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, nr_cores = 1)    
-    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, nr_cores = 1, ignore_ends_len = ignore_ends_len)
-    print("saved re-aligning", len(read_alignments_to_t) + len(read_alignments_to_c), "sequences")
-
-    # 1. Find positions differing between reference and candidate
-    aln_t, aln_c, (matches, mismatches, indels) = exact_alignments[t_acc][c_acc]
-    # mask indels in ends due to legnth differences
-    start, end = get_mask_start_and_end(aln_t, aln_c)
-
-    variants = [ (i,p_t,p_c) for i, (p_t, p_c) in  enumerate(zip(aln_t, aln_c)) if p_t != p_c and start <= i < end ]
-    variant_coords_t = {}
-    variant_coords_c = {}
-    for (i,p_t,p_c) in variants:
-        t_seq_piece = "".join([n for n in aln_t[:i+1] if n != "-"])
-        c_seq_piece = "".join([n for n in aln_c[:i+1] if n != "-"])
-
-        if p_c == "-": # candidate has deletion
-            v = t_seq[len(t_seq_piece)-1 ]
-            p = "[{variant}]+".format(variant=v)
-            m =re.match(p, t_seq[len(t_seq_piece)-1 : ])
-            u_v = len(m.group()) if m else 1
-            variant_coords_t[len(t_seq_piece)-1] = ("D", "-", u_v ) 
-            variant_coords_c[len(c_seq_piece)-1 +1] = ("D", "-", u_v ) # Deletion: we will get the phred base call from the pos immmediately to the right
-
-        elif p_t == "-": # candidate has insertion
-            v = c_seq[len(c_seq_piece)-1 ]
-            p = "[{variant}]+".format(variant=v)
-            m =re.match(p, t_seq[len(t_seq_piece)-1 +1 : ]) # Deletion in t: The invariant lengths start one coord to the right
-            u_v = len(m.group()) + 1 if m else 1 # +1 because there are x+1 ways to insert the same character into a a homoplymer of x characters in order to make an insertion of length x+1 
-
-            variant_coords_t[len(t_seq_piece)-1 +1] = ("I", p_c, u_v ) # Deletion: we will get the phred base call from the pos immmediately to the right
-            variant_coords_c[len(c_seq_piece)-1] = ("I", p_c, u_v )
-
-        else: # get coordinate on ref and cand if substitution
-            variant_coords_t[len(t_seq_piece)-1] = ("S", p_c, 1 )
-            variant_coords_c[len(c_seq_piece)-1] = ("S", p_c, 1 )
-
-    
-    print(variant_coords_t)
-
-    # 2. Check if reads support candidate at given variant positions
+def get_support_from_c(read_alignments_to_c, variant_coords_c, c_seq):
     reads_support = []
 
     for read_acc in read_alignments_to_c:
         aln_c, aln_read, (matches, mismatches, indels) = read_alignments_to_c[read_acc]
         c_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_c) if aln_c[j] != "-"]
-
+        # print()
+        # print("C")
+        # print(aln_c)
+        # print(aln_read)
+        # print()
         p_i = 1.0
         support = True
         for i in variant_coords_c:
@@ -181,10 +133,140 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
 
             else:
                 assert v_type == "D"
-                if aln_read[alnmt_pos -1] != aln_c[alnmt_pos -1] or aln_read[alnmt_pos] != aln_c[alnmt_pos]: # read has to match on both position and position immediately before del to support (i.e., no indels in between) 
+                # Either read has to match on both the position and position immediately before del to support (i.e., no indels in between) 
+                exact_match_to_c = aln_read[alnmt_pos -1] == aln_c[alnmt_pos -1] and aln_read[alnmt_pos] == aln_c[alnmt_pos]
+                # or it can also be having an extra deletion on the position and be the same on position immediately before
+                # For ecample, if t: TATCCCC and c: TATCCC
+                # A read is an exact match if read is aligned as TATCCC (identical to c)
+                # We also allow TAT-CC (an extra deletion) because it's still closer to c
+                extra_deletion_to_c = aln_read[alnmt_pos -1] == aln_c[alnmt_pos -1] and aln_read[alnmt_pos] == "-"
+                if not exact_match_to_c and not extra_deletion_to_c:
+                # if aln_read[alnmt_pos -1] != aln_c[alnmt_pos -1] or aln_read[alnmt_pos] != aln_c[alnmt_pos]:
                     support = False
 
 
+        if support:
+            reads_support.append(read_acc)
+    return reads_support
+
+
+def get_support_from_t(read_alignments_to_t, variant_coords_t, t_seq):
+    reads_support = []
+
+    for read_acc in read_alignments_to_t:
+        aln_t, aln_read, (matches, mismatches, indels) = read_alignments_to_t[read_acc]
+        t_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_t) if aln_t[j] != "-"]
+        # print()
+        # print("T")
+        # print(aln_t)
+        # print(aln_read)
+        # print()
+        p_i = 1.0
+        support = True
+        for i in variant_coords_t:
+            v_type, v_nucl, u_v = variant_coords_t[i] 
+            t_coord = t_seq[i]
+            alnmt_pos = t_seq_to_coord_in_almnt[i]
+
+            # START HERE
+            # read_coord = "".join([n for n in aln_c[:i+1] if n != "-"])
+            # p_i
+
+            if v_type == "S":
+                if aln_read[alnmt_pos] != v_nucl:
+                    support = False
+
+            elif v_type == "D":
+                if aln_read[alnmt_pos] != "-": # read has deletion over the same pos as candidate
+                    support = False
+
+            else:
+                assert v_type == "I"
+                insertion_in_first_pos = aln_read[alnmt_pos -1] == v_nucl and  aln_t[alnmt_pos-1] == "-"
+                # rare occasions insertion_in_last_pos
+                # c to t: c:TTATTTTGGGGCTG, t: TTATTTT-GGGCTG
+                # Exampleright shifted indel:
+                # t: TTATTTTGGG--CTG
+                # r: TTATTTTGGGGCCTG
+                insertion_in_last_pos = aln_read[alnmt_pos +u_v -1] == v_nucl and aln_t[alnmt_pos + u_v -1] == "-" # somtimes happen in homopolymenr
+                if not insertion_in_first_pos and not insertion_in_last_pos:
+                # if aln_read[alnmt_pos -1] != v_nucl or aln_t[alnmt_pos] != "-": # read has to match on both position and position immediately before del to support (i.e., no indels in between) 
+                    support = False
+
+
+        if support:
+            reads_support.append(read_acc)
+    return reads_support
+
+
+from time import time
+
+def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ignore_ends_len):
+
+    start_time = time()
+    # pr = cProfile.Profile()
+    # pr.enable()
+
+    partition_dict = {t_acc : {}}
+    partition_dict[t_acc][c_acc] = (t_seq, c_seq)
+    # partition_dict[t_acc][t_acc] = (t_seq, t_seq)
+
+    exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, nr_cores = 1)    
+    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, nr_cores = 1, ignore_ends_len = ignore_ends_len)
+    print("saved re-aligning", len(read_alignments_to_t) + len(read_alignments_to_c), "sequences")
+
+    # 1. Find positions differing between reference and candidate
+    aln_t, aln_c, (matches, mismatches, indels) = exact_alignments[t_acc][c_acc]
+    # mask indels in ends due to legnth differences
+    start, end = get_mask_start_and_end(aln_t, aln_c)
+    # print(aln_t)
+    # print(aln_c)
+    variants = [ (i,p_t,p_c) for i, (p_t, p_c) in  enumerate(zip(aln_t, aln_c)) if p_t != p_c and start <= i < end ]
+    variant_coords_t = {}
+    variant_coords_c = {}
+    for (i,p_t,p_c) in variants:
+        t_seq_piece = "".join([n for n in aln_t[:i+1] if n != "-"])
+        c_seq_piece = "".join([n for n in aln_c[:i+1] if n != "-"])
+
+        if p_c == "-": # candidate has deletion
+            v = t_seq[len(t_seq_piece)-1 ]
+            p = "[{variant}]+".format(variant=v)
+            m_f = re.match(p, t_seq[len(t_seq_piece)-1 : ])
+            m_r = re.match(p, t_seq[len(t_seq_piece)-1 : : -1 ])
+            u_v = max(len(m_f.group()), len(m_r.group())) if m_f or m_r else 1
+            variant_coords_t[len(t_seq_piece)-1] = ("D", "-", u_v ) 
+            variant_coords_c[len(c_seq_piece)-1 +1] = ("D", "-", u_v ) # Deletion: we will get the phred base call from the pos immmediately to the right
+
+        elif p_t == "-": # candidate has insertion
+            v = c_seq[len(c_seq_piece)-1 ]
+            p = "[{variant}]+".format(variant=v)
+
+            m_f = re.match(p, t_seq[len(t_seq_piece)-1 +1 : ])
+            m_r = re.match(p, t_seq[len(t_seq_piece)-1 : : -1 ])
+            if m_f and m_r:
+                u_v = (max(len(m_f.group()), len(m_r.group())) +1) # +1 because there are x+1 ways to insert the same character into a a homoplymer of x characters in order to make an insertion of length x+1 
+            elif m_f:
+                u_v = len(m_f.group()) + 1  # +1 because there are x+1 ways to insert the same character into a a homoplymer of x characters in order to make an insertion of length x+1 
+            elif m_r:
+                u_v = len(m_r.group()) + 1 # +1 because there are x+1 ways to insert the same character into a a homoplymer of x characters in order to make an insertion of length x+1 
+            else:
+                u_v = 1
+            # m =re.match(p, t_seq[len(t_seq_piece)-1 +1 : ]) # Deletion in t: The invariant lengths start one coord to the right
+            # u_v = len(m.group()) + 1 if m else 1 # +1 because there are x+1 ways to insert the same character into a a homoplymer of x characters in order to make an insertion of length x+1 
+
+            variant_coords_t[len(t_seq_piece)-1 +1] = ("I", p_c, u_v ) # Deletion: we will get the phred base call from the pos immmediately to the right
+            variant_coords_c[len(c_seq_piece)-1] = ("I", p_c, u_v )
+
+        else: # get coordinate on ref and cand if substitution
+            variant_coords_t[len(t_seq_piece)-1] = ("S", p_c, 1 )
+            variant_coords_c[len(c_seq_piece)-1] = ("S", p_c, 1 )
+
+    
+    print(variant_coords_t)
+
+    # 2. Check if reads support candidate at given variant positions
+    reads_support_from_c = get_support_from_c(read_alignments_to_c, variant_coords_c, c_seq)
+    reads_support_from_t = get_support_from_t(read_alignments_to_t, variant_coords_t, t_seq)
 
 
     # 3. If CCS: get position specific error rate
@@ -243,7 +325,7 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
     total_elapsed = time() - start_time
     print("total new arrange:",total_elapsed)
 
-    return reads_support, variant_coords_t
+    return reads_support_from_c, reads_support_from_t, variant_coords_t
 
 
 
@@ -363,7 +445,7 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
 
     print()
     print("NEW NO REALIGN")
-    x_new, delta_t_new = arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ignore_ends_len)
+    x_new_from_c, x_new_from_t, delta_t_new = arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ignore_ends_len)
     # if ignore_ends_len > 0:
     #     alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
 
@@ -372,6 +454,7 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
     # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
     # x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t_new, reads) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
     # print(len(x_new), delta_t_new, t_acc, c_acc)
+    print("new support", len(x_new_from_c), "and", len(x_new_from_t) )
     print()
 
     # print("NEW")
@@ -406,7 +489,21 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
     ############ TMP ############
     ####################################
     ####################################
-    print(len(x), delta_t, t_acc, c_acc)
+    # print(len(x), delta_t, t_acc, c_acc)
+    if len(x_new_from_c) + len(x_new_from_t) != len(x):
+        print()
+        print("DIFFERENCE:", "new support:", len(x_new_from_c) + len(x_new_from_t), "old support:", len(x) )
+        print(delta_t_new)
+        for read_acc in read_alignments_to_c:
+            print("C")
+            print(read_alignments_to_c[read_acc][0])
+            print(read_alignments_to_c[read_acc][1])
+        for read_acc in read_alignments_to_t:
+            print("T")
+            print(read_alignments_to_t[read_acc][0])
+            print(read_alignments_to_t[read_acc][1])
+
+        print()
     assert len(list(delta_t.values())[0]) ==  len(delta_t_new)
     for key in delta_t:
         if len(list(delta_t[key].values())) != len(list(delta_t_new.values())) or set(list(delta_t[key].values())) != set(list(delta_t_new.values())):
@@ -415,7 +512,7 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
         assert len(list(delta_t[key].values())) == len(list(delta_t_new.values())) and set([ (typ, nuc) for typ, nuc, u_mult in delta_t_new.values()]) == set(list(delta_t[key].values())) 
     ####################################
     ####################################
-    print(invariant_factors_for_candidate)
+    # print(invariant_factors_for_candidate)
     new_invarinats = set([ u_mult for typ, nuc, u_mult in delta_t_new.values()])
     old_invarinats = set([tup_dict.values()[0] for cand, pos_dict in invariant_factors_for_candidate.items() for tup_dict in pos_dict.values() ])
     assert new_invarinats == old_invarinats
