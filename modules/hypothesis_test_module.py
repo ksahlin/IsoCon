@@ -122,32 +122,50 @@ def get_support_from_c(read_alignments_to_c, variant_coords_c, c_seq):
             # read_coord = "".join([n for n in aln_c[:i+1] if n != "-"])
             # p_i
 
+            # require exact match over 3mer if S, or I,D in non-homopolymenr region.
+            # If homopolymenr region of size u_v, require length match of homopolymenr
+            exact_match = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == aln_c[alnmt_pos -1: alnmt_pos + u_v +1]
             if v_type == "S":
-                # read has to have the same nucleotides as the candidate on the 3-mer spanning the substitution
-                exact_3mer_match = aln_read[alnmt_pos -1: alnmt_pos+2] == aln_c[alnmt_pos -1: alnmt_pos+2]
-                if not exact_3mer_match: #aln_read[alnmt_pos] != v_nucl:
+                if not exact_match:
                     support = False
 
 
             elif v_type == "I":
-                # read has to have the same nucleotides as the candidate on the 3-mer spanning the insertion
-                # That is, if t: AGC-CGG and c: AGCTCGG, then the read has to have the 3mer CTC to support indel T, this is to prevent noisy reads 
-                exact_3mer_match = aln_read[alnmt_pos -1: alnmt_pos+2] == aln_c[alnmt_pos -1: alnmt_pos+2]
-                if not exact_3mer_match: #aln_read[alnmt_pos] != v_nucl:
+                if not exact_match:
                     support = False
 
             else:
                 assert v_type == "D"
-                exact_3mer_match = aln_read[alnmt_pos -1: alnmt_pos+2] == aln_c[alnmt_pos -1: alnmt_pos+2]
-                # # Either read has to match on both the position and position immediately before del to support (i.e., no indels in between) 
-                # exact_match_to_c = aln_read[alnmt_pos -1] == aln_c[alnmt_pos -1] and aln_read[alnmt_pos] == aln_c[alnmt_pos]
-                # # or it can also be having an extra deletion on the position and be the same on position immediately before
-                # # For ecample, if t: TATCCCC and c: TATCCC
-                # # A read is an exact match if read is aligned as TATCCC (identical to c)
-                # # We also allow TAT-CC (an extra deletion) because it's still closer to c
-                # extra_deletion_to_c = aln_read[alnmt_pos -1] == aln_c[alnmt_pos -1] and aln_read[alnmt_pos] == "-"
-                if not exact_3mer_match: #not exact_match_to_c and not extra_deletion_to_c:
+                if not exact_match:
                     support = False
+
+
+            # if v_type == "S":
+            #     # read has to have the same nucleotides as the candidate on the 3-mer spanning the substitution
+            #     exact_3mer_match = aln_read[alnmt_pos -1: alnmt_pos+2] == aln_c[alnmt_pos -1: alnmt_pos+2]
+            #     if not exact_3mer_match: #aln_read[alnmt_pos] != v_nucl:
+            #         support = False
+
+
+            # elif v_type == "I":
+            #     # read has to have the same nucleotides as the candidate on the 3-mer spanning the insertion
+            #     # That is, if t: AGC-CGG and c: AGCTCGG, then the read has to have the 3mer CTC to support indel T, this is to prevent noisy reads 
+            #     exact_3mer_match = aln_read[alnmt_pos -1: alnmt_pos+2] == aln_c[alnmt_pos -1: alnmt_pos+2]
+            #     if not exact_3mer_match: #aln_read[alnmt_pos] != v_nucl:
+            #         support = False
+
+            # else:
+            #     assert v_type == "D"
+            #     exact_3mer_match = aln_read[alnmt_pos -1: alnmt_pos+2] == aln_c[alnmt_pos -1: alnmt_pos+2]
+            #     # # Either read has to match on both the position and position immediately before del to support (i.e., no indels in between) 
+            #     # exact_match_to_c = aln_read[alnmt_pos -1] == aln_c[alnmt_pos -1] and aln_read[alnmt_pos] == aln_c[alnmt_pos]
+            #     # # or it can also be having an extra deletion on the position and be the same on position immediately before
+            #     # # For ecample, if t: TATCCCC and c: TATCCC
+            #     # # A read is an exact match if read is aligned as TATCCC (identical to c)
+            #     # # We also allow TAT-CC (an extra deletion) because it's still closer to c
+            #     # extra_deletion_to_c = aln_read[alnmt_pos -1] == aln_c[alnmt_pos -1] and aln_read[alnmt_pos] == "-"
+            #     if not exact_3mer_match: #not exact_match_to_c and not extra_deletion_to_c:
+            #         support = False
 
 
         if support:
