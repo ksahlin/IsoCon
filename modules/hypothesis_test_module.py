@@ -123,25 +123,30 @@ def get_support_from_c(read_alignments_to_c, variant_coords_c, c_seq):
             # p_i
 
             if v_type == "S":
-                if aln_read[alnmt_pos] != v_nucl:
+                # read has to have the same nucleotides as the candidate on the 3-mer spanning the substitution
+                exact_3mer_match = aln_read[alnmt_pos -1: alnmt_pos+2] == aln_c[alnmt_pos -1: alnmt_pos+2]
+                if not exact_3mer_match: #aln_read[alnmt_pos] != v_nucl:
                     support = False
 
 
             elif v_type == "I":
-                if aln_read[alnmt_pos] != v_nucl:
+                # read has to have the same nucleotides as the candidate on the 3-mer spanning the insertion
+                # That is, if t: AGC-CGG and c: AGCTCGG, then the read has to have the 3mer CTC to support indel T, this is to prevent noisy reads 
+                exact_3mer_match = aln_read[alnmt_pos -1: alnmt_pos+2] == aln_c[alnmt_pos -1: alnmt_pos+2]
+                if not exact_3mer_match: #aln_read[alnmt_pos] != v_nucl:
                     support = False
 
             else:
                 assert v_type == "D"
-                # Either read has to match on both the position and position immediately before del to support (i.e., no indels in between) 
-                exact_match_to_c = aln_read[alnmt_pos -1] == aln_c[alnmt_pos -1] and aln_read[alnmt_pos] == aln_c[alnmt_pos]
-                # or it can also be having an extra deletion on the position and be the same on position immediately before
-                # For ecample, if t: TATCCCC and c: TATCCC
-                # A read is an exact match if read is aligned as TATCCC (identical to c)
-                # We also allow TAT-CC (an extra deletion) because it's still closer to c
-                extra_deletion_to_c = aln_read[alnmt_pos -1] == aln_c[alnmt_pos -1] and aln_read[alnmt_pos] == "-"
-                if not exact_match_to_c and not extra_deletion_to_c:
-                # if aln_read[alnmt_pos -1] != aln_c[alnmt_pos -1] or aln_read[alnmt_pos] != aln_c[alnmt_pos]:
+                exact_3mer_match = aln_read[alnmt_pos -1: alnmt_pos+2] == aln_c[alnmt_pos -1: alnmt_pos+2]
+                # # Either read has to match on both the position and position immediately before del to support (i.e., no indels in between) 
+                # exact_match_to_c = aln_read[alnmt_pos -1] == aln_c[alnmt_pos -1] and aln_read[alnmt_pos] == aln_c[alnmt_pos]
+                # # or it can also be having an extra deletion on the position and be the same on position immediately before
+                # # For ecample, if t: TATCCCC and c: TATCCC
+                # # A read is an exact match if read is aligned as TATCCC (identical to c)
+                # # We also allow TAT-CC (an extra deletion) because it's still closer to c
+                # extra_deletion_to_c = aln_read[alnmt_pos -1] == aln_c[alnmt_pos -1] and aln_read[alnmt_pos] == "-"
+                if not exact_3mer_match: #not exact_match_to_c and not extra_deletion_to_c:
                     support = False
 
 
@@ -173,7 +178,8 @@ def get_support_from_t(read_alignments_to_t, variant_coords_t, t_seq):
             # p_i
 
             if v_type == "S":
-                if aln_read[alnmt_pos] != v_nucl:
+                exact_3mer_match = aln_read[alnmt_pos - 1] == aln_t[alnmt_pos - 1] and aln_read[alnmt_pos +1] == aln_t[alnmt_pos + 1] and aln_read[alnmt_pos] == v_nucl
+                if not exact_3mer_match: #aln_read[alnmt_pos] != v_nucl:
                     support = False
 
             elif v_type == "D":
@@ -231,9 +237,17 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
         if p_c == "-": # candidate has deletion
             v = t_seq[len(t_seq_piece)-1 ]
             p = "[{variant}]+".format(variant=v)
-            m_f = re.match(p, t_seq[len(t_seq_piece)-1 : ])
+            m_f = re.match(p, t_seq[len(t_seq_piece)-1 +1: ])
             m_r = re.match(p, t_seq[len(t_seq_piece)-1 : : -1 ])
-            u_v = max(len(m_f.group()), len(m_r.group())) if m_f or m_r else 1
+            if m_f and m_r:
+                u_v = len(m_f.group()) + len(m_r.group())
+            elif m_f:
+                u_v = len(m_f.group())  
+            elif m_r:
+                u_v = len(m_r.group())
+            else:
+                u_v = 1
+            # u_v = max(len(m_f.group()), len(m_r.group())) if m_f or m_r else 1
             variant_coords_t[len(t_seq_piece)-1] = ("D", "-", u_v ) 
             variant_coords_c[len(c_seq_piece)-1 +1] = ("D", "-", u_v ) # Deletion: we will get the phred base call from the pos immmediately to the right
 
@@ -244,7 +258,7 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
             m_f = re.match(p, t_seq[len(t_seq_piece)-1 +1 : ])
             m_r = re.match(p, t_seq[len(t_seq_piece)-1 : : -1 ])
             if m_f and m_r:
-                u_v = (max(len(m_f.group()), len(m_r.group())) +1) # +1 because there are x+1 ways to insert the same character into a a homoplymer of x characters in order to make an insertion of length x+1 
+                u_v = len(m_f.group()) + len(m_r.group()) + 1 # +1 because there are x+1 ways to insert the same character into a a homoplymer of x characters in order to make an insertion of length x+1 
             elif m_f:
                 u_v = len(m_f.group()) + 1  # +1 because there are x+1 ways to insert the same character into a a homoplymer of x characters in order to make an insertion of length x+1 
             elif m_r:
@@ -490,18 +504,19 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
     ####################################
     ####################################
     # print(len(x), delta_t, t_acc, c_acc)
+    print( (set(x_new_from_c) | set(x_new_from_t) )   ^ set(x) )
     if len(x_new_from_c) + len(x_new_from_t) != len(x):
         print()
         print("DIFFERENCE:", "new support:", len(x_new_from_c) + len(x_new_from_t), "old support:", len(x) )
         print(delta_t_new)
-        for read_acc in read_alignments_to_c:
-            print("C")
-            print(read_alignments_to_c[read_acc][0])
-            print(read_alignments_to_c[read_acc][1])
-        for read_acc in read_alignments_to_t:
-            print("T")
-            print(read_alignments_to_t[read_acc][0])
-            print(read_alignments_to_t[read_acc][1])
+        # for read_acc in read_alignments_to_c:
+        #     print("C")
+        #     print(read_alignments_to_c[read_acc][0])
+        #     print(read_alignments_to_c[read_acc][1])
+        # for read_acc in read_alignments_to_t:
+        #     print("T")
+        #     print(read_alignments_to_t[read_acc][0])
+        #     print(read_alignments_to_t[read_acc][1])
 
         print()
     assert len(list(delta_t.values())[0]) ==  len(delta_t_new)
