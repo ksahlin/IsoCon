@@ -212,7 +212,15 @@ def get_support_from_t(read_alignments_to_t, variant_coords_t, t_seq):
                 # Exampleright shifted indel:
                 # t: TTATTTTGGG--CTG
                 # r: TTATTTTGGGGCCTG
-                insertion_in_last_pos = aln_read[alnmt_pos +u_v -1] == v_nucl and aln_t[alnmt_pos + u_v -1] == "-" # somtimes happen in homopolymenr
+                # obtain how long the homopolymenr insertion stetches in the alignment on t
+                p = "[{variant}]+".format(variant=v_nucl)
+                m_f = re.match(p, aln_t[alnmt_pos: ])
+                u_v = len(m_f.group()) if m_f else 1 # is insertion in homopolymenr region of at least 2 bases in candidate, therefore we have at least one matching base here
+                if len(aln_read) > alnmt_pos +u_v:
+                    insertion_in_last_pos = aln_read[alnmt_pos +u_v] == v_nucl and aln_t[alnmt_pos + u_v] == "-" # can happen in homopolymenr
+                else: # might be at the end of the t to read alignment, i.e., len(aln_read) == alnmt_pos +u_v, then there is not insertion in the read compared to t by definition
+                    insertion_in_last_pos = False #aln_read[alnmt_pos +u_v -1] == v_nucl and aln_t[alnmt_pos + u_v -1] == "-" # somtimes happen in homopolymenr
+
                 if not insertion_in_first_pos and not insertion_in_last_pos:
                 # if aln_read[alnmt_pos -1] != v_nucl or aln_t[alnmt_pos] != "-": # read has to match on both position and position immediately before del to support (i.e., no indels in between) 
                     support = False
@@ -221,6 +229,19 @@ def get_support_from_t(read_alignments_to_t, variant_coords_t, t_seq):
         if support:
             reads_support.append(read_acc)
     return reads_support
+
+def get_read_errors(read_alignments_to_c, read_alignments_to_t):
+    errors = {}
+    for read_acc in read_alignments_to_t:
+        aln_t, aln_read, (matches, mismatches, indels) = read_alignments_to_t[read_acc]
+        insertions, deletions, substitutions = read_errors_from_alignment(aln_t, aln_read)
+        errors[read_acc] = (insertions, deletions, substitutions)
+
+    for read_acc in read_alignments_to_c:
+        aln_c, aln_read, (matches, mismatches, indels) = read_alignments_to_c[read_acc]
+        insertions, deletions, substitutions = read_errors_from_alignment(aln_c, aln_read)
+        errors[read_acc] = (insertions, deletions, substitutions)       
+    return errors
 
 
 from time import time
@@ -300,11 +321,14 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
     reads_support_from_c = get_support_from_c(read_alignments_to_c, variant_coords_c, c_seq)
     reads_support_from_t = get_support_from_t(read_alignments_to_t, variant_coords_t, t_seq)
 
-
-    # 3. If CCS: get position specific error rate
-
-
     # 4. get individual read error rates (again ignoring, any indel differences in ends) 
+    errors = get_read_errors(read_alignments_to_c, read_alignments_to_t)
+
+    # 3. Get position specific error rate for each varinat in the reads 
+    if ccs_dict:
+        probability = functions.get_ccs_error_probabilities(len(t_seq), errors, variant_coords_t, ccs_dict, max_phred_q_trusted) 
+    else:
+        probability = functions.get_empirical_error_probabilities(len(t_seq), errors, variant_coords_t) 
 
     # 5. Sum error rates into a final partition them up into a final partition use either get_errors_for_partitions, or get_errors_per_read
     #    They are about the same

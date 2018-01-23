@@ -358,7 +358,34 @@ def get_errors_for_partitions(target_accession, segment_length, c_acc, alignment
     # if insertions, deletions, substitutions == 0:
     return insertions, deletions, substitutions
 
+def read_errors_from_alignment(ref_aln, read_aln):
+    p = "[-]+"
+    ref_f = re.match(p, ref_aln)
+    read_f = re.match(p, read_aln)
+    if ref_f and read_f:
+        start = max(len(ref_f.group()), len(read_f.group()))
+    elif ref_f:
+        start = len(ref_f.group())  
+    elif read_f:
+        start = len(read_f.group())
+    else:
+        start = 0
+    
+    ref_r = re.match(p, ref_aln[::-1])
+    read_r = re.match(p, read_aln[::-1])
+    if ref_r and read_r:
+        match_length = max(len(ref_r.group()), len(read_r.group()))
+    elif ref_r:
+        match_length = len(ref_r.group())  
+    elif read_r:
+        match_length = len(read_r.group())
+    else:
+        match_length = 0
+    stop = len(ref_aln) - match_length
 
+    variants = ["I" if n1 == "-" else "D" if n2 == "-" else "S" for n1, n2 in zip(ref_aln[start: stop], read_aln[start: stop]) if n1 != n2 ]
+    insertions, deletions, substitutions = variants.count("I"), variants.count("D"), variants.count("S")
+    return insertions, deletions, substitutions
 
 
 def get_errors_per_read(target_accession, segment_length, c_acc, alignment_matrix):
