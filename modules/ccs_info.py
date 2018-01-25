@@ -26,6 +26,30 @@ class CCS(object):
             #     indicator_probs += " "
         return(indicator_probs)
 
+
+    def read_aln_to_ccs_coord(self, read_aln, pos):
+        """
+            Finds the correct position in the ccs read to get the base quality prediction from, given a position
+            in our alignment from the fasta seq of the read to a candidate.
+        """
+
+        fasta_seq = "".join([n for n in read_aln if n != "-"])
+
+        index = self.seq.index(fasta_seq)
+        # print("found at index:", index, "length piece:", len(seq_piece), ccs_alignment_vector[pos] == "-")
+            
+        if (index + pos ) < len(self.seq):
+            coord_in_ccs = index + pos  
+
+        elif (index + len(seq_piece) ) == len(self.seq): #deletion occurs after last base pair (corner case and base quality is NA)
+            coord_in_ccs = index + pos - 1
+            print("Occurred at last position.", index, "length seq_piece:", pos, "length sequence:", len(self.seq))
+        else:
+            print("Index error:", index, "length seq_piece:", len(seq_piece), "length sequence:", len(self.seq))
+            sys.exit()
+
+        return coord_in_ccs
+
     def alignment_matrix_pos_to_ccs_coord(self, ccs_alignment_vector, pos):
         """
             Finds the correct position in the ccs read to get the base quality prediction from, given a position
