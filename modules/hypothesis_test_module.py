@@ -125,6 +125,9 @@ def merge_two_dicts(x, y):
 def get_variant_coordinates(t_seq, c_seq, aln_t, aln_c, variants):
     variant_coords_t = {}
     variant_coords_c = {}
+    alignment_c_to_t = {} # t-coordinate as key and alignment of c in that region as value
+    alignment_t_to_c = {} # c-coordinate as key and alignment of t in that region as value
+
     for (i,p_t,p_c) in variants:
         t_seq_piece = "".join([n for n in aln_t[:i+1] if n != "-"])
         c_seq_piece = "".join([n for n in aln_c[:i+1] if n != "-"])
@@ -145,6 +148,8 @@ def get_variant_coordinates(t_seq, c_seq, aln_t, aln_c, variants):
             # u_v = max(len(m_f.group()), len(m_r.group())) if m_f or m_r else 1
             variant_coords_t[len(t_seq_piece)-1] = ("D", "-", u_v ) 
             variant_coords_c[len(c_seq_piece)-1 +1] = ("D", "-", u_v ) # Deletion: we will get the phred base call from the pos immmediately to the right
+            alignment_c_to_t[len(t_seq_piece)-1] = aln_c[i-1 : i+ u_v + 1]
+            alignment_t_to_c[len(c_seq_piece)-1 +1] = aln_t[i-1 : i+ u_v + 1]
 
         elif p_t == "-": # candidate has insertion
             v = c_seq[len(c_seq_piece)-1 ]
@@ -165,12 +170,66 @@ def get_variant_coordinates(t_seq, c_seq, aln_t, aln_c, variants):
 
             variant_coords_t[len(t_seq_piece)-1 +1] = ("I", p_c, u_v ) # Deletion: we will get the phred base call from the pos immmediately to the right
             variant_coords_c[len(c_seq_piece)-1] = ("I", p_c, u_v )
+            alignment_c_to_t[len(t_seq_piece)-1 +1] = aln_c[i-1 : i+ u_v + 1]
+            alignment_t_to_c[len(c_seq_piece)-1] = aln_t[i-1 : i+ u_v + 1]
 
         else: # get coordinate on ref and cand if substitution
             variant_coords_t[len(t_seq_piece)-1] = ("S", p_c, 1 )
             variant_coords_c[len(c_seq_piece)-1] = ("S", p_c, 1 )
+            alignment_c_to_t[len(t_seq_piece)-1] = aln_c[i-1 : i + 2]
+            alignment_t_to_c[len(c_seq_piece)-1] = aln_t[i-1 : i + 2]
 
-    return variant_coords_t, variant_coords_c
+    return variant_coords_t, variant_coords_c, alignment_c_to_t, alignment_t_to_c
+
+
+
+def get_support(read_alignments_to_c, variant_coords_c, read_alignments_to_t, variant_coords_t, alignment_c_to_t):
+    reads_support_c = []
+    for read_acc in read_alignments_to_c:
+        aln_c, aln_read, (matches, mismatches, indels) = read_alignments_to_c[read_acc]
+        c_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_c) if aln_c[j] != "-"]
+        support = True
+        for i in variant_coords_c:
+            v_type, v_nucl, u_v = variant_coords_c[i] 
+            alnmt_pos = c_seq_to_coord_in_almnt[i]
+
+            # require exact match over 3mer if S, or I,D in non-homopolymenr region.
+            # If homopolymenr region of size u_v, require length match of homopolymenr
+            exact_match = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == aln_c[alnmt_pos -1: alnmt_pos + u_v +1]
+            if not exact_match:
+                support = False
+                break
+        if support:
+            reads_support_c.append(read_acc)
+
+
+    reads_support_c_from_t = []
+    for read_acc in read_alignments_to_t:
+        aln_t, aln_read, (matches, mismatches, indels) = read_alignments_to_t[read_acc]
+        t_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_t) if aln_t[j] != "-"]
+        support = True
+        for i in variant_coords_t:
+            v_type, v_nucl, u_v = variant_coords_t[i] 
+            alnmt_pos = t_seq_to_coord_in_almnt[i]
+
+            c_align_snippet = alignment_c_to_t[i]
+            if v_type == "I": # will need to check shifterd snippet on t alignment because base is indexed immediately to the right
+                exact_match_to_c = aln_read[alnmt_pos -2: alnmt_pos + u_v] == c_align_snippet 
+                # print(aln_read[alnmt_pos -2: alnmt_pos + u_v], c_align_snippet)
+            else:
+                exact_match_to_c = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == c_align_snippet
+                # print( aln_read[alnmt_pos -1: alnmt_pos + u_v + 1], c_align_snippet)
+            
+            # require exact match over 3mer if S, or I,D in non-homopolymenr region.
+            # If homopolymenr region of size u_v, require length match of homopolymenr
+            if not exact_match_to_c:
+                support = False
+                break
+        if support:
+            reads_support_c_from_t.append(read_acc)   
+
+    print("NEW2 support", len(reads_support_c), "and", len(reads_support_c_from_t) )
+    return reads_support_c + reads_support_c_from_t
 
 
 def get_support_from_c(read_alignments_to_c, variant_coords_c):
@@ -209,13 +268,80 @@ def get_support_from_c(read_alignments_to_c, variant_coords_c):
     return reads_support
 
 
-def get_read_ccs_probabilities_from_reads_to_c(read_alignments_to_c, variant_coords_c, ccs_dict, errors, max_phred_q_trusted):
-    probabilities_c = {}
+# def get_read_ccs_probabilities_from_reads_to_c(read_alignments_to_c, variant_coords_c, ccs_dict, errors, max_phred_q_trusted):
+#     probabilities_c = {}
+#     tot_errors = float(sum([ i+d+s for i, d, s in errors.values()]))
+#     tot_errors = tot_errors if tot_errors > 1 else 1.0
+#     subs_ratio = sum([ s for i, d, s in errors.values()]) / tot_errors
+#     ins_ratio = sum([ i for i, d, s in errors.values()]) / tot_errors
+#     del_ratio = sum([ d for i, d, s in errors.values()]) / tot_errors
+
+#     for read_acc in read_alignments_to_c:
+#         aln_c, aln_read, (matches, mismatches, indels) = read_alignments_to_c[read_acc]
+#         c_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_c) if aln_c[j] != "-"]
+#         read_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_read) if aln_read[j] != "-"]
+#         prob = 1.0
+
+#         for i in variant_coords_c:
+#             v_type, v_nucl, u_v = variant_coords_c[i] 
+#             alnmt_pos = c_seq_to_coord_in_almnt[i]
+
+#             # require exact match over 3mer if S, or I, D in non-homopolymenr region.
+#             # If homopolymenr region of size u_v, require length match of homopolymenr
+#             exact_match = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == aln_c[alnmt_pos -1: alnmt_pos + u_v +1]
+#             if  exact_match:
+#                 read_coord = len("".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])) - 1
+#                 ccs_coord = ccs_dict[ read_acc ].read_aln_to_ccs_coord(aln_read, read_coord)
+
+#             else:
+#                 read_snippet_up_to_variant = "".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])
+#                 if aln_read[alnmt_pos] == "-":
+#                     alnmt_pos_after_del = read_seq_to_coord_in_almnt[len(read_snippet_up_to_variant)]
+#                     read_snippet_up_to_variant = "".join([n for n in aln_read[ : alnmt_pos_after_del +1] if n != "-"])
+#                 # else:
+#                 #     read_snippet_up_to_variant = "".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])
+#                 p = "[{variant}]+".format(variant=read_snippet_up_to_variant[-1])
+#                 m = re.match(p, read_snippet_up_to_variant[ : : -1 ])
+#                 read_coord = len(read_snippet_up_to_variant) - len(m.group())
+#                 ccs_coord = ccs_dict[ read_acc ].read_aln_to_ccs_coord(aln_read, read_coord)
+
+
+#             q_qual = ccs_dict[read_acc].qual[ccs_coord]
+#             print(ccs_dict[read_acc].qual[ccs_coord -1: ccs_coord +5 ], ccs_dict[read_acc].seq[ccs_coord-1: ccs_coord +5 ])
+
+#             # To map quality values
+#             # [A, B] --> [a, b]  [3, 93] --> [3, 43]
+#             # (x - A)*(b-a)/(B-A) + a
+#             q_qual_mapped = (q_qual - 3)*(max_phred_q_trusted - 3.0)/(90.0) + 3
+
+#             if u_v > 1: # probability in a homopolymenr region has all it's uncertainty attributed to the lenght of the homopolymer that 
+#                 p_error =  (10**(-q_qual_mapped/10.0))
+#             elif v_type == "S":
+#                 p_error =  ((10**(-q_qual_mapped/10.0))*subs_ratio)/3.0 # probability that its an identical substitution error from a base call uncertainty
+#             elif  v_type == "I":
+#                 p_error =  ((10**(-q_qual_mapped/10.0))*ins_ratio)/4.0 # probability that its an identical insertion error from a base call uncertainty
+#             elif v_type == "D":
+#                 p_error =  (10**(-q_qual_mapped/10.0)) * del_ratio # probability that its a delation error from a base call uncertainty
+#             else:
+#                 p_error = -1 # If end up here, there is a bug
+
+#             # print(p_error, q_qual_mapped, q_qual)
+#             assert 0.0 < p_error < 1.0
+#             prob *= p_error
+#         probabilities_c[read_acc] = prob
+
+#     return probabilities_c
+
+
+def get_read_ccs_probabilities_c(read_alignments_to_c, variant_coords_c, alignment_t_to_c, ccs_dict, errors, max_phred_q_trusted):
     tot_errors = float(sum([ i+d+s for i, d, s in errors.values()]))
     tot_errors = tot_errors if tot_errors > 1 else 1.0
     subs_ratio = sum([ s for i, d, s in errors.values()]) / tot_errors
     ins_ratio = sum([ i for i, d, s in errors.values()]) / tot_errors
     del_ratio = sum([ d for i, d, s in errors.values()]) / tot_errors
+
+    probabilities = {}
+    reads_not_supporting_any_seq = set()
 
     for read_acc in read_alignments_to_c:
         aln_c, aln_read, (matches, mismatches, indels) = read_alignments_to_c[read_acc]
@@ -229,25 +355,39 @@ def get_read_ccs_probabilities_from_reads_to_c(read_alignments_to_c, variant_coo
 
             # require exact match over 3mer if S, or I, D in non-homopolymenr region.
             # If homopolymenr region of size u_v, require length match of homopolymenr
-            exact_match = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == aln_c[alnmt_pos -1: alnmt_pos + u_v +1]
-            if  exact_match:
+            exact_match_to_c = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == aln_c[alnmt_pos -1: alnmt_pos + u_v +1]
+
+            t_align_snippet = alignment_t_to_c[i]
+            if v_type == "D": # will need to check shifted snippet on c alignment because base is indexed immediately to the right
+                exact_match_to_t = aln_read[alnmt_pos -2: alnmt_pos + u_v] == t_align_snippet 
+                # print("LOL HERE C", aln_read[alnmt_pos -2: alnmt_pos + u_v], t_align_snippet)
+            else:
+                exact_match_to_t = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == t_align_snippet
+                # print( aln_read[alnmt_pos -1: alnmt_pos + u_v + 1], t_align_snippet, aln_c[alnmt_pos -1: alnmt_pos + u_v +1])
+
+            assert not (exact_match_to_c and exact_match_to_t) # they cannot both be perfect matches, that means a bug
+
+            if  exact_match_to_c:
                 read_coord = len("".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])) - 1
+                ccs_coord = ccs_dict[ read_acc ].read_aln_to_ccs_coord(aln_read, read_coord)
+            
+            elif exact_match_to_t:
+                print("HERE T!!")
+                if v_type == "I":
+                    read_coord = len("".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"]))
+                else:
+                    read_coord = len("".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])) - 1
                 ccs_coord = ccs_dict[ read_acc ].read_aln_to_ccs_coord(aln_read, read_coord)
 
             else:
-                read_snippet_up_to_variant = "".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])
-                if aln_read[alnmt_pos] == "-":
-                    alnmt_pos_after_del = read_seq_to_coord_in_almnt[len(read_snippet_up_to_variant)]
-                    read_snippet_up_to_variant = "".join([n for n in aln_read[ : alnmt_pos_after_del +1] if n != "-"])
-                # else:
-                #     read_snippet_up_to_variant = "".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])
-                p = "[{variant}]+".format(variant=read_snippet_up_to_variant[-1])
-                m = re.match(p, read_snippet_up_to_variant[ : : -1 ])
-                read_coord = len(read_snippet_up_to_variant) - len(m.group())
-                ccs_coord = ccs_dict[ read_acc ].read_aln_to_ccs_coord(aln_read, read_coord)
 
+                reads_not_supporting_any_seq.add(read_acc)
+                prob = -1 
+                break
 
             q_qual = ccs_dict[read_acc].qual[ccs_coord]
+            # print(ccs_dict[read_acc].qual[ccs_coord -1: ccs_coord +5 ], ccs_dict[read_acc].seq[ccs_coord-1: ccs_coord +5 ], t_align_snippet)
+            
             # To map quality values
             # [A, B] --> [a, b]  [3, 93] --> [3, 43]
             # (x - A)*(b-a)/(B-A) + a
@@ -262,14 +402,109 @@ def get_read_ccs_probabilities_from_reads_to_c(read_alignments_to_c, variant_coo
             elif v_type == "D":
                 p_error =  (10**(-q_qual_mapped/10.0)) * del_ratio # probability that its a delation error from a base call uncertainty
             else:
-                p_error = -1 # If end up here, there is a bug
+                print("Bad type", v_type, u_v)
+                sys.exit()
 
             # print(p_error, q_qual_mapped, q_qual)
-            assert 0.0 < p_error < 1.0
             prob *= p_error
-        probabilities_c[read_acc] = prob
 
-    return probabilities_c
+        if prob >= 0:
+            probabilities[read_acc] = prob
+        else:
+            print("read did not support c or t in variant region")
+            pass
+
+    print("Total probs:", len(probabilities), "non-informative:", len(reads_not_supporting_any_seq))
+    return probabilities, reads_not_supporting_any_seq
+
+
+def get_read_ccs_probabilities_t(read_alignments_to_t, variant_coords_t, alignment_c_to_t, ccs_dict, errors, max_phred_q_trusted):
+    tot_errors = float(sum([ i+d+s for i, d, s in errors.values()]))
+    tot_errors = tot_errors if tot_errors > 1 else 1.0
+    subs_ratio = sum([ s for i, d, s in errors.values()]) / tot_errors
+    ins_ratio = sum([ i for i, d, s in errors.values()]) / tot_errors
+    del_ratio = sum([ d for i, d, s in errors.values()]) / tot_errors
+
+    probabilities = {}
+    reads_not_supporting_any_seq = set()
+
+    for read_acc in read_alignments_to_t:
+        aln_t, aln_read, (matches, mismatches, indels) = read_alignments_to_t[read_acc]
+        t_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_t) if aln_t[j] != "-"]
+        read_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_read) if aln_read[j] != "-"]
+        prob = 1.0
+
+        for i in variant_coords_t:
+            v_type, v_nucl, u_v = variant_coords_t[i] 
+            alnmt_pos = t_seq_to_coord_in_almnt[i]
+
+            # require exact match over 3mer if S, or I, D in non-homopolymenr region.
+            # If homopolymenr region of size u_v, require length match of homopolymenr
+            exact_match_to_t = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == aln_t[alnmt_pos -1: alnmt_pos + u_v +1]
+
+            c_align_snippet = alignment_c_to_t[i]
+            if v_type == "I": # will need to check shifted snippet on t alignment because base is indexed immediately to the right
+                exact_match_to_c = aln_read[alnmt_pos -2: alnmt_pos + u_v] == c_align_snippet 
+                # print("LOL HERE T", aln_read[alnmt_pos -2: alnmt_pos + u_v], c_align_snippet)
+            else:
+                exact_match_to_c = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == c_align_snippet
+                # print( aln_read[alnmt_pos -1: alnmt_pos + u_v + 1], c_align_snippet)
+
+            assert not (exact_match_to_c and exact_match_to_t) # they cannot both be perfect matches, that means a bug
+
+            if  exact_match_to_t:
+                read_coord = len("".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])) - 1
+                ccs_coord = ccs_dict[ read_acc ].read_aln_to_ccs_coord(aln_read, read_coord)
+            
+            elif exact_match_to_c:
+                print("HERE  C!!")
+                if v_type == "D":
+                    read_coord = len("".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"]))  # position immediately to the right of deletion w.r.t. t
+                elif v_type == "I":
+                    # since alnmt_pos is immediately to the right of del in t, we need the base qual on the character before the deletion pos
+                    # t: G-AACT, c: GAAACT, read = GAAACT
+                    # almnt_pos is pointing to first A after the '-' in t, this has coord 1, in r this A corresponds to coord 2, but we want coord 1 (3-2 = 1)
+                    read_coord = len("".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])) -2   
+                else:
+                    read_coord = len("".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])) - 1
+                ccs_coord = ccs_dict[ read_acc ].read_aln_to_ccs_coord(aln_read, read_coord)
+
+            else:
+                reads_not_supporting_any_seq.add(read_acc)
+                prob = -1 
+                break
+
+            q_qual = ccs_dict[read_acc].qual[ccs_coord]
+            # print(ccs_dict[read_acc].qual[ccs_coord -1: ccs_coord +5 ], ccs_dict[read_acc].seq[ccs_coord-1: ccs_coord +5 ], c_align_snippet)
+
+            # To map quality values
+            # [A, B] --> [a, b]  [3, 93] --> [3, 43]
+            # (x - A)*(b-a)/(B-A) + a
+            q_qual_mapped = (q_qual - 3)*(max_phred_q_trusted - 3.0)/(90.0) + 3
+
+            if u_v > 1: # probability in a homopolymenr region has all it's uncertainty attributed to the lenght of the homopolymer that 
+                p_error =  (10**(-q_qual_mapped/10.0))
+            elif v_type == "S":
+                p_error =  ((10**(-q_qual_mapped/10.0))*subs_ratio)/3.0 # probability that its an identical substitution error from a base call uncertainty
+            elif  v_type == "I":
+                p_error =  ((10**(-q_qual_mapped/10.0))*ins_ratio)/4.0 # probability that its an identical insertion error from a base call uncertainty
+            elif v_type == "D":
+                p_error =  (10**(-q_qual_mapped/10.0)) * del_ratio # probability that its a delation error from a base call uncertainty
+            else:
+                print("Bad type", v_type, u_v)
+                sys.exit()
+
+            # print(p_error, q_qual_mapped, q_qual)
+            prob *= p_error
+
+        if prob >= 0:
+            probabilities[read_acc] = prob
+        else:
+            print("read did not support c or t in variant region")
+            pass
+
+    print("Total probs:", len(probabilities), "non-informative:", len(reads_not_supporting_any_seq))
+    return probabilities, reads_not_supporting_any_seq
 
 
 
@@ -326,67 +561,67 @@ def get_support_from_t(read_alignments_to_t, variant_coords_t):
     return reads_support
 
 
-def get_read_ccs_probabilities_from_reads_to_t(read_alignments_to_t, variant_coords_t, ccs_dict, errors, max_phred_q_trusted):
-    probabilities_t = {}
-    tot_errors = float(sum([ i+d+s for i, d, s in errors.values()]))
-    tot_errors = tot_errors if tot_errors > 1 else 1.0
-    subs_ratio = sum([ s for i, d, s in errors.values()]) / tot_errors
-    ins_ratio = sum([ i for i, d, s in errors.values()]) / tot_errors
-    del_ratio = sum([ d for i, d, s in errors.values()]) / tot_errors
+# def get_read_ccs_probabilities_from_reads_to_t(read_alignments_to_t, variant_coords_t, ccs_dict, errors, max_phred_q_trusted):
+#     probabilities_t = {}
+#     tot_errors = float(sum([ i+d+s for i, d, s in errors.values()]))
+#     tot_errors = tot_errors if tot_errors > 1 else 1.0
+#     subs_ratio = sum([ s for i, d, s in errors.values()]) / tot_errors
+#     ins_ratio = sum([ i for i, d, s in errors.values()]) / tot_errors
+#     del_ratio = sum([ d for i, d, s in errors.values()]) / tot_errors
 
-    for read_acc in read_alignments_to_t:
-        aln_t, aln_read, (matches, mismatches, indels) = read_alignments_to_t[read_acc]
-        t_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_t) if aln_t[j] != "-"]
-        read_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_read) if aln_read[j] != "-"]
-        prob = 1.0
+#     for read_acc in read_alignments_to_t:
+#         aln_t, aln_read, (matches, mismatches, indels) = read_alignments_to_t[read_acc]
+#         t_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_t) if aln_t[j] != "-"]
+#         read_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_read) if aln_read[j] != "-"]
+#         prob = 1.0
 
-        for i in variant_coords_t:
-            v_type, v_nucl, u_v = variant_coords_t[i] 
-            alnmt_pos = t_seq_to_coord_in_almnt[i]
+#         for i in variant_coords_t:
+#             v_type, v_nucl, u_v = variant_coords_t[i] 
+#             alnmt_pos = t_seq_to_coord_in_almnt[i]
 
-            # require exact match over 3mer if S, or I, D in non-homopolymenr region.
-            # If homopolymenr region of size u_v, require length match of homopolymenr
-            exact_match = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == aln_t[alnmt_pos -1: alnmt_pos + u_v +1]
-            if exact_match:
-                read_coord = len("".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])) - 1
-                ccs_coord = ccs_dict[ read_acc ].read_aln_to_ccs_coord(aln_read, read_coord)
+#             # require exact match over 3mer if S, or I, D in non-homopolymenr region.
+#             # If homopolymenr region of size u_v, require length match of homopolymenr
+#             exact_match = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == aln_t[alnmt_pos -1: alnmt_pos + u_v +1]
+#             if exact_match:
+#                 read_coord = len("".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])) - 1
+#                 ccs_coord = ccs_dict[ read_acc ].read_aln_to_ccs_coord(aln_read, read_coord)
 
-            else:
-                read_snippet_up_to_variant = "".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])
-                if aln_read[alnmt_pos] == "-":
-                    alnmt_pos_after_del = read_seq_to_coord_in_almnt[len(read_snippet_up_to_variant)]
-                    read_snippet_up_to_variant = "".join([n for n in aln_read[ : alnmt_pos_after_del +1] if n != "-"])
-                # else:
-                #     read_snippet_up_to_variant = "".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])
-                p = "[{variant}]+".format(variant=read_snippet_up_to_variant[-1])
-                m = re.match(p, read_snippet_up_to_variant[ : : -1 ])
-                read_coord = len(read_snippet_up_to_variant) - len(m.group())
-                ccs_coord = ccs_dict[ read_acc ].read_aln_to_ccs_coord(aln_read, read_coord)
+#             else:
+#                 read_snippet_up_to_variant = "".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])
+#                 if aln_read[alnmt_pos] == "-":
+#                     alnmt_pos_after_del = read_seq_to_coord_in_almnt[len(read_snippet_up_to_variant)]
+#                     read_snippet_up_to_variant = "".join([n for n in aln_read[ : alnmt_pos_after_del +1] if n != "-"])
+#                 # else:
+#                 #     read_snippet_up_to_variant = "".join([n for n in aln_read[ : alnmt_pos +1] if n != "-"])
+#                 p = "[{variant}]+".format(variant=read_snippet_up_to_variant[-1])
+#                 m = re.match(p, read_snippet_up_to_variant[ : : -1 ])
+#                 read_coord = len(read_snippet_up_to_variant) - len(m.group())
+#                 ccs_coord = ccs_dict[ read_acc ].read_aln_to_ccs_coord(aln_read, read_coord)
 
 
-            q_qual = ccs_dict[read_acc].qual[ccs_coord]
-            # To map quality values
-            # [A, B] --> [a, b]  [3, 93] --> [3, 43]
-            # (x - A)*(b-a)/(B-A) + a
-            q_qual_mapped = (q_qual - 3)*(max_phred_q_trusted - 3.0)/(90.0) + 3
+#             q_qual = ccs_dict[read_acc].qual[ccs_coord]
+#             # To map quality values
+#             # [A, B] --> [a, b]  [3, 93] --> [3, 43]
+#             # (x - A)*(b-a)/(B-A) + a
+#             q_qual_mapped = (q_qual - 3)*(max_phred_q_trusted - 3.0)/(90.0) + 3
 
-            if u_v > 1: # probability in a homopolymenr region has all it's uncertainty attributed to the lenght of the homopolymer that 
-                p_error =  (10**(-q_qual_mapped/10.0))
-            elif v_type == "S":
-                p_error =  ((10**(-q_qual_mapped/10.0))*subs_ratio)/3.0 # probability that its an identical substitution error from a base call uncertainty
-            elif  v_type == "I":
-                p_error =  ((10**(-q_qual_mapped/10.0))*ins_ratio)/4.0 # probability that its an identical insertion error from a base call uncertainty
-            elif v_type == "D":
-                p_error =  (10**(-q_qual_mapped/10.0)) * del_ratio # probability that its a delation error from a base call uncertainty
-            else:
-                p_error = -1 # If end up here, there is a bug
+#             if u_v > 1: # probability in a homopolymenr region has all it's uncertainty attributed to the lenght of the homopolymer that 
+#                 p_error =  (10**(-q_qual_mapped/10.0))
+#             elif v_type == "S":
+#                 p_error =  ((10**(-q_qual_mapped/10.0))*subs_ratio)/3.0 # probability that its an identical substitution error from a base call uncertainty
+#             elif  v_type == "I":
+#                 p_error =  ((10**(-q_qual_mapped/10.0))*ins_ratio)/4.0 # probability that its an identical insertion error from a base call uncertainty
+#             elif v_type == "D":
+#                 p_error =  (10**(-q_qual_mapped/10.0)) * del_ratio # probability that its a delation error from a base call uncertainty
+#             else:
+#                 p_error = -1 # If end up here, there is a bug
 
-            # print(p_error, q_qual_mapped, q_qual)
-            assert 0.0 < p_error < 1.0
-            prob *= p_error
-        probabilities_t[read_acc] = prob
+#             # print(p_error, q_qual_mapped, q_qual)
+#             assert 0.0 < p_error < 1.0
+#             prob *= p_error
+#         probabilities_t[read_acc] = prob
 
-    return probabilities_t
+#     return probabilities_t
 
 
 
@@ -412,21 +647,30 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
 
     # 2. Get the coordinates on the candidate and reference respectively
     
-    variant_coords_t, variant_coords_c = get_variant_coordinates(t_seq, c_seq, aln_t, aln_c, variants)
+    variant_coords_t, variant_coords_c, alignment_c_to_t, alignment_t_to_c = get_variant_coordinates(t_seq, c_seq, aln_t, aln_c, variants)
     print(variant_coords_t)
 
     # 3. Check if reads support candidate at given variant positions
+    reads_support = get_support(read_alignments_to_c, variant_coords_c, read_alignments_to_t, variant_coords_t, alignment_c_to_t)
+
     reads_support_from_c = get_support_from_c(read_alignments_to_c, variant_coords_c)
     reads_support_from_t = get_support_from_t(read_alignments_to_t, variant_coords_t)
+    
+    # if set(reads_support) != set(reads_support_from_c) | set(reads_support_from_t):
+    #     print("DIFF:", len(reads_support), len(reads_support_from_c), len(reads_support_from_t))
+    #     sys.exit()
 
     # 4. get individual read error rates (again ignoring, any indel differences in ends) 
     errors = get_read_errors(read_alignments_to_c, read_alignments_to_t)
 
     # 5. Get position specific error rate for each variant in the reads 
     if ccs_dict:
+        probability_c, non_supportive_c = get_read_ccs_probabilities_c(read_alignments_to_c, variant_coords_c, alignment_t_to_c, ccs_dict, errors, max_phred_q_trusted)
+        probability_t, non_supportive_t = get_read_ccs_probabilities_t(read_alignments_to_t, variant_coords_t, alignment_c_to_t, ccs_dict, errors, max_phred_q_trusted)
+
         # probability_t = get_read_ccs_probabilities_from_reads_to_t(read_alignments_to_t, variant_coords_t, ccs_dict, errors, max_phred_q_trusted) 
-        probability_c = get_read_ccs_probabilities_from_reads_to_c(read_alignments_to_c, variant_coords_c, ccs_dict, errors, max_phred_q_trusted) 
-        # probability = merge_two_dicts(probability_c, probability_t)
+        # probability_c = get_read_ccs_probabilities_from_reads_to_c(read_alignments_to_c, variant_coords_c, ccs_dict, errors, max_phred_q_trusted) 
+        probability = merge_two_dicts(probability_c, probability_t)
     # else:
     #     probability_t = functions.get_empirical_error_probabilities(len(t_seq), errors, read_alignments_to_t, variant_coords_t) 
     #     probability_c = get_read_empirical_probabilities_from_reads_to_c(len(t_seq), errors, read_alignments_to_c, variant_coords_c) 
@@ -437,14 +681,14 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
         print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
         p_value = 0.0
     else:
-        p_value = raghavan_upper_pvalue_bound(probability_c, reads_support_from_c)
+        p_value = raghavan_upper_pvalue_bound(probability, reads_support)
 
-    print("New p-value:", p_value)
+    print("New p-value:", p_value, len(probability), len(reads_support), "non contributing:", len(non_supportive_c | non_supportive_t))
 
     total_elapsed = time() - start_time
     print("total new arrange:",total_elapsed)
 
-    return reads_support_from_c, reads_support_from_t, variant_coords_t
+    return reads_support_from_c, reads_support_from_t, variant_coords_t, p_value
 
 
 
@@ -507,7 +751,7 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
 
     print()
     print("NEW NO REALIGN")
-    x_new_from_c, x_new_from_t, delta_t_new = arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ccs_dict, ignore_ends_len, max_phred_q_trusted)
+    x_new_from_c, x_new_from_t, delta_t_new, p_value_new = arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ccs_dict, ignore_ends_len, max_phred_q_trusted)
     # if ignore_ends_len > 0:
     #     alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
 
@@ -608,6 +852,11 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
     else:
         p_value = raghavan_upper_pvalue_bound(probability, x)
 
+    print("Old p-value:", p_value )
+    if p_value_new > p_value:
+        print("NEW P-VAL GREATER:", p_value_new, p_value )
+    else:
+        print("NEW P-VAL SMALLER:", p_value_new, p_value )
 
     # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, correction_factor, p_value * correction_factor,  len(x), N_t, delta_size) )
     # significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
