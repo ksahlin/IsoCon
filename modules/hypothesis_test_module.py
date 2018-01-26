@@ -448,7 +448,8 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
     # for p_i in probability.values():
     #     if p_i < 0 or p_i > 1.0:
     #         print(p_i)
-    # assert max(probability.values()) <= 1.0
+    assert max(probability.values()) <= 1.0
+    assert min(probability.values()) > 0.0
     # print(sorted(probability.values()))
     log_probabilities = { acc: -math.log(p_i, 10) for acc, p_i in probability.items()}
     log_p_i_max = max(log_probabilities.values())

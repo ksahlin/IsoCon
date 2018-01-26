@@ -165,11 +165,19 @@ def get_mask_start_and_end(aln_t, aln_c):
 
 
 def get_read_ccs_probabilities_c(read_alignments_to_c, variant_coords_c, alignment_t_to_c, ccs_dict, errors, max_phred_q_trusted):
-    tot_errors = float(sum([ i+d+s for i, d, s in errors.values()]))
-    tot_errors = tot_errors if tot_errors > 1 else 1.0
-    subs_ratio = sum([ s for i, d, s in errors.values()]) / tot_errors
-    ins_ratio = sum([ i for i, d, s in errors.values()]) / tot_errors
-    del_ratio = sum([ d for i, d, s in errors.values()]) / tot_errors
+    subs =  float(max(1.0, sum([ s for i, d, s in errors.values()])))
+    ins  =  float(max(1.0, sum([ i for i, d, s in errors.values()])))
+    del_ =  float(max(1.0, sum([ d for i, d, s in errors.values()])))
+    tot_errors = subs + ins + del_
+    subs_ratio = subs / tot_errors
+    ins_ratio =  ins / tot_errors
+    del_ratio =  del_ / tot_errors
+    
+    # tot_errors = float(sum([ i+d+s for i, d, s in errors.values()]))
+    # tot_errors = float(tot_errors) if tot_errors > 1 else 1.0
+    # subs_ratio = sum([ s for i, d, s in errors.values()]) / tot_errors
+    # ins_ratio = sum([ i for i, d, s in errors.values()]) / tot_errors
+    # del_ratio = sum([ d for i, d, s in errors.values()]) / tot_errors
 
     probabilities = {}
     reads_not_supporting_any_seq = set()
@@ -240,6 +248,7 @@ def get_read_ccs_probabilities_c(read_alignments_to_c, variant_coords_c, alignme
             prob *= p_error
 
         if prob >= 0:
+            assert 0.0 < prob < 1.0
             probabilities[read_acc] = prob
         else:
             print("read did not support c or t in variant region")
@@ -250,11 +259,19 @@ def get_read_ccs_probabilities_c(read_alignments_to_c, variant_coords_c, alignme
 
 
 def get_read_ccs_probabilities_t(read_alignments_to_t, variant_coords_t, alignment_c_to_t, ccs_dict, errors, max_phred_q_trusted):
-    tot_errors = float(sum([ i+d+s for i, d, s in errors.values()]))
-    tot_errors = tot_errors if tot_errors > 1 else 1.0
-    subs_ratio = sum([ s for i, d, s in errors.values()]) / tot_errors
-    ins_ratio = sum([ i for i, d, s in errors.values()]) / tot_errors
-    del_ratio = sum([ d for i, d, s in errors.values()]) / tot_errors
+    subs =  float(max(1.0, sum([ s for i, d, s in errors.values()])))
+    ins  =  float(max(1.0, sum([ i for i, d, s in errors.values()])))
+    del_ =  float(max(1.0, sum([ d for i, d, s in errors.values()])))
+    tot_errors = subs + ins + del_
+    subs_ratio = subs / tot_errors
+    ins_ratio =  ins / tot_errors
+    del_ratio =  del_ / tot_errors
+
+    # tot_errors = float(sum([ i+d+s for i, d, s in errors.values()]))
+    # tot_errors = float(tot_errors) if tot_errors > 3 else 3.0
+    # subs_ratio = max(1.0, sum([ s for i, d, s in errors.values()])) / tot_errors
+    # ins_ratio =  max(1.0, sum([ i for i, d, s in errors.values()])) / tot_errors
+    # del_ratio =  max(1.0, sum([ d for i, d, s in errors.values()])) / tot_errors
 
     probabilities = {}
     reads_not_supporting_any_seq = set()
@@ -329,6 +346,7 @@ def get_read_ccs_probabilities_t(read_alignments_to_t, variant_coords_t, alignme
             prob *= p_error
 
         if prob >= 0:
+            assert 0.0 < prob < 1.0
             probabilities[read_acc] = prob
         else:
             print("read did not support c or t in variant region")
