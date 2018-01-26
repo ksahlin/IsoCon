@@ -374,7 +374,16 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
                 if params.verbose:
                     print("Did not test", c_acc)
 
-            # else:
+            elif k == 0:
+                if params.verbose:
+                    print("Support is 0 for", c_acc) 
+                print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "variants:", variants, "SUPPORT IS 0." )
+                del C[c_acc] 
+                modified = True
+                for x_acc in read_partition[c_acc]:
+                    to_realign[x_acc] = X[x_acc]
+                del read_partition[c_acc]                          
+
             elif p_value * mult_factor_inv >= p_val_threshold:
                 print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "variants:", variants )
                 del C[c_acc] 

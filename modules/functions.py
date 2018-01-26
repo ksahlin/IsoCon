@@ -45,8 +45,8 @@ def get_variant_coordinates(t_seq, c_seq, aln_t, aln_c, variants):
             # u_v = max(len(m_f.group()), len(m_r.group())) if m_f or m_r else 1
             variant_coords_t[len(t_seq_piece)-1] = ("D", "-", u_v ) 
             variant_coords_c[len(c_seq_piece)-1 +1] = ("D", "-", u_v ) # Deletion: we will get the phred base call from the pos immmediately to the right
-            alignment_c_to_t[len(t_seq_piece)-1] = aln_c[i-1 : i+ u_v + 1]
-            alignment_t_to_c[len(c_seq_piece)-1 +1] = aln_t[i-1 : i+ u_v + 1]
+            alignment_c_to_t[len(t_seq_piece)-1] = aln_c[max(0, i-1): i+ u_v + 1]
+            alignment_t_to_c[len(c_seq_piece)-1 +1] = aln_t[max(0, i-1): i+ u_v + 1]
 
         elif p_t == "-": # candidate has insertion
             v = c_seq[len(c_seq_piece)-1 ]
@@ -67,14 +67,14 @@ def get_variant_coordinates(t_seq, c_seq, aln_t, aln_c, variants):
 
             variant_coords_t[len(t_seq_piece)-1 +1] = ("I", p_c, u_v ) # Deletion: we will get the phred base call from the pos immmediately to the right
             variant_coords_c[len(c_seq_piece)-1] = ("I", p_c, u_v )
-            alignment_c_to_t[len(t_seq_piece)-1 +1] = aln_c[i-1 : i+ u_v + 1]
-            alignment_t_to_c[len(c_seq_piece)-1] = aln_t[i-1 : i+ u_v + 1]
+            alignment_c_to_t[len(t_seq_piece)-1 +1] = aln_c[max(0, i-1) : i+ u_v + 1]
+            alignment_t_to_c[len(c_seq_piece)-1] = aln_t[max(0, i-1) : i+ u_v + 1]
 
         else: # get coordinate on ref and cand if substitution
             variant_coords_t[len(t_seq_piece)-1] = ("S", p_c, 1 )
             variant_coords_c[len(c_seq_piece)-1] = ("S", p_c, 1 )
-            alignment_c_to_t[len(t_seq_piece)-1] = aln_c[i-1 : i + 2]
-            alignment_t_to_c[len(c_seq_piece)-1] = aln_t[i-1 : i + 2]
+            alignment_c_to_t[len(t_seq_piece)-1] = aln_c[max(0, i-1) : i + 2]
+            alignment_t_to_c[len(c_seq_piece)-1] = aln_t[max(0, i-1) : i + 2]
 
     return variant_coords_t, variant_coords_c, alignment_c_to_t, alignment_t_to_c
 
@@ -194,15 +194,15 @@ def get_read_ccs_probabilities_c(read_alignments_to_c, variant_coords_c, alignme
 
             # require exact match over 3mer if S, or I, D in non-homopolymenr region.
             # If homopolymenr region of size u_v, require length match of homopolymenr
-            exact_match_to_c = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == aln_c[alnmt_pos -1: alnmt_pos + u_v +1]
+            exact_match_to_c = aln_read[max(0, alnmt_pos -1) : alnmt_pos + u_v + 1] == aln_c[max(0,alnmt_pos -1): alnmt_pos + u_v +1]
 
             t_align_snippet = alignment_t_to_c[i]
             if v_type == "D": # will need to check shifted snippet on c alignment because base is indexed immediately to the right
-                exact_match_to_t = aln_read[alnmt_pos -2: alnmt_pos + u_v] == t_align_snippet 
-                # print("LOL HERE C", aln_read[alnmt_pos -2: alnmt_pos + u_v], t_align_snippet)
+                exact_match_to_t = aln_read[max(0, alnmt_pos -2): alnmt_pos + u_v] == t_align_snippet 
+                # print(i, v_type, aln_read[alnmt_pos -2: alnmt_pos + u_v], t_align_snippet, aln_c[alnmt_pos -1: alnmt_pos + u_v +1], tot_errors, subs_ratio, ins_ratio, del_ratio, read_acc)
             else:
-                exact_match_to_t = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == t_align_snippet
-                # print( aln_read[alnmt_pos -1: alnmt_pos + u_v + 1], t_align_snippet, aln_c[alnmt_pos -1: alnmt_pos + u_v +1])
+                exact_match_to_t = aln_read[max(0, alnmt_pos -1): alnmt_pos + u_v + 1] == t_align_snippet
+                # print(i, v_type, aln_read[alnmt_pos -1: alnmt_pos + u_v + 1], t_align_snippet, aln_c[alnmt_pos -1: alnmt_pos + u_v +1], tot_errors, subs_ratio, ins_ratio, del_ratio, read_acc)
 
             assert not (exact_match_to_c and exact_match_to_t) # they cannot both be perfect matches, that means a bug
 
@@ -290,14 +290,14 @@ def get_read_ccs_probabilities_t(read_alignments_to_t, variant_coords_t, alignme
 
             # require exact match over 3mer if S, or I, D in non-homopolymenr region.
             # If homopolymenr region of size u_v, require length match of homopolymenr
-            exact_match_to_t = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == aln_t[alnmt_pos -1: alnmt_pos + u_v +1]
+            exact_match_to_t = aln_read[max(0, alnmt_pos -1): alnmt_pos + u_v + 1] == aln_t[max(0, alnmt_pos -1): alnmt_pos + u_v +1]
 
             c_align_snippet = alignment_c_to_t[i]
             if v_type == "I": # will need to check shifted snippet on t alignment because base is indexed immediately to the right
-                exact_match_to_c = aln_read[alnmt_pos -2: alnmt_pos + u_v] == c_align_snippet 
+                exact_match_to_c = aln_read[max(0, alnmt_pos -2): alnmt_pos + u_v] == c_align_snippet 
                 # print("LOL HERE T", aln_read[alnmt_pos -2: alnmt_pos + u_v], c_align_snippet)
             else:
-                exact_match_to_c = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == c_align_snippet
+                exact_match_to_c = aln_read[max(0, alnmt_pos -1): alnmt_pos + u_v + 1] == c_align_snippet
                 # print( aln_read[alnmt_pos -1: alnmt_pos + u_v + 1], c_align_snippet)
 
             assert not (exact_match_to_c and exact_match_to_t) # they cannot both be perfect matches, that means a bug

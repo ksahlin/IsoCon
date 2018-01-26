@@ -210,9 +210,10 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
 
     # 4. get individual read error rates (again ignoring, any indel differences in ends) 
     errors = functions.get_read_errors(read_alignments_to_c, read_alignments_to_t)
-
+    print("errors:", sorted(errors.values()))
     # 5. Get position specific error rate for each variant in the reads 
     if ccs_dict:
+        print(c_acc)
         probability_c, non_supportive_c = functions.get_read_ccs_probabilities_c(read_alignments_to_c, variant_coords_c, alignment_t_to_c, ccs_dict, errors, max_phred_q_trusted)
         probability_t, non_supportive_t = functions.get_read_ccs_probabilities_t(read_alignments_to_t, variant_coords_t, alignment_c_to_t, ccs_dict, errors, max_phred_q_trusted)
         probability = merge_two_dicts(probability_c, probability_t)
@@ -223,10 +224,15 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
         # probability_c = get_read_empirical_probabilities_from_reads_to_c(len(t_seq), errors, read_alignments_to_c, variant_coords_c) 
         # probability = merge_two_dicts(probability_c, probability_t)
 
-    variant_types = "".join([ str(variant_coords_c[j][0]) for j in  variant_coords_c ])
+    # variant_types = "".join([ str(variant_coords_c[j][0]) for j in  variant_coords_c ])
     if len(variants) == 0:
         print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
         p_value = 0.0
+    if len(probability) == 0:
+        p_value = 0.0
+        print("No reads were informative in testing the variant(s) in candidate {0} to ref {1}!".format(c_acc, t_acc))
+        print("Support: {0}, not contributing c: {1},  not contributing t: {2}".format(len(reads_support),len(non_supportive_c), len(non_supportive_t)))
+        assert len(reads_support) == 0
     else:
         p_value = raghavan_upper_pvalue_bound(probability, reads_support)
 
@@ -286,7 +292,7 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
 
     # no reads supporting neither the candidate nor the reference t
     #  this can happen if after realignment of reads to candidates, all the reads 
-    # to noth c and t got assigned to other candidates -- based on nearest_neighbor graph 
+    # to both c and t got assigned to other candidates -- based on nearest_neighbor graph 
     # (should be rare) 
     if N_t == 0: 
         return c_acc, t_acc, 1.0, 1.0, 0, N_t, ""
@@ -299,7 +305,7 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
     print()
     print("NEW NO REALIGN")
     delta_t_new, p_value_new, reads_support, nr_reads_used_in_test = arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ccs_dict, ignore_ends_len, max_phred_q_trusted)
-    variant_types = ";".join([ str(delta_t_new[j][0]) + "," + str(j) for j in  delta_t_new ])
+    variant_types = ";".join([ "(" + str(delta_t_new[j][0]) + "," + str(j) + "," + str(delta_t_new[j][2]) + ")" for j in  delta_t_new ])
 
     if ccs_dict:
         return (c_acc, t_acc, p_value_new, 1.0, len(reads_support), nr_reads_used_in_test, variant_types)
