@@ -196,6 +196,11 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
     # 3. Check if reads support candidate at given variant positions
     reads_support = functions.get_support(read_alignments_to_c, variant_coords_c, read_alignments_to_t, variant_coords_t, alignment_c_to_t)
 
+    if len(variants) == 0:
+        p_value = 0.0
+        print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
+        return variant_coords_t, p_value, reads_support, len(read_alignments_to_c) + len(read_alignments_to_t) 
+
     # reads_support_from_c = get_support_from_c(read_alignments_to_c, variant_coords_c)
     # reads_support_from_t = get_support_from_t(read_alignments_to_t, variant_coords_t)
     
@@ -445,12 +450,12 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
         4. p_value is now bounded above (no greater than) the computed value.
     """
 
-    # for p_i in probability.values():
-    #     if p_i < 0 or p_i > 1.0:
-    #         print(p_i)
+    for read_acc, p_i in probability.items():
+        if p_i < 0 or p_i > 1.0:
+            print(p_i, read_acc, read_acc in x_equal_to_one)
+    print(sorted(probability.values()))
     assert max(probability.values()) <= 1.0
     assert min(probability.values()) > 0.0
-    # print(sorted(probability.values()))
     log_probabilities = { acc: -math.log(p_i, 10) for acc, p_i in probability.items()}
     log_p_i_max = max(log_probabilities.values())
     

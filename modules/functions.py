@@ -172,7 +172,7 @@ def get_read_ccs_probabilities_c(read_alignments_to_c, variant_coords_c, alignme
     subs_ratio = subs / tot_errors
     ins_ratio =  ins / tot_errors
     del_ratio =  del_ / tot_errors
-    
+    assert len(variant_coords_c) > 0
     # tot_errors = float(sum([ i+d+s for i, d, s in errors.values()]))
     # tot_errors = float(tot_errors) if tot_errors > 1 else 1.0
     # subs_ratio = sum([ s for i, d, s in errors.values()]) / tot_errors
@@ -251,6 +251,7 @@ def get_read_ccs_probabilities_c(read_alignments_to_c, variant_coords_c, alignme
             assert 0.0 < prob < 1.0
             probabilities[read_acc] = prob
         else:
+            assert read_acc in reads_not_supporting_any_seq
             print("read did not support c or t in variant region")
             pass
 
@@ -266,6 +267,7 @@ def get_read_ccs_probabilities_t(read_alignments_to_t, variant_coords_t, alignme
     subs_ratio = subs / tot_errors
     ins_ratio =  ins / tot_errors
     del_ratio =  del_ / tot_errors
+    assert len(variant_coords_t) > 0
 
     # tot_errors = float(sum([ i+d+s for i, d, s in errors.values()]))
     # tot_errors = float(tot_errors) if tot_errors > 3 else 3.0
@@ -349,6 +351,7 @@ def get_read_ccs_probabilities_t(read_alignments_to_t, variant_coords_t, alignme
             assert 0.0 < prob < 1.0
             probabilities[read_acc] = prob
         else:
+            assert read_acc in reads_not_supporting_any_seq
             print("read did not support c or t in variant region")
             pass
 
