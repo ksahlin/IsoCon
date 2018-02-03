@@ -1,13 +1,13 @@
-isocon_nontargeted
+IsoCon
 ========
 
-isocon_nontargeted is distributed as a python package supported on Linux / OSX with python v>=2.7, and 3.4-3.6, 3.5-dev and 3.6-dev [![Build Status](https://travis-ci.org/ksahlin/isocon_nontargeted.svg?branch=master)](https://travis-ci.org/ksahlin/isocon_nontargeted)
+IsoCon is distributed as a python package supported on Linux / OSX with python v>=2.7, and 3.4-3.6, 3.5-dev and 3.6-dev [![Build Status](https://travis-ci.org/ksahlin/IsoCon.svg?branch=master)](https://travis-ci.org/ksahlin/IsoCon)
 
 
-isocon_nontargeted is a tool for deriving *finished transcript sequences* from *Iso-Seq* reads. Input is a set of full-length-non-chimeric reads in fasta format and the CCS base call values as a bam file. The output is a set of predicted transcripts. isocon_nontargeted can be run as follows
+IsoCon is a tool for deriving *finished transcripts* from *Iso-Seq* reads. Input is a set of full-length-non-chimeric reads in fasta format and the CCS base call values as a bam file. The output is a set of predicted transcripts. IsoCon can be run as follows
 
 ```
-isocon_nontargeted pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --ccs </path/to/filename.ccs.bam>
+IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --ccs </path/to/filename.ccs.bam>
 ```
 
 predicted transcripts are found in file **/path/to/output/final_candidates.fa**. Reads that could not be corrected or clustered are found in /path/to/output/not_converged.fa. For more instructions see below.
@@ -16,50 +16,49 @@ predicted transcripts are found in file **/path/to/output/final_candidates.fa**.
 Table of Contents
 =================
 
-   * [isocon_nontargeted](#isocon_nontargeted)
-   * [Table of Contents](#table-of-contents)
-      * [INSTALLATION](#installation)
-         * [Using pip](#using-pip)
-         * [Downloading source from GitHub](#downloading-source-from-github)
-            * [Dependencies](#dependencies)
-      * [USAGE](#usage)
-         * [Pipline](#pipline)
-            * [Output](#output)
-         * [get_candidates](#get_candidates)
-         * [stat_filter](#stat_filter)
-         * [Parameters](#parameters)
-      * [CREDITS](#credits)
-      * [LICENCE](#licence)
+  * [Table of Contents](#table-of-contents)
+  * [INSTALLATION](#installation)
+    * [Using pip](#using-pip)
+    * [Downloading source from GitHub](#downloading-source-from-github)
+    * [Dependencies](#dependencies)
+  * [USAGE](#usage)
+    * [Pipline](#pipline)
+      * [Output](#output)
+      * [get_candidates](#get_candidates)
+      * [stat_filter](#stat_filter)
+      * [Parameters](#parameters)
+  * [CREDITS](#credits)
+  * [LICENCE](#licence)
 
 
 INSTALLATION
 ----------------
 
-The preferred way to install isocon_nontargeted is with pythons package installer pip.
+The preferred way to install IsoCon is with pythons package installer pip.
 
 ### Using pip 
 
 `pip` is pythons official package installer. This section assumes you have `python` (v2.7 or >=3.4) and a recent version of `pip` installed which should be included in most python versions. If you do not have `pip`, it can be easily installed [from here](https://pip.pypa.io/en/stable/installing/) and upgraded with `pip install --upgrade pip`. 
 
-With `python` and `pip` available, create a file `requirements.txt` with contents copied from [this file](https://github.com/ksahlin/isocon_nontargeted/blob/master/requirements.txt). Then, type in terminal 
+With `python` and `pip` available, create a file `requirements.txt` with contents copied from [this file](https://github.com/ksahlin/IsoCon/blob/master/requirements.txt). Then, type in terminal 
 
 ```
-pip install --requirement requirements.txt isocon_nontargeted
+pip install --requirement requirements.txt IsoCon
 ```
 
-This should install isocon_nontargeted. With proper installation of **isocon_nontargeted**, you should be able to issue the command `isocon_nontargeted pipeline` to view user instructions. You should also be able to run isocon_nontargeted on this [small dataset](https://github.com/ksahlin/isocon_nontargeted/tree/master/test/data). Simply download the test dataset and run:
+This should install IsoCon. With proper installation of **IsoCon**, you should be able to issue the command `IsoCon pipeline` to view user instructions. You should also be able to run IsoCon on this [small dataset](https://github.com/ksahlin/IsoCon/tree/master/test/data). Simply download the test dataset and run:
 
 ```
-isocon_nontargeted pipeline -fl_reads [path/simulated_pacbio_reads.fa] -outfolder [output path]
+IsoCon pipeline -fl_reads [path/simulated_pacbio_reads.fa] -outfolder [output path]
 ```
 
-`pip` will install the dependencies automatically for you. isocon_nontargeted has been built with python 2.7, 3.4-3.6 on Linux systems using [Travis](https://travis-ci.org/). For customized installation of latest master branch, see below.
+`pip` will install the dependencies automatically for you. IsoCon has been built with python 2.7, 3.4-3.6 on Linux systems using [Travis](https://travis-ci.org/). For customized installation of latest master branch, see below.
 
 ### Downloading source from GitHub
 
 #### Dependencies
 
-Make sure the below listed dependencies are installed (installation links below). Versions in parenthesis are suggested as isocon_nontargeted has not been tested with earlier versions of these libraries. However, isocon_nontargeted may also work with earliear versions of these libaries.
+Make sure the below listed dependencies are installed (installation links below). Versions in parenthesis are suggested as IsoCon has not been tested with earlier versions of these libraries. However, IsoCon may also work with earliear versions of these libaries.
 * [edlib](https://github.com/Martinsos/edlib "edlib's Homepage"), for installation see [link](https://github.com/Martinsos/edlib/tree/master/bindings/python#installation) (>= v1.1.2)
 * [networkx](https://networkx.github.io/) (>= v1.10)
 * [ssw](https://github.com/vishnubob/ssw "Python wrapper for SSW"), for installation see [link](https://github.com/vishnubob/ssw#installation)
@@ -70,31 +69,31 @@ Make sure the below listed dependencies are installed (installation links below)
 With these dependencies installed. Run
 
 ```sh
-git clone https://github.com/ksahlin/isocon_nontargeted.git
-cd isocon_nontargeted
-./isocon_nontargeted
+git clone https://github.com/ksahlin/IsoCon.git
+cd IsoCon
+./IsoCon
 ```
 
 
 USAGE
 -------
 
-isocon_nontargeted's algorithm consists of two main phases; the error correction step and the statistical testing step. isocon_nontargeted can run these two steps in one go using `isocon_nontargeted pipeline`, or it can run only the correction or statistical test steps using `isocon_nontargeted get_candidates` and `isocon_nontargeted stat_filter` respectively. The preffered and most tested way is to use the entire pipeline `isocon_nontargeted pipeline`, but the other two settings can come in handy for specific cases. For example, running only `isocon_nontargeted get_candidates` will give more sequences if one is not concerned about precision and will also be faster, while one might use only `isocon_nontargeted stat_filter` using different parameters for a set of already constructed candidates in order to prevent rerunning the error correction step.
+IsoCon's algorithm consists of two main phases; the error correction step and the statistical testing step. IsoCon can run these two steps in one go using `IsoCon pipeline`, or it can run only the correction or statistical test steps using `IsoCon get_candidates` and `IsoCon stat_filter` respectively. The preffered and most tested way is to use the entire pipeline `IsoCon pipeline`, but the other two settings can come in handy for specific cases. For example, running only `IsoCon get_candidates` will give more sequences if one is not concerned about precision and will also be faster, while one might use only `IsoCon stat_filter` using different parameters for a set of already constructed candidates in order to prevent rerunning the error correction step.
 
 
 ### Pipline
 
-isocon_nontargeted takes two input files: (1) a fasta file of full length non-chimeric (flnc) CCS reads and (2) the bam file of CCS reads containing predicted base call quality values. The fasta file containing flnc can be obtained from PacBios Iso-Seq pipeline [ToFU](https://github.com/PacificBiosciences/IsoSeq_SA3nUP/wiki) and the bam file is the output of running the consensus caller algorthm [ccs](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md) on the Iso-Seq reads (ccs takes bam files so if you have bax files, convert them using [bax2bam](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md#input) ). isocon_nontargeted can then be run as
+IsoCon takes two input files: (1) a fasta file of full length non-chimeric (flnc) CCS reads and (2) the bam file of CCS reads containing predicted base call quality values. The fasta file containing flnc can be obtained from PacBios Iso-Seq pipeline [ToFU](https://github.com/PacificBiosciences/IsoSeq_SA3nUP/wiki) and the bam file is the output of running the consensus caller algorthm [ccs](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md) on the Iso-Seq reads (ccs takes bam files so if you have bax files, convert them using [bax2bam](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md#input) ). IsoCon can then be run as
 
 ```
-isocon_nontargeted pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> [--ccs </path/to/filename.ccs.bam>]
+IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> [--ccs </path/to/filename.ccs.bam>]
 ```
 
-isocon_nontargeted also supports taking only the fasta read file as input. Without the base call quality values in `--ccs`, isocon_nontargeted will use an empirically estimated error model. The ability to take only the flnc fasta file as input is useful when the reads have been altered after the CCS base calling algorithm, \emph{e.g.}, from error correction using Illumina reads. **However, we highly recommend supplying the CCS quality values to isocon_nontargeted if CCS reads has not gone through any additional correction.** 
+IsoCon also supports taking only the fasta read file as input. Without the base call quality values in `--ccs`, IsoCon will use an empirically estimated error model. The ability to take only the flnc fasta file as input is useful when the reads have been altered after the CCS base calling algorithm, \emph{e.g.}, from error correction using Illumina reads. **However, we highly recommend supplying the CCS quality values to IsoCon if CCS reads has not gone through any additional correction.** 
 
-Simply omit the `--ccs` parameter if running isocon_nontargeted without base call quality values as
+Simply omit the `--ccs` parameter if running IsoCon without base call quality values as
 ```
-isocon_nontargeted pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output>
+IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output>
 ```
 
 #### Output
@@ -106,7 +105,7 @@ The final high quality transcripts are written to the file `final_candidates.fa`
 Runs only the error correction step. The output is the converged candidates in a fasta file.
 
 ```
-isocon_nontargeted get_candidates -fl_reads <flnc.fasta> -outfolder </path/to/output>
+IsoCon get_candidates -fl_reads <flnc.fasta> -outfolder </path/to/output>
 ```
 
 ### stat_filter
@@ -114,15 +113,15 @@ isocon_nontargeted get_candidates -fl_reads <flnc.fasta> -outfolder </path/to/ou
 Runs only the statistical filtering of candidates.
 
 ```
-isocon_nontargeted pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> -candidates <candidate_transcripts.fa>  [--ccs </path/to/filename.ccs.bam>]
+IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> -candidates <candidate_transcripts.fa>  [--ccs </path/to/filename.ccs.bam>]
 ```
-Observe that `candidate_transcripts.fa` does not have to come from isocon_nontargeted's error correction algorithm. For example, this could either be a set of already validated transcripts to which one would like to see if they occur in the CCS reads, or they could be Illumina (or in other ways) corrected CCS reads.
+Observe that `candidate_transcripts.fa` does not have to come from IsoCon's error correction algorithm. For example, this could either be a set of already validated transcripts to which one would like to see if they occur in the CCS reads, or they could be Illumina (or in other ways) corrected CCS reads.
 
 
 ### Parameters
 
 ```
-    $ isocon_nontargeted pipeline --help
+    $ IsoCon pipeline --help
 usage: Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads. pipeline
        [-h] -fl_reads FL_READS -outfolder OUTFOLDER [--ccs CCS]
        [--verbose] [--neighbor_search_depth NEIGHBOR_SEARCH_DEPTH]
@@ -191,53 +190,3 @@ LICENCE
 
 GPL v3.0 see [LICENSE.txt](https://github.com/ksahlin/IsoCon/blob/master/LICENCE.txt).
 
-
-<!-- isocon_nontargeted on general Iso-Seq datasets
------------------------------------
-
-isocon_nontargeted has been evaluated on targeted Iso-Seq data [cite], but the algorithm makes no explicit assumptions, or depends on the data being targeted. Therefore it also runs on any general Iso-Seq data. To demonstrate this We ran isocon_nontargeted on the publicly availabe datasets from pacbio [MCF7](link) and [Alzheimer](link) using the following command
-
-```
-isocon_nontargeted pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --neighbor_search_depth 100
-```
-
-| Dataset | runtime  | peak memory | final_candidates | corr | not_corr | *TOFU* | *nr original CCS* | 
-| ------------- | ------------- | ------------- | ------------- | ------------- | ------------- | ------------- | ------------- |
-| [MCF7](http://www.pacb.com/blog/data-release-human-mcf-7-transcriptome/) | 24h43m  | <1.9Gb  | 2,169 | 18,458 | 401,885<sup>[1](#myfootnote1)</sup> |  55,770 | 518,701 |
-|[Alzheimer](http://www.pacb.com/blog/data-release-alzheimer-brain-isoform-sequencing-iso-seq-dataset/)| time | Content Cell  | Content Cell  |
-
-TODO1: Output three separate files: validated_transcripts.fa,  corrected_not_validated.fa, not_converged.fa 
-TODO2: Show set intersection (allowing end differences between final_cand + corr to TOFU transcripts). Also do other analysis.
-
-isocon_nontargeted predicted 2169 and Y transcripts and had a runtime of 24h43m and Y, for MCF7 and Alzheimer datasets respectively, on a 64 core machine with a peak memory usage of Z Gb. isocon_nontargeteds output are found [here](link).
-
-Manual BLAT of 20 sequences from the "corrected_but_not_converged" predictions to human show an alignment identity increase from 94-98% of the ccs reads up to 99.5-99.9% for the corrected reads.
-
-<a name="footnote_not_converged">1</a>: Footnote content goes here -->
-
-
-<!-- ### Entry points in isocon_nontargeted
-isocon_nontargeted has three different modes `pipeline` (end to end), `get_candidates` only correct and cluster reads (no statistical testing), as well as `stat_filter` (only statistical testing of a set of candidate transcripts).
-
-```
-$ isocon_nontargeted --help
-usage: Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads.
-       [-h] [--version]
-       {pipeline,remove_barcodes,get_candidates,stat_filter} ...
-
-positional arguments:
-  {pipeline,remove_barcodes,get_candidates,stat_filter}
-                        help for subcommand
-    pipeline            Run the entire pipeline, i.e., runs: 1.
-                        remove_barcodes() if --barcodes is specified 2.
-                        get_candidates() to find candidate transcripts out of
-                        CCS full length reads 3. stat_filter() to filter
-                        candidates and only output significant ones
-    remove_barcodes     Remove barcodes from sequences.
-    get_candidates      Get candidate transcripts with nearest_neighbor approach.
-    stat_filter         Get candidate transcripts with nearest_neighbor approach.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
-``` -->
