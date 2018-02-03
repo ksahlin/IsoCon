@@ -245,6 +245,8 @@ if __name__ == '__main__':
 
     # stat_filter.add_argument('--consensus', type=str, help='Additional canditates supplied by user (This still runs the nearest_neighbor step, but additional candidates can help with guidance). ')
 
+    if len(sys.argv) == 1:
+        sys.argv.append('-h')
 
     args = parent_parser.parse_args()
 

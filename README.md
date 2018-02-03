@@ -24,9 +24,9 @@ Table of Contents
   * [USAGE](#usage)
     * [Pipline](#pipline)
       * [Output](#output)
-      * [get_candidates](#get_candidates)
-      * [stat_filter](#stat_filter)
-      * [Parameters](#parameters)
+    * [get_candidates](#get_candidates)
+    * [stat_filter](#stat_filter)
+    * [Parameters](#parameters)
   * [CREDITS](#credits)
   * [LICENCE](#licence)
 
@@ -124,17 +124,21 @@ Observe that `candidate_transcripts.fa` does not have to come from IsoCon's erro
     $ IsoCon pipeline --help
 usage: Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads. pipeline
        [-h] -fl_reads FL_READS -outfolder OUTFOLDER [--ccs CCS]
-       [--verbose] [--neighbor_search_depth NEIGHBOR_SEARCH_DEPTH]
-       [--min_exon_diff MIN_EXON_DIFF] [--p_value_threshold P_VALUE_THRESHOLD]
-       [--nr_cores NR_CORES] [--max_phred_q_trusted MAX_PHRED_Q_TRUSTED]
+       [--nr_cores NR_CORES] [--verbose]
+       [--neighbor_search_depth NEIGHBOR_SEARCH_DEPTH]
+       [--min_exon_diff MIN_EXON_DIFF]
        [--min_candidate_support MIN_CANDIDATE_SUPPORT]
+       [--p_value_threshold P_VALUE_THRESHOLD]
+       [--min_test_ratio MIN_TEST_RATIO]
+       [--max_phred_q_trusted MAX_PHRED_Q_TRUSTED]
        [--ignore_ends_len IGNORE_ENDS_LEN] [--cleanup]
        [--prefilter_candidates]
 
 optional arguments:
   -h, --help            show this help message and exit
   --ccs CCS             BAM/SAM file with CCS sequence predictions.
-  --verbose        This will print more information abount workflow and
+  --nr_cores NR_CORES   Number of cores to use. [default = 16]
+  --verbose             This will print more information abount workflow and
                         provide plots of similarity network etc.
   --neighbor_search_depth NEIGHBOR_SEARCH_DEPTH
                         Maximum number of pairwise alignments in search matrix
@@ -144,34 +148,40 @@ optional arguments:
                         neigborss in order to remove edge. If more than this
                         nr of consequtive base pair difference, its likely an
                         exon difference. [default =20]
+  --min_candidate_support MIN_CANDIDATE_SUPPORT
+                        Required minimum number of reads converged to the same
+                        sequence to be included in statistical test. [default
+                        2]
   --p_value_threshold P_VALUE_THRESHOLD
                         Threshold for statistical test, filter everythin below
                         this threshold . [default = 0.01]
-  --nr_cores NR_CORES   Number of cores to use.
+  --min_test_ratio MIN_TEST_RATIO
+                        Don't do tests where candidate c has more than
+                        <min_test_ratio> reads assigned to itself compared to
+                        the reference t, calculated as test_ratio = c/t,
+                        because c will likely be highly significant [default =
+                        5]
   --max_phred_q_trusted MAX_PHRED_Q_TRUSTED
                         Maximum PHRED quality score trusted (T), linerarly
                         remaps quality score interval [0,93] --> [0, T].
                         Quality scores may have some uncertainty since T is
                         estimated from a consensus caller algorithm.
-  --min_candidate_support MIN_CANDIDATE_SUPPORT
-                        Required minimum number of reads converged to the same
-                        sequence to be included in statistical test. [default
-                        2]
   --ignore_ends_len IGNORE_ENDS_LEN
                         Number of bp to ignore in ends. If two candidates are
                         identical except in ends of this size, they are
                         collapsed and the longest common substing is chosen to
-                        represent them. In the statistical test step,
-                        the nearest neighbors are found based on ignoring the ends
-                        of this size. Also indels "hanging off" ends of this size will not be tested.
-                        [default 15].
+                        represent them. In statistical test step, the nearest
+                        neighbors are found based on ignoring the ends of this
+                        size. Also indels "hanging off" ends of this size will
+                        not be tested. [default 15].
   --cleanup             Remove everything except logfile.txt,
                         candidates_converged.fa and final_candidates.fa in
                         output folder. [default = False]
   --prefilter_candidates
-                        Filter candidates if they are not consensus over any base pair 
-                        in the candidate transcript formed from them, this can reduce runtime
-                        without significant loss in true candidates. [default = False]
+                        Filter candidates if they are not consensus over any
+                        base pair in the candidate transcript formed from
+                        them, this can reduce runtime without significant loss
+                        in true candidates. [default = False]
 
 required arguments:
   -fl_reads FL_READS    Fast<a/q> file pacbio Reads of Insert.
@@ -188,5 +198,5 @@ Please cite [1] when using IsoCon.
 LICENCE
 ----------------
 
-GPL v3.0 see [LICENSE.txt](https://github.com/ksahlin/IsoCon/blob/master/LICENCE.txt).
+GPL v3.0, see [LICENSE.txt](https://github.com/ksahlin/IsoCon/blob/master/LICENCE.txt).
 
