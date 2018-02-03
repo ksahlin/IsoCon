@@ -182,12 +182,14 @@ required arguments:
 CREDITS
 ----------------
 
-Please cite [1] when using isocon_nontargeted.
+Please cite [1] when using IsoCon.
 
-1. Kristoffer Sahlin*, Marta Tomaszkiewicz*, Kateryna D. Makova†, Paul Medvedev† (2018) "isocon_nontargeted: Deciphering highly similar multigene family transcripts from Iso-Seq data", bioRxiv [Link](http/link)
+1. Kristoffer Sahlin*, Marta Tomaszkiewicz*, Kateryna D. Makova†, Paul Medvedev† (2018) "IsoCon: Deciphering highly similar multigene family transcripts from Iso-Seq data", bioRxiv [Link](https://www.biorxiv.org/content/early/2018/01/10/246066).
 
 LICENCE
 ----------------
+
+GPL v3.0 see [LICENSE.txt](https://github.com/ksahlin/IsoCon/blob/master/LICENCE.txt).
 
 
 <!-- isocon_nontargeted on general Iso-Seq datasets

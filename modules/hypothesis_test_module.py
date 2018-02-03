@@ -79,9 +79,6 @@ def statistical_test_helper(arguments):
     return statistical_test(*args, **kwargs)
 
 
-
-from time import time
-
 def merge_two_dicts(x, y):
     """Given two dicts, merge them into a new dict as a shallow copy."""
     z = x.copy()
@@ -89,88 +86,9 @@ def merge_two_dicts(x, y):
     return z
 
 
-
-
-
-# def get_support_from_c(read_alignments_to_c, variant_coords_c):
-#     reads_support = []
-
-#     for read_acc in read_alignments_to_c:
-#         aln_c, aln_read, (matches, mismatches, indels) = read_alignments_to_c[read_acc]
-#         c_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_c) if aln_c[j] != "-"]
-#         support = True
-#         for i in variant_coords_c:
-#             v_type, v_nucl, u_v = variant_coords_c[i] 
-#             alnmt_pos = c_seq_to_coord_in_almnt[i]
-
-#             # require exact match over 3mer if S, or I,D in non-homopolymenr region.
-#             # If homopolymenr region of size u_v, require length match of homopolymenr
-#             exact_match = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == aln_c[alnmt_pos -1: alnmt_pos + u_v +1]
-#             if not exact_match:
-#                 support = False
-#                 break
-#         if support:
-#             reads_support.append(read_acc)
-#     return reads_support
-
-
-# def get_support_from_t(read_alignments_to_t, variant_coords_t):
-#     reads_support = []
-
-#     for read_acc in read_alignments_to_t:
-#         aln_t, aln_read, (matches, mismatches, indels) = read_alignments_to_t[read_acc]
-#         t_seq_to_coord_in_almnt = [j for j, nucl in enumerate(aln_t) if aln_t[j] != "-"]
-#         support = True
-#         for i in variant_coords_t:
-#             v_type, v_nucl, u_v = variant_coords_t[i] 
-#             alnmt_pos = t_seq_to_coord_in_almnt[i]
-
-
-#             exact_match_to_t = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == aln_t[alnmt_pos -1: alnmt_pos + u_v +1]
-#             if exact_match_to_t: # matching t exactly means by definition that it doesn't match c
-#                 support = False
-#                 break
-
-#             elif v_type == "S":
-#                 exact_3mer_match = aln_read[alnmt_pos - 1] == aln_t[alnmt_pos - 1] and aln_read[alnmt_pos +1] == aln_t[alnmt_pos + 1] and aln_read[alnmt_pos] == v_nucl
-#                 if not exact_3mer_match: #aln_read[alnmt_pos] != v_nucl:
-#                     support = False
-
-#             elif v_type == "D":
-#                 if aln_read[alnmt_pos] != "-": # read has deletion over the same pos as candidate
-#                     support = False
-
-#             else:
-#                 assert v_type == "I"
-#                 insertion_in_first_pos = aln_read[alnmt_pos -1] == v_nucl and  aln_t[alnmt_pos-1] == "-"
-#                 # rare occasions insertion_in_last_pos
-#                 # c to t: c:TTATTTTGGGGCTG, t: TTATTTT-GGGCTG
-#                 # Exampleright shifted indel:
-#                 # t: TTATTTTGGG--CTG
-#                 # r: TTATTTTGGGGCCTG
-#                 # obtain how long the homopolymenr insertion stetches in the alignment on t
-#                 p = "[{variant}]+".format(variant=v_nucl)
-#                 m_f = re.match(p, aln_t[alnmt_pos: ])
-#                 u_v = len(m_f.group()) if m_f else 1 # is insertion in homopolymenr region of at least 2 bases in candidate, therefore we have at least one matching base here
-#                 if len(aln_read) > alnmt_pos +u_v:
-#                     insertion_in_last_pos = aln_read[alnmt_pos +u_v] == v_nucl and aln_t[alnmt_pos + u_v] == "-" # can happen in homopolymenr
-#                 else: # might be at the end of the t to read alignment, i.e., len(aln_read) == alnmt_pos +u_v, then there is not insertion in the read compared to t by definition
-#                     insertion_in_last_pos = False #aln_read[alnmt_pos +u_v -1] == v_nucl and aln_t[alnmt_pos + u_v -1] == "-" # somtimes happen in homopolymenr
-
-#                 if not insertion_in_first_pos and not insertion_in_last_pos:
-#                 # if aln_read[alnmt_pos -1] != v_nucl or aln_t[alnmt_pos] != "-": # read has to match on both position and position immediately before del to support (i.e., no indels in between) 
-#                     support = False
-
-
-#         if support:
-#             reads_support.append(read_acc)
-#     return reads_support
-
-
-
 def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ccs_dict, ignore_ends_len, max_phred_q_trusted):
 
-    start_time = time()
+    # start_time = time()
     # pr = cProfile.Profile()
     # pr.enable()
 
@@ -180,7 +98,7 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
 
     exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, nr_cores = 1)    
     exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, nr_cores = 1, ignore_ends_len = ignore_ends_len)
-    print("saved re-aligning", len(read_alignments_to_t) + len(read_alignments_to_c), "sequences")
+    # print("saved re-aligning", len(read_alignments_to_t) + len(read_alignments_to_c), "sequences")
 
     # 1. Find positions differing between reference and candidate (ignoring any indel differences in ends)
     
@@ -191,7 +109,7 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
     # 2. Get the coordinates on the candidate and reference respectively
     
     variant_coords_t, variant_coords_c, alignment_c_to_t, alignment_t_to_c = functions.get_variant_coordinates(t_seq, c_seq, aln_t, aln_c, variants)
-    print(variant_coords_t)
+    # print(variant_coords_t)
 
     # 3. Check if reads support candidate at given variant positions
     reads_support = functions.get_support(read_alignments_to_c, variant_coords_c, read_alignments_to_t, variant_coords_t, alignment_c_to_t)
@@ -210,10 +128,10 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
 
     # 4. get individual read error rates (again ignoring, any indel differences in ends) 
     errors = functions.get_read_errors(read_alignments_to_c, read_alignments_to_t)
-    print("errors:", sorted(errors.values()))
+    # print("errors:", sorted(errors.values()))
     # 5. Get position specific error rate for each variant in the reads 
     if ccs_dict:
-        print(c_acc)
+        # print(c_acc)
         probability_c, non_supportive_c = functions.get_read_ccs_probabilities_c(read_alignments_to_c, variant_coords_c, alignment_t_to_c, ccs_dict, errors, max_phred_q_trusted)
         probability_t, non_supportive_t = functions.get_read_ccs_probabilities_t(read_alignments_to_t, variant_coords_t, alignment_c_to_t, ccs_dict, errors, max_phred_q_trusted)
         probability = merge_two_dicts(probability_c, probability_t)
@@ -236,10 +154,10 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
     else:
         p_value = raghavan_upper_pvalue_bound(probability, reads_support)
 
-    print("New p-value:", p_value, len(probability), len(reads_support), "non contributing:", len(non_supportive_c | non_supportive_t))
+    # print("New p-value:", p_value, len(probability), len(reads_support), "non contributing:", len(non_supportive_c | non_supportive_t))
 
-    total_elapsed = time() - start_time
-    print("total new arrange:",total_elapsed)
+    # total_elapsed = time() - start_time
+    # print("total new arrange:",total_elapsed)
 
     return variant_coords_t, p_value, reads_support, len(probability)
 
@@ -302,8 +220,6 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
         for x_acc in reads_to_c:
             assert reads_to_c[x_acc] == ccs_dict[x_acc].seq
 
-    print()
-    print("NEW NO REALIGN")
     delta_t_new, p_value_new, reads_support, nr_reads_used_in_test = arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignments_to_c, read_alignments_to_t, ccs_dict, ignore_ends_len, max_phred_q_trusted)
     variant_types = ";".join([ "(" + str(delta_t_new[j][0]) + "," + str(j) + "," + str(delta_t_new[j][2]) + ")" for j in  delta_t_new ])
 
@@ -312,125 +228,6 @@ def statistical_test( c_acc, t_acc, c_seq, t_seq, reads_to_c, read_alignments_to
     else:
         correction_factor = get_correction_factor(t_seq, c_acc, delta_t_new)
         return (c_acc, t_acc, p_value_new, correction_factor, len(reads_support), nr_reads_used_in_test, variant_types)
-
-    # if ignore_ends_len > 0:
-    #     alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
-
-    # get parameter estimates for statistical test
-    # delta_t_new = functions.get_difference_coordinates_for_candidates(t_acc, c_acc, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
-    # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
-    # x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t_new, reads) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
-    # print(len(x_new), delta_t_new, t_acc, c_acc)
-    # print("new support", len(x_new_from_c), "and", len(x_new_from_t) )
-    print()
-
-    # print("NEW")
-    # alignment_matrix_to_t = arrange_alignments_new(t_acc, c_acc, t_seq, c_seq, reads_to_c, read_alignments_to_t, ignore_ends_len)
-    # if ignore_ends_len > 0:
-    #     alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
-
-    # # get parameter estimates for statistical test
-    # delta_t_new = functions.get_difference_coordinates_for_candidates(t_acc, c_acc, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
-    # # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
-    # x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t_new, reads) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
-    # print(len(x), delta_t_new, t_acc, c_acc)
-    # print()
-
-
-    # get multialignment matrix here
-    print("OLD")
-    alignment_matrix_to_t =  arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, {c_acc: c_seq,  t_acc: t_seq}, ignore_ends_len)
-    # cut multialignment matrix first and last ignore_ends_len bases in ends of reference in the amignment matrix
-    # these are bases that we disregard when testing varinats
-    # We get individual cut positions depending on which candidate is being tested -- we dont want to include ends spanning over the reference or candidate
-    # we cut at the start position in c or t that comes last, and the end position in c or t that comes first
-    if ignore_ends_len > 0:
-        alignment_matrix_to_t = functions.cut_ends_of_alignment_matrix(alignment_matrix_to_t, t_acc, c_acc, ignore_ends_len)
-
-    # get parameter estimates for statistical test
-    delta_t = functions.get_difference_coordinates_for_candidates(t_acc, c_acc, alignment_matrix_to_t) # format: { c_acc1 : {pos:(state, char), pos2:(state, char) } , c_acc2 : {pos:(state, char), pos2:(state, char) },... }
-    # get number of reads k supporting the given set of variants, they have to support all the variants within a candidate
-    x = functions.reads_supporting_candidate(t_acc, c_acc, alignment_matrix_to_t, delta_t, reads) # format: { c_acc1 : [x_acc1, x_acc2,.....], c_acc2 : [x_acc1, x_acc2,.....] ,... }
-    invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)
-
-    ############ TMP ###################
-    ####################################
-    ####################################
-    # print(len(x), delta_t, t_acc, c_acc)
-    # print( (set(x_new_from_c) | set(x_new_from_t) )   ^ set(x) )
-    # if len(x_new_from_c) + len(x_new_from_t) != len(x):
-    #     print()
-    #     print("DIFFERENCE:", "new support:", len(x_new_from_c) + len(x_new_from_t), "old support:", len(x) )
-    #     print(delta_t_new)
-    #     # for read_acc in read_alignments_to_c:
-    #     #     print("C")
-    #     #     print(read_alignments_to_c[read_acc][0])
-    #     #     print(read_alignments_to_c[read_acc][1])
-    #     # for read_acc in read_alignments_to_t:
-    #     #     print("T")
-    #     #     print(read_alignments_to_t[read_acc][0])
-    #     #     print(read_alignments_to_t[read_acc][1])
-
-    #     print()
-    assert len(list(delta_t.values())[0]) ==  len(delta_t_new)
-    for key in delta_t:
-        if len(list(delta_t[key].values())) != len(list(delta_t_new.values())) or set([ (typ, nuc) for typ, nuc, u_mult in delta_t_new.values()]) != set(list(delta_t[key].values())) :
-            print(delta_t_new)
-            print(delta_t)
-        assert len(list(delta_t[key].values())) == len(list(delta_t_new.values())) and set([ (typ, nuc) for typ, nuc, u_mult in delta_t_new.values()]) == set(list(delta_t[key].values())) 
-    new_invarinats = set([ u_mult for typ, nuc, u_mult in delta_t_new.values()])
-    old_invarinats = set([tup_dict.values()[0] for cand, pos_dict in invariant_factors_for_candidate.items() for tup_dict in pos_dict.values() ])
-    assert new_invarinats == old_invarinats
-
-    ####################################
-    ####################################
-    # print(invariant_factors_for_candidate)
-
-
-    if ccs_dict:
-        insertions, deletions, substitutions = functions.get_errors_for_partitions(t_acc, len(t_seq), c_acc, alignment_matrix_to_t) 
-        probability = functions.get_ccs_position_prob_per_read(t_acc, len(t_seq), alignment_matrix_to_t, invariant_factors_for_candidate, c_acc, delta_t, ccs_dict, insertions, deletions, substitutions, max_phred_q_trusted) 
-    else:
-        errors = functions.get_errors_per_read(t_acc, len(t_seq), c_acc, alignment_matrix_to_t) 
-        # invariant_factors_for_candidate = functions.get_invariant_multipliers(delta_t, alignment_matrix_to_t, t_acc)
-        probability = functions.get_prob_of_error_per_read(t_acc, len(t_seq), c_acc, errors, invariant_factors_for_candidate) 
-
-    #TODO: do exact only if partition less than, say 200? Otherwise poisson approx
-    # p_value = CLT_test(probability, weight, x)
-    # p_value = poisson_approx_test(probability, weight, x)
-    # p_value = exact_test(probability, weight, x)
-    # print("exact p:", p_value )
-    # print()
-    # print(sorted(errors.values()))
-    # print(sorted(probability.values()))
-    # print("Weighted raghavan p:", p_value )
-
-    delta_size = len(delta_t[c_acc])
-    variant_types = "".join([ str(delta_t[c_acc][j][0]) for j in  delta_t[c_acc] ])
-    if delta_size == 0:
-        print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
-        p_value = 0.0
-    else:
-        p_value = raghavan_upper_pvalue_bound(probability, x)
-
-    print("Old p-value:", p_value )
-    if p_value_new > p_value:
-        print("NEW P-VAL GREATER:", p_value_new, p_value )
-    elif p_value_new == p_value:
-        print("NEW P-VAL EQUAL:", p_value_new, p_value )
-    else:
-        print("NEW P-VAL SMALLER:", p_value_new, p_value )
-
-    # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, mult_factor:{1}, corrected p_val:{2} k:{3}, N_t:{4}, Delta_size:{5}".format(p_value, correction_factor, p_value * correction_factor,  len(x), N_t, delta_size) )
-    # significance_values[c_acc] = (p_value, correction_factor, len(x), N_t, delta_size)
-    if ccs_dict:
-        # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
-        return (c_acc, t_acc, p_value, 1.0, len(x), N_t, variant_types)
-    else:
-        correction_factor = calc_correction_factor(t_seq, c_acc, delta_t)
-        # print("Tested", c_acc, "to ref", t_acc, "p_val:{0}, k:{1}, N_t:{2}, variants:{3}".format(p_value, len(x), N_t, variant_types) )
-        return (c_acc, t_acc, p_value, correction_factor, len(x), N_t, variant_types)
-
 
 
 
@@ -459,7 +256,7 @@ def raghavan_upper_pvalue_bound(probability, x_equal_to_one):
     for read_acc, p_i in probability.items():
         if p_i < 0 or p_i > 1.0:
             print(p_i, read_acc, read_acc in x_equal_to_one)
-    print(sorted(probability.values()))
+    # print(sorted(probability.values()))
     assert max(probability.values()) <= 1.0
     assert min(probability.values()) > 0.0
     log_probabilities = { acc: -math.log(p_i, 10) for acc, p_i in probability.items()}
@@ -531,16 +328,4 @@ def get_correction_factor(t_seq, c_acc, delta_t):
     correction_factor = ( (4*(m+1))**n_I ) * functions.choose(m, n_D) * functions.choose( 3*(m-n_D), n_S)
     return correction_factor
 
-def calc_correction_factor(t_seq, c_acc, delta_t):
-    m = len(t_seq)
-    n_S, n_D, n_I = 0, 0, 0
-    for pos, (state, char) in delta_t[c_acc].items():
-        if state == "S":
-            n_S += 1
-        elif state == "D":
-            n_D += 1
-        if state == "I":
-            n_I += 1
-    
-    correction_factor = ( (4*(m+1))**n_I ) * functions.choose(m, n_D) * functions.choose( 3*(m-n_D), n_S)
-    return correction_factor
+

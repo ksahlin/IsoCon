@@ -302,7 +302,8 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
             # skip to test candidates with more reads than their respective references, because its redundant computation that will lead to significant values anyway..
             for t_acc in list(nearest_neighbor_graph[c_acc].keys()):
                 if len(read_partition[c_acc]) >= params.min_test_ratio*len(read_partition[t_acc]):
-                    print("skipping test for dominant candidate {0} to ref {1}".format(c_acc, t_acc))
+                    if params.verbose:
+                        print("skipping test for dominant candidate {0} to ref {1}".format(c_acc, t_acc))
                     del nearest_neighbor_graph[c_acc][t_acc]
 
             previous_significance_values[c_acc] = {}
