@@ -13,6 +13,12 @@ class CCS(object):
         self.name = name
         self.seq = seq
         self.qual = qual
+        bad_qual_values = [val for val in qual if  val < 0 or val > 93 ]
+        if len(bad_qual_values) > 0:
+            print(name, qual)
+            print(bad_qual_values)
+            print("At least one bad quality value in read. Phred quality values are assumed to be larger than 0 and smaller than 94 by protocol.")
+            sys.exit()
         self.np = np
         self.subreads = {}
     def positions_with_p_error_higher_than(self, prob):
@@ -130,19 +136,89 @@ def fix_quality_values(seq, qualities):
         if seq[i-1] == seq[i]:
             homo_pl_region.append( qualities[i] )
         else:
-            left_shift = homo_pl_region[::-1]
+            left_shift = sorted(homo_pl_region) # homo_pl_region[::-1]
+            # if left_shift[0] != min(left_shift):
+            #     print(left_shift, seq[max(0,i-6):i+5], qualities[max(0,i-6):i+5], i, len(seq))
+                # assert left_shift[0] == min(left_shift)
             left_shifted_qualities.append(left_shift) 
             homo_pl_region =  [ qualities[i] ]
 
     # last homopolymer region or base
-    left_shift = homo_pl_region[::-1]
+    left_shift = sorted(homo_pl_region) # homo_pl_region[::-1]
     left_shifted_qualities.append(left_shift) 
     qual_values = [nucl_qual for poly_region in left_shifted_qualities for nucl_qual in poly_region]
     return qual_values
 
 
+def modify_strings_and_acc_fastq(ccs_dict_raw, X_ids, X):
+    # print(len(ccs_dict_raw))
+    print(len(X_ids), len(X))
+    assert len(X_ids) == len(X)
+    # print(X.keys())
+    # print(sorted(X_ids.keys()))
+    # print(sorted(ccs_dict_raw.keys()))
+
+    for q_id in list(ccs_dict_raw.keys()):
+        if q_id in X_ids:
+            # print(q_id, "in reads!")
+
+            q_acc = X_ids[q_id]
+            p = r"strand=-"
+            m = re.search(p, q_acc)
+            # print(q_acc)
+            if m:
+                ccs_record = ccs_dict_raw[q_id]
+                # seq_rc = reverse_complement(ccs_record.seq)
+                # qual_r = ccs_record.qual[::-1]
+                qualities = fix_quality_values(ccs_record.seq, ccs_record.qual )
+                start_index = ccs_record.seq.index(X[q_acc])
+                stop_index = start_index + len(X[q_acc])
+                ccs_record.seq = ccs_record.seq[start_index: stop_index]
+                ccs_record.qual = qualities[start_index: stop_index]
+                # index = ccs_record.seq.find("TCAGCCTCT")
+                # if index >= 0:
+                    # print("reversed:",  ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
+                # print("HETEEE")
+                # print(ccs_record.seq)
+                # print(ccs_record.qual)
+                assert ccs_record.seq == X[q_acc]
+                assert len(ccs_record.seq) == len(ccs_record.qual)
+
+            else:
+                ccs_record = ccs_dict_raw[q_id]
+                start_index = ccs_record.seq.index(X[q_acc])
+                stop_index = start_index + len(X[q_acc])
+                ccs_record.seq = ccs_record.seq[start_index: stop_index]
+                ccs_record.qual = list(ccs_record.qual)[start_index: stop_index]
+                # print(ccs_record.seq)
+                # print(ccs_record.qual)
+                # index = ccs_record.seq.find("TCAGCCTCT")
+                # if index >= 0:
+                #     print(index, ccs_record.qual[index + 8:index + 14], ccs_record.seq[index + 8:index + 14])
+                assert ccs_record.seq == X[q_acc]
+                assert len(ccs_record.seq) == len(ccs_record.qual)
+
+
+            # change bach the name of the ccs_record to match with the flnc reads 
+            ccs_obj = ccs_dict_raw[q_id]
+            del ccs_dict_raw[q_id]
+            new_q_name = X_ids[q_id]
+            ccs_obj.name = new_q_name
+            ccs_dict_raw[new_q_name] = ccs_obj
+
+        else:
+            del ccs_dict_raw[q_id]
+
+    
+    print(len(ccs_dict_raw))
+    assert len(ccs_dict_raw) == len(X_ids)
+
+    return ccs_dict_raw
+
+
 def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
     # print(len(ccs_dict_raw))
+    print(len(X_ids), len(X))
     assert len(X_ids) == len(X)
     # print(X.keys())
     # print(sorted(X_ids.keys()))
@@ -159,6 +235,8 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
                 ccs_record = ccs_dict_raw[q_id]
                 seq_rc = reverse_complement(ccs_record.seq)
                 qual_r = ccs_record.qual[::-1]
+                # print(seq_rc)
+                # print(qual_r)
                 qualities = fix_quality_values(seq_rc, qual_r )
                 start_index = seq_rc.index(X[q_acc])
                 stop_index = start_index + len(X[q_acc])
@@ -184,17 +262,17 @@ def modify_strings_and_acc(ccs_dict_raw, X_ids, X):
 
 
             # change bach the name of the ccs_record to match with the flnc reads 
-            new_q_name = X_ids[q_id]
             ccs_obj = ccs_dict_raw[q_id]
+            del ccs_dict_raw[q_id]
+            new_q_name = X_ids[q_id]
             ccs_obj.name = new_q_name
             ccs_dict_raw[new_q_name] = ccs_obj
-            del ccs_dict_raw[q_id]
 
         else:
             del ccs_dict_raw[q_id]
 
     
-    # print(len(ccs_dict_raw))
+    print(len(ccs_dict_raw))
     assert len(ccs_dict_raw) == len(X_ids)
     # print("HERE!")
 
@@ -238,10 +316,13 @@ def get_p_error_from_char(qual_string):
 
 def get_ccs(ccs_file):  
     ccs_dict = defaultdict(dict)
-    read_id_pattern = r"[\d]+/ccs"
+    # read_id_pattern = r"[\d]+/ccs"
+    read_id_pattern = r".+/ccs"
     for read in ccs_file.fetch(until_eof=True):
         m = re.search(read_id_pattern, read.query_name)
-        read_id = m.group(0).split("/")[0]
+        # read_id = m.group(0).split("/")[0]
+        read_id = m.group(0)[:-4]
+        # print(read_id)
         ccs_read = CCS(read_id, read.query_alignment_sequence, read.query_qualities, read.get_tag("np"))
         ccs_dict[read_id] = ccs_read
         # ccs_dict[read.query_name]["seq"] = read.query_alignment_sequence

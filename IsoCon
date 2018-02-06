@@ -45,7 +45,7 @@ import multiprocessing as mp
 from modules import isocon_get_candidates
 from modules import isocon_statistical_test
 from modules import isocon_parameters
-from modules.input_output import write_output, fasta_parser
+from modules.input_output import write_output, fasta_parser, fastq_parser
 from modules import partitions
 # from modules import identify_barcodes
 
@@ -113,7 +113,11 @@ def run_stat_filter(params):
         print("Candidate file is empty!")
         sys.exit(0)
 
-    to_realign = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.fl_reads, 'r'))}
+    if params.is_fastq:
+        to_realign = {acc: seq for (acc, seq, qual) in  fastq_parser.readfq(open(params.fl_reads, 'r'))}
+    else:
+        to_realign = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.fl_reads, 'r'))}
+    # to_realign = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.fl_reads, 'r'))}
     # filtered_candidates = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
     # G_star, partition_of_X =  partitions.partition_strings_2set(original_reads, filtered_candidates, params.fl_reads, params.candidates, params)
     read_partition = {acc: {} for (acc, seq) in  fasta_parser.read_fasta(open(params.candidates, 'r'))}
@@ -226,7 +230,7 @@ if __name__ == '__main__':
     stat_filter = subparsers.add_parser('stat_filter', help='Get candidate transcripts with nearest_neighbor approach.')
     stat_filter_required = stat_filter.add_argument_group('required arguments')
     stat_filter_required.add_argument('-fl_reads', type=str, required=True, help='Full length RoIs. ')
-    stat_filter_required.add_argument('-candidates', type=str, required=True, help='Already generated candidates. ')
+    stat_filter_required.add_argument('-candidates', type=str, required=True, help='Fasta file of already generated candidates. ')
     stat_filter_required.add_argument('-outfolder', type=str, required=True, help='Outfolder. ')
 
     stat_filter.add_argument('--ccs', type=str, help='BAM/SAM file with CCS sequence predictions. ')
@@ -254,11 +258,21 @@ if __name__ == '__main__':
     try:
         open(args.fl_reads,"r")
     except IOError as e:
-        sys.exit("couldn't find read file paf file: " + args.fl_reads + " check that the path is correct and that the file exists")
+        sys.exit("couldn't find read file: " + args.fl_reads + " check that the path is correct and that the file exists")
+
+    if args.fl_reads[-1] == "q":
+        args.is_fastq = True
+    elif args.fl_reads[-1] == "a":
+        args.is_fastq = False
+    else:
+        sys.stdout.write(args.fl_reads, "has to be a vaild fasta or fastq file and have a file extension that ends with 'a' (fasta, fa) or 'q' (fastq, fq).\n")
+        sys.exit()
+
+    if args.ccs and args.is_fastq:
+        sys.stdout.write('Warning: both --ccs and fastq file specified. IsoCon will use quality values from fastq file. If this is not desired, convert the fastq to a fasta file.\n')
+
 
     params = isocon_parameters.Parameters(**args.__dict__)
-
-
     params.minimap_alignments = os.path.join(params.outfolder, "minimapped")
 
     if not os.path.exists(params.outfolder):

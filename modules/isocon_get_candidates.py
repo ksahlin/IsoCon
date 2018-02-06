@@ -13,7 +13,7 @@ from modules import functions
 from modules import partitions
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession, edlib_traceback
-from modules.input_output import fasta_parser, write_output
+from modules.input_output import fasta_parser, fastq_parser, write_output
 from modules import correction_module
 from modules import end_invariant_functions
 from modules import ccs_info
@@ -110,18 +110,22 @@ def find_candidate_transcripts(read_file, params):
         output: a string containing a path to a fasta formatted file with consensus_id_support as accession 
                     and the sequence as the read
     """ 
-    S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
-    
-    # still beta to use quaity values for correction, inactivated for now
-    if False: #params.ccs:
-        ccs_file = pysam.AlignmentFile(params.ccs, "rb", check_sq=False)
-        ccs_dict_raw = ccs_info.get_ccs(ccs_file)
-        X_ids = {  x_acc.split("/")[1] : x_acc for x_acc in S} 
-        ccs_dict = ccs_info.modify_strings_and_acc(ccs_dict_raw, X_ids, S)
-        for x_acc in S:
-            assert S[x_acc] == ccs_dict[x_acc].seq
-    else:
+    if params.is_fastq:
+        S = {acc: seq for (acc, seq, qual) in  fastq_parser.readfq(open(read_file, 'r'))}
         ccs_dict = {}
+    else:
+        S = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
+    
+        # still beta to use quaity values for correction, inactivated for now
+        if False: #params.ccs:
+            ccs_file = pysam.AlignmentFile(params.ccs, "rb", check_sq=False)
+            ccs_dict_raw = ccs_info.get_ccs(ccs_file)
+            X_ids = {  x_acc.split("/")[1] : x_acc for x_acc in S} 
+            ccs_dict = ccs_info.modify_strings_and_acc(ccs_dict_raw, X_ids, S)
+            for x_acc in S:
+                assert S[x_acc] == ccs_dict[x_acc].seq
+        else:
+            ccs_dict = {}
 
     step = 1
     print()
@@ -272,7 +276,14 @@ def find_candidate_transcripts(read_file, params):
                 del c_acc_to_support[ removed_c_acc ]
                 del c_seq_to_read_acc[ removed_c_seq ]
 
-    original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
+    
+    if params.is_fastq:
+        original_reads = {acc: seq for (acc, seq, qual) in  fastq_parser.readfq(open(read_file, 'r'))}
+    else:
+        original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
+
+    # original_reads = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
+    print(len(S), len(original_reads))
     assert len(S) == len(original_reads)
 
     # to_realign = {}

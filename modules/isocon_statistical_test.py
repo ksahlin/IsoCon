@@ -23,7 +23,7 @@ from modules import partitions
 from modules import graphs
 from modules.SW_alignment_module import sw_align_sequences, sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences, edlib_align_sequences_keeping_accession, edlib_traceback
-from modules.input_output import fasta_parser, write_output
+from modules.input_output import fasta_parser, fastq_parser, write_output
 from modules import hypothesis_test_module
 from modules import end_invariant_functions
 from modules import ccs_info
@@ -150,7 +150,12 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
     modified = True
 
     ############ GET READS AND CANDIDATES #################
-    X_original = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
+    if params.is_fastq:
+        X_original = {acc: seq for (acc, seq, qual) in  fastq_parser.readfq(open(read_file, 'r'))}
+    else:
+        X_original = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))}
+        # X_original = {acc: seq for (acc, seq) in  fasta_parser.read_fasta(open(read_file, 'r'))} 
+    
     print("Total original reads", len(X_original))
     x_assigned_to_cluster = set([ x_acc for c_acc in read_partition for x_acc in read_partition[c_acc] ])
     X = {acc: seq for (acc, seq) in X_original.items() if acc in x_assigned_to_cluster or acc in to_realign }    # just set X to read_partition + to_realign here
@@ -168,11 +173,25 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
 
     ################################################################
 
-    ### IF CCS file is provided ####
-    if params.ccs:
+    ### IF quality values are provided ####
+    if params.is_fastq:
+        ccs_dict_raw = {x_acc.split(" ")[0] : ccs_info.CCS(x_acc.split(" ")[0], seq, [ord(ascii_char) - 33 for ascii_char in qual], "NA") for (x_acc, seq, qual) in  fastq_parser.readfq(open(read_file, 'r'))}
+        # int_quals = [ord(ascii_char) - 33 for ascii_char in qual] 
+        X_ids = {  x_acc.split(" ")[0] : x_acc for x_acc in X} 
+        print(len(X_ids), len(X), len(ccs_dict_raw))
+        for x_acc in X:
+            # print(ccs_dict_raw[x_acc.split(" ")[0]].qual)
+            # print(ccs_dict_raw[x_acc.split(" ")[0]].seq)
+            assert X_ids[x_acc.split(" ")[0]] == x_acc
+
+        ccs_dict = ccs_info.modify_strings_and_acc_fastq(ccs_dict_raw, X_ids, X)
+        for x_acc in X:
+            assert X[x_acc] == ccs_dict[x_acc].seq
+
+    elif params.ccs:
         ccs_file = pysam.AlignmentFile(params.ccs, "rb", check_sq=False)
         ccs_dict_raw = ccs_info.get_ccs(ccs_file)
-        X_ids = {  x_acc.split("/")[1] : x_acc for x_acc in X} 
+        X_ids = { "/".join(x_acc.split("/")[:2]) : x_acc for x_acc in X} 
         ccs_dict = ccs_info.modify_strings_and_acc(ccs_dict_raw, X_ids, X)
         for x_acc in X:
             assert X[x_acc] == ccs_dict[x_acc].seq
