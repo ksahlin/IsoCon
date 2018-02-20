@@ -57,15 +57,6 @@ from modules import ccs_info
 #     plt.savefig(fig_file, format="PNG")
 #     plt.clf()
 
-def transform(read):
-    transformed_seq = []
-    prev_nucl = ""
-    for nucl in read:
-        if nucl != prev_nucl:
-            transformed_seq.append(nucl)
-        prev_nucl = nucl
-
-    return "".join(transformed_seq)
 
 
 
@@ -307,7 +298,19 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
         else:
             nearest_neighbor_graph = get_nearest_neighbor_graph(C)
 
+        print("Edges in candidate NN graph:", len([ 1 for c_acc in nearest_neighbor_graph for t_acc in nearest_neighbor_graph[c_acc] ]) )
+        homopolymenr_invariant_graph = functions.get_homopolymer_invariants(C)
+        print("Edges in candidate homopolymenr invariant graph:", len([ 1 for c_acc in homopolymenr_invariant_graph for t_acc in homopolymenr_invariant_graph[c_acc] ]) )
+        for c_acc in homopolymenr_invariant_graph:
+            if c_acc not in nearest_neighbor_graph:
+                print(c_acc, "not in NN_candidates graph but added now.")
+                nearest_neighbor_graph[c_acc] = {}
+            for t_acc in homopolymenr_invariant_graph[c_acc]:
+                if t_acc not in nearest_neighbor_graph[c_acc]:
+                    # print("Homopolymenr edge added")
+                    nearest_neighbor_graph[c_acc][t_acc] = 1
 
+        print("Total union of edges:", len([ 1 for c_acc in nearest_neighbor_graph for t_acc in nearest_neighbor_graph[c_acc] ]) ) 
         # print("EXTRA EDGES FROM HOMOPOLYMER IDENTICAL:", homopol_extra_added)
 
 
@@ -341,6 +344,8 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
             for c_acc, t_acc in to_remove:
                 del nearest_neighbor_graph[c_acc][t_acc]
         # print(nearest_neighbor_graph)
+        print("Total edges after removing dominant candidates:", len([ 1 for c_acc in nearest_neighbor_graph for t_acc in nearest_neighbor_graph[c_acc] ]) ) 
+        # sys.exit()
         #####################################################################################################
 
 

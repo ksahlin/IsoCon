@@ -17,6 +17,43 @@ import math
 import re
 import edlib
 
+from itertools import permutations
+
+
+def transform(read):
+    transformed_seq = []
+    prev_nucl = ""
+    for nucl in read:
+        if nucl != prev_nucl:
+            transformed_seq.append(nucl)
+        prev_nucl = nucl
+
+    return "".join(transformed_seq)
+
+def get_homopolymer_invariants(candidate_transcripts):
+    seq_to_acc = { seq : acc for (acc, seq) in  candidate_transcripts.items() }
+    print("Unique before compression: ", len(seq_to_acc) )
+
+    candidate_transcripts_transformed = {}
+    clusters = defaultdict(list)
+    for acc in candidate_transcripts:
+        seq_transformed = transform(candidate_transcripts[acc])
+        candidate_transcripts_transformed[acc] = seq_transformed
+        clusters[seq_transformed].append(acc)
+
+    seq_to_acc_transformed = { seq : acc for (acc, seq) in candidate_transcripts_transformed.items()}
+    print("Unique after compression: ", len(seq_to_acc_transformed) )
+
+    edges = {}
+    for seq in clusters:
+        if len(clusters[seq]) > 1:
+            # print(clusters[seq])
+            for acc in clusters[seq]:
+                edges[acc] = {}
+            for acc1, acc2 in permutations(clusters[seq], 2):
+                edges[acc1][acc2] = 1
+
+    return edges
 
 
 def get_variant_coordinates(t_seq, c_seq, aln_t, aln_c, variants):
