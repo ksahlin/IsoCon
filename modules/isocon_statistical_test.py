@@ -137,6 +137,15 @@ def get_nearest_neighbor_graph(candidate_transcripts):
 #     ###################################################################
 #     ###################################################################
 
+
+def product_with_check_overflow(p_value, mult_factor_inv):
+    try:
+        product = p_value*mult_factor_inv
+    except OverflowError:
+        print("OwerflowError. p_val:{0}, mult_correction_factor:{1}".format(p_value, mult_factor_inv))
+        product = 1.0
+    return product
+
 def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign, params):
     modified = True
 
@@ -371,17 +380,18 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
         assert len(significance_values) == len(C)
         highest_significance_values = {}
         for c_acc in significance_values:
-            p_val_max = 0.0
+            corrected_p_val_max = 0.0
             highest = (c_acc, "", "not_tested", 1.0, len(read_partition[c_acc]), len(read_partition[c_acc]), "") 
             for t_acc in significance_values[c_acc]:
                 (p_value, mult_factor_inv, k, N_t, variants) = significance_values[c_acc][t_acc]
-                if p_value >= p_val_max:
-                    p_val_max = p_value
+                corr_p_value = product_with_check_overflow(p_value, mult_factor_inv)
+                if corr_p_value >= corrected_p_val_max:
+                    corrected_p_val_max = corr_p_value
                     highest = (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants)
             highest_significance_values[c_acc] =  highest
 
         if len(highest_significance_values) > 0:
-            corrected_pvals = [p_value*mult_factor_inv  for c_acc, (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants) in highest_significance_values.items()  if p_value != "not_tested" ]
+            corrected_pvals = [product_with_check_overflow(p_value, mult_factor_inv)  for c_acc, (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants) in highest_significance_values.items()  if p_value != "not_tested" ]
             if len(corrected_pvals) == 0:
                 p_val_threshold = params.p_value_threshold #1.0
             else:
@@ -411,7 +421,7 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
                     to_realign[x_acc] = X[x_acc]
                 del read_partition[c_acc]                          
 
-            elif p_value * mult_factor_inv >= p_val_threshold:
+            elif product_with_check_overflow(p_value, mult_factor_inv) >= p_val_threshold:
                 print("removing", c_acc, "p-val:", p_value, "correction factor:", mult_factor_inv, "k", k, "N_t", N_t, "variants:", variants )
                 del C[c_acc] 
                 modified = True
