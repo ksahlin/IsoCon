@@ -142,7 +142,7 @@ def product_with_check_overflow(p_value, mult_factor_inv):
     try:
         product = p_value*mult_factor_inv
     except OverflowError:
-        print("OwerflowError. p_val:{0}, mult_correction_factor:{1}".format(p_value, mult_factor_inv))
+        print("OverflowError. p_val:{0}, mult_correction_factor:{1}".format(p_value, mult_factor_inv))
         product = 1.0
     return product
 
