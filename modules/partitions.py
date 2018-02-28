@@ -181,6 +181,77 @@ def reachable(G, m):
     
     return reachable_new
 
+# import copy
+# import heapq 
+# def get_partitions_new2(G):
+#     M_temp = {}
+#     partition_temp = {}
+#     G_tmp = copy.deepcopy(G)
+
+#     reachable_for_nodes = [ ( - len(reachable(G_tmp, n)), n) for n in  sorted(G_tmp.nodes())]
+#     heapq.heapify(reachable_for_nodes)
+#     # highest_degree = sorted( reachable_for_nodes, key = lambda x: ( - (len(x[0]) + G.node[ x[1] ]["degree"]), x[1] ) ) # sort on partition weight first then string if tiebreakers
+
+#     while len(reachable_for_nodes) > 0 and G_tmp:
+#         (nr_reachable, m) = heapq.heappop(reachable_for_nodes)
+#         nr_reachable = - nr_reachable # encoded as - because heapq sorts smallest to largest       
+#         if m not in G_tmp:
+#             continue
+#         m_reachable = reachable(G_tmp, m)
+
+#         ######################################################
+#         # verify that m is still largest after removal of nodes
+#         ######################################################
+#         if reachable_for_nodes:
+#             curr_min_reachable, m_tmp = min(reachable_for_nodes)
+#             curr_min_reachable = - curr_min_reachable
+#             if len(m_reachable) < curr_min_reachable:
+#                 print("became smaller after removal of nodes!")
+#                 heapq.heappush(reachable_for_nodes, (- len(m_reachable), m))
+#                 continue
+
+#         ######################################################
+#         ######################################################
+
+#         partition_temp[m] = set([node for node in m_reachable])
+#         M_temp[m] = G_tmp.node[m]["degree"] + sum([G_tmp.node[node]["degree"] for node in partition_temp[m]])   
+#         G_tmp.remove_nodes_from(set(partition_temp[m]))
+#         G_tmp.remove_node(m)
+#         # processed.update(partition_temp[m]) 
+#         # processed.add(m)
+
+#     M = {}
+#     partition = {}
+
+#     for m in M_temp.keys():
+#         if not partition_temp[m]:
+#             # print("here")
+#             M[m] =  G.node[m]["degree"]
+#             partition[m] = set([])
+#         else:
+#             highest_degree = G.node[m]["degree"] +  len(list(G.neighbors(m))) # len(list([ nbr for nbr in G.neighbors(m) if nbr in partition_temp[m] ]))
+#             center = m
+#             for n in partition_temp[m]:
+#                 n_degree = G.node[n]["degree"] + len(list(G.neighbors(n))) # len(list([ nbr for nbr in G.neighbors(n) if nbr in partition_temp[m] ]))
+#                 if n_degree > highest_degree:
+#                     center = n
+#                     highest_degree = n_degree
+#                 elif n_degree == highest_degree:
+#                     center = min(center, n)
+
+
+#             M[center] = highest_degree
+#             partition_temp[m].add(m)
+#             partition_temp[m].remove(center)
+#             partition[center] = partition_temp[m]
+
+#         del partition_temp[m]
+#         del M_temp[m]
+
+#     return M, partition
+
+
+
 def get_partitions_new(G):
 
     M_temp = {}
@@ -255,6 +326,20 @@ def partition_strings(S, params):
     start = time()
     M, partition = get_partitions_new(G_transpose)
     print("tot time new partition:", time() - start )
+
+    # print("Number of centers:", len(M), len(partition))
+    # print("partition_new sizes(identical strings are collapsed here and therefore counted as one): ", sorted([len(partition[p]) +1 for p in  partition], reverse = True))
+    # print("SUM PARTITIONS:", sum(sorted([len(partition[p]) +1 for p in  partition], reverse = True)))
+    # print()
+    # start = time()
+    # M2, partition2 = get_partitions_new2(G_transpose)
+    # print("tot time new partition:", time() - start )
+
+    # print("Number of centers:", len(M2), len(partition2))
+    # print("partition_new2 sizes(identical strings are collapsed here and therefore counted as one): ", sorted([len(partition2[p]) +1 for p in  partition2], reverse = True))
+    # print("SUM PARTITIONS:", sum(sorted([len(partition2[p]) +1 for p in  partition2], reverse = True)))
+
+
     # if params.verbose:
     #     center_lenghts = [len(m) for m in sorted(partition_new)]
     #     print("Seq lengths of centers new:", sorted(center_lenghts))
@@ -267,24 +352,35 @@ def partition_strings(S, params):
     # print("tot time new2 partition:", time() - start )
 
     # start = time()
-    # M, partition = get_partitions(G_transpose)
+    # M_old, partition_old = get_partitions(G_transpose)
     # print("tot time old partition:", time() - start )
-    # assert sorted([len(partition[s]) for s in partition]) == sorted([len(partition_new[s]) for s in partition_new])
-    
+    # print("Number of centers:", len(M_old), len(partition_old))
+    # print("partition_old sizes(identical strings are collapsed here and therefore counted as one): ", sorted([len(partition_old[p]) +1 for p in  partition_old], reverse = True))
+    # print("SUM PARTITIONS:", sum(sorted([len(partition_old[p]) +1 for p in  partition_old], reverse = True)))
 
-    # print(set(M.keys()) ^ set(M_new.keys()))
-    # print(set(M.keys()) - set(M_new.keys()))
-    # print(set(M_new.keys()) - set(M.keys()))
-    # print(sorted([len(partition[m]) for m in M]))
-    # print(sorted([len(partition_new[m]) for m in M_new]))
+    # assert sorted([len(partition_old[s]) for s in partition_old]) == sorted([len(partition[s]) for s in partition])
+    # if M == M2:
+    #     print("M equal to M2")
+    # if M_old == M2:
+    #     print("M_old equal to M2")
+    # if M_old == M:
+    #     print("M_old equal to M")
 
-    # print("deg in m:", sorted([len(partition[m]) for m in set(M) ^ set(M_new) if m in M]) )
-    # print("node deg in m:", [G_transpose.node[m]["degree"] + len(list(G_transpose.neighbors(m))) for m in set(M) ^ set(M_new) if m in M] )
-    # print("node nbrs in m:", [len(list(G_transpose.neighbors(m))) for m in set(M) ^ set(M_new) if m in M] )
+
+
+    # print(set(M2.keys()) ^ set(M_old.keys()))
+    # print(set(M2.keys()) - set(M_old.keys()))
+    # print(set(M_old.keys()) - set(M2.keys()))
+    # print(sorted([len(partition2[m]) for m in M2]))
+    # print(sorted([len(partition_old[m]) for m in M_old]))
+
+    # print("deg in m:", sorted([len(partition2[m]) for m in set(M) ^ set(M_old) if m in M]) )
+    # print("node deg in m:", [G_transpose.node[m]["degree"] + len(list(G_transpose.neighbors(m))) for m in set(M) ^ set(M_old) if m in M] )
+    # print("node nbrs in m:", [len(list(G_transpose.neighbors(m))) for m in set(M) ^ set(M_old) if m in M] )
     
-    # print( "deg in m_new:", sorted([len(partition_new[m]) for m in set(M) ^ set(M_new) if m in M_new]) )
-    # print( "node deg in m_new:", [G_transpose.node[m]["degree"] + len(list(G_transpose.neighbors(m))) for m in set(M) ^ set(M_new) if m in M_new] )
-    # print( "node nbrs in m_new:", [len(list(G_transpose.neighbors(m))) for m in set(M) ^ set(M_new) if m in M_new] )
+    # print( "deg in m_old:", sorted([len(partition_old[m]) for m in set(M) ^ set(M_old) if m in M_old]) )
+    # print( "node deg in m_old:", [G_transpose.node[m]["degree"] + len(list(G_transpose.neighbors(m))) for m in set(M) ^ set(M_old) if m in M_old] )
+    # print( "node nbrs in m_old:", [len(list(G_transpose.neighbors(m))) for m in set(M) ^ set(M_old) if m in M_old] )
     # if set(M) ^ set(M_new):
     #     m_new = [m for m in set(M) ^ set(M_new) if m in M_new][0]
     #     m = [m for m in set(M) ^ set(M_new) if m in M][0]

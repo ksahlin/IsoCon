@@ -128,65 +128,6 @@ def get_nearest_neighbors_under_ignored_edge_ends(seq_to_acc_list_sorted, params
     return best_edit_distances
 
 
-def get_invariants_under_ignored_edge_ends(seq_to_acc_list_sorted, params):
-    if params.nr_cores == 1:
-        best_edit_distances = get_nearest_neighbors(seq_to_acc_list_sorted, 0, 0, seq_to_acc_list_sorted, params.neighbor_search_depth, params.ignore_ends_len)
-
-        # implement check here to se that all seqs got a nearest_neighbor, if not, print which noes that did not get a nearest_neighbor computed.!
-
-    else:
-        ####### parallelize alignment #########
-        # pool = Pool(processes=mp.cpu_count())
-        original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-        signal.signal(signal.SIGINT, original_sigint_handler)
-        pool = Pool(processes=mp.cpu_count())
-
-        # here we split the input into chunks
-        chunk_size = max(int(len(seq_to_acc_list_sorted) / (10*mp.cpu_count())), 20 )
-        ref_seq_chunks = [ ( max(0, i - params.neighbor_search_depth -1), seq_to_acc_list_sorted[max(0, i - params.neighbor_search_depth -1) : i + chunk_size + params.neighbor_search_depth +1 ]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size) ]
-        chunks = [(i, seq_to_acc_list_sorted[i:i + chunk_size]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size)] 
-
-        if params.verbose:
-            write_output.logger(str([j for j, ch in ref_seq_chunks]), params.develop_logfile, timestamp=False)
-            write_output.logger("reference chunks:" + str([len(ch) for j,ch in ref_seq_chunks]), params.develop_logfile, timestamp=False)
-            # print([j for j, ch in ref_seq_chunks])
-            # print("reference chunks:", [len(ch) for j,ch in ref_seq_chunks])
-            write_output.logger(str([i for i,ch in chunks]), params.develop_logfile, timestamp=False)
-            write_output.logger("query chunks:" + str([len(ch) for i,ch in chunks]), params.develop_logfile, timestamp=False)
-
-            print([i for i,ch in chunks])
-            print("query chunks:", [len(ch) for i,ch in chunks])
-
-        # get nearest_neighbors takes thre sub containers: 
-        #  chunk - a container with (sequences, accesions)-tuples to be aligned (queries)
-        #  ref_seq_chunks - a container with (sequences, accesions)-tuples to be aligned to (references)
-        #  already_converged_chunks - a set of query sequences that has already converged 
-
-        try:
-            res = pool.map_async(get_nearest_neighbors_helper, [ ((chunks[i][1],  chunks[i][0], chunks[i][0] - ref_seq_chunks[i][0], ref_seq_chunks[i][1], params.neighbor_search_depth, params.ignore_ends_len), {}) for i in range(len(chunks))] )
-            best_edit_distances_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
-        except KeyboardInterrupt:
-            print("Caught KeyboardInterrupt, terminating workers")
-            pool.terminate()
-            sys.exit()
-        else:
-            # print("Normal termination")
-            pool.close()
-        pool.join()
-        best_edit_distances = {}
-        for sub_graph in best_edit_distances_results:
-            for seq in sub_graph:
-                assert seq not in best_edit_distances
-            best_edit_distances.update(sub_graph)
-        
-    # store only invariants here, i.e., edit distance 0 when ignoring ends!
-    for acc1 in list(best_edit_distances.keys()):
-        for acc2 in list(best_edit_distances[acc1].keys()):
-            if best_edit_distances[acc1][acc2] != 0:
-                del best_edit_distances[acc1][acc2]
-
-    return best_edit_distances
-
 
 def get_nearest_neighbors(batch_of_queries, global_index_in_matrix, start_index, seq_to_acc_list_sorted, neighbor_search_depth, ignore_ends_threshold):
     best_edit_distances = {}
@@ -446,21 +387,44 @@ def get_nearest_neighbors_graph_under_ignored_ends(candidate_transcripts, args):
 def collapse_candidates_under_ends_invariant(candidate_transcripts, candidate_support, params):
     print("Candidates before edge invariants:", len(candidate_transcripts))
 
-    seq_to_acc = {seq: acc for (acc, seq) in candidate_transcripts.items()}
-    seq_to_acc_list = list(seq_to_acc.items())
-    seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
-    invariant_graph = get_invariants_under_ignored_edge_ends(seq_to_acc_list_sorted, params)
-    # convert nearest_neighbor graph to nx graph object
+    # SAM_file = minimap2_alignment_module.align(targets, queries, nr_cores)
     G = nx.DiGraph()
-    # add nodes
     for acc in candidate_transcripts:
         deg = candidate_support[acc]
         G.add_node(acc, degree = deg)
-    # add edges
-    for acc1 in  invariant_graph:
-        for acc2 in invariant_graph[acc1]:
-            G.add_edge(acc1, acc2)
-    G_star, partition, M = partition_highest_reachable_with_edge_degrees(G, params)
+
+    sorted_lenghts = sorted(candidate_transcripts.items(), key = lambda x: len(x[1]))
+    for i, (acc1, seq1) in enumerate(sorted_lenghts):
+        if i % 1000 == 0:
+            print(i, "candidates processed") 
+        for (acc2, seq2) in sorted_lenghts:
+            if acc2 == acc1:
+                continue
+
+            if len(seq2) > len(seq1):
+                break
+
+            if len(seq2) >= len(seq1) - 2*params.ignore_ends_len: # is long enough to be merged
+                if seq2 in seq1:
+                    # has to be within ends varinat lenghth:
+                    start_offset = seq1.find(seq2)
+                    end_offset = len(seq1) - (start_offset + len(seq2))
+                    if start_offset <= params.ignore_ends_len and end_offset <= params.ignore_ends_len:
+                        #Make sure this doesnet crach out statistical test if two candidates differ only in ends!!!
+                        G.add_edge(acc2, acc1) # directed edge seq2 --> seq1
+
+    G_transpose = nx.reverse(G)
+
+    # sort order: largest number of neigbors, then largest degree. If still tie, sort by smallest string
+    largest_nr_neighbors = sorted([ (len(list(G_transpose.neighbors(n))), G_transpose.node[n]["degree"], n) for n in  sorted(G_transpose.nodes())], key= lambda x: (-x[0], -x[1], x[2]) )
+    marked = set()
+    partition = {}
+    for nr_nbrs, deg, c in largest_nr_neighbors:
+        if c not in marked:
+            nbrs = [n for n in G_transpose.neighbors(c) if n not in marked]
+            partition[c] = set(nbrs)
+            marked.add(c)
+            marked.update(nbrs)
 
     if params.verbose:
         for t in partition:
@@ -468,6 +432,8 @@ def collapse_candidates_under_ends_invariant(candidate_transcripts, candidate_su
     print("Candidates after edge invariants:", len(partition))
     print()
     return partition
+
+
 
 def main(args):
     candidate_transcripts = {acc: seq for (acc, seq) in  read_fasta(open(args.candidate_transcripts, 'r'))}
