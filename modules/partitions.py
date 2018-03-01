@@ -276,7 +276,7 @@ def get_partitions_new(G):
     M = {}
     partition = {}
 
-    for m in M_temp.keys():
+    for m in list(M_temp.keys()):
         if not partition_temp[m]:
             # print("here")
             M[m] =  G.node[m]["degree"]
