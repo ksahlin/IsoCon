@@ -128,7 +128,13 @@ def get_support(read_alignments_to_c, variant_coords_c, read_alignments_to_t, va
 
             # require exact match over 3mer if S, or I,D in non-homopolymenr region.
             # If homopolymenr region of size u_v, require length match of homopolymenr
-            exact_match = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == aln_c[alnmt_pos -1: alnmt_pos + u_v +1]
+            exact_match = aln_read[max(0, alnmt_pos -1) : alnmt_pos + u_v + 1] == aln_c[max(0, alnmt_pos -1): alnmt_pos + u_v +1]
+
+            if read_acc == 'm151210_031012_42146_c100926392550000001823199905121697_s1_p0/120400/29_1460_CCS_strand=+;fiveseen=1;polyAseen=0;threeseen=1;fiveend=29;polyAend=-1;threeend=1460;primer=2;chimera=0':
+                print("in get_support, c")
+                print("exact_match", exact_match, "variant_coords_c", v_type, v_nucl, u_v, aln_read[max(0, alnmt_pos -1): alnmt_pos + u_v + 1], aln_c[max(0, alnmt_pos -1): alnmt_pos + u_v +1])
+                print(variant_coords_c)
+
             if not exact_match:
                 support = False
                 break
@@ -147,12 +153,12 @@ def get_support(read_alignments_to_c, variant_coords_c, read_alignments_to_t, va
 
             c_align_snippet = alignment_c_to_t[i]
             if v_type == "I": # will need to check shifterd snippet on t alignment because base is indexed immediately to the right
-                exact_match_to_c = aln_read[alnmt_pos -2: alnmt_pos + u_v] == c_align_snippet 
+                exact_match_to_c = aln_read[max(0, alnmt_pos -2): alnmt_pos + u_v] == c_align_snippet 
                 # print(aln_read[alnmt_pos -2: alnmt_pos + u_v], c_align_snippet)
             else:
-                exact_match_to_c = aln_read[alnmt_pos -1: alnmt_pos + u_v + 1] == c_align_snippet
+                exact_match_to_c = aln_read[max(0, alnmt_pos -1): alnmt_pos + u_v + 1] == c_align_snippet
                 # print( aln_read[alnmt_pos -1: alnmt_pos + u_v + 1], c_align_snippet)
-            
+
             # require exact match over 3mer if S, or I,D in non-homopolymenr region.
             # If homopolymenr region of size u_v, require length match of homopolymenr
             if not exact_match_to_c:
@@ -256,9 +262,8 @@ def get_read_ccs_probabilities_c(read_alignments_to_c, variant_coords_c, alignme
                 ccs_coord = ccs_dict[ read_acc ].read_aln_to_ccs_coord(aln_read, read_coord)
 
             else:
-
                 reads_not_supporting_any_seq.add(read_acc)
-                prob = -1 
+                prob = -1
                 break
 
             q_qual = ccs_dict[read_acc].qual[ccs_coord]
