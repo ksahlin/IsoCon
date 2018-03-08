@@ -47,11 +47,11 @@ class CCS(object):
         if (index + pos ) < len(self.seq):
             coord_in_ccs = index + pos  
 
-        elif (index + len(seq_piece) ) == len(self.seq): #deletion occurs after last base pair (corner case and base quality is NA)
+        elif (index + pos ) == len(self.seq): #deletion occurs after last base pair (corner case and base quality is NA)
             coord_in_ccs = index + pos - 1
-            print("Occurred at last position.", index, "length seq_piece:", pos, "length sequence:", len(self.seq))
+            print("Occurred at last position.", index, "length seq_piece:", len(fasta_seq), "length sequence:", len(self.seq))
         else:
-            print("Index error:", index, "length seq_piece:", len(seq_piece), "length sequence:", len(self.seq))
+            print("Index error:", index, "length seq_piece:", len(fasta_seq), "length sequence:", len(self.seq))
             sys.exit()
 
         return coord_in_ccs

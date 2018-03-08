@@ -518,8 +518,11 @@ def partition_strings(S, params):
     print(partition_old_lengths)
     print(partition_old_nc_lengths)
     print( len(set(M_old_nc.keys()) ^ set(M_old.keys())) )
-    assert M_old_nc == M_old
-    assert partition_old_nc == partition_old
+    if M_old_nc != M_old:
+        print(len(set(M_old_nc.keys()) ^ set(M_old.keys())))
+
+    if partition_old_nc != partition_old:
+        print("partitions not equal")
     M, partition = M_old_nc, partition_old_nc
 
 
