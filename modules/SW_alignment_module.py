@@ -67,8 +67,10 @@ def parasail_alignment(s1, s2, i, j, x_acc = "", y_acc = "", mismatch_penalty = 
     if result.saturated:
         print("SATURATED!")
         result = parasail.nw_trace_scan_32(s1, s2, 2, 0, user_matrix)
-
-    s1_alignment, s2_alignment = cigar_to_seq(result.cigar.decode, s1, s2)
+    # print(result.cigar.seq)
+    # print(result.cigar.decode )
+    # print(str(result.cigar.decode,'utf-8') )
+    s1_alignment, s2_alignment = cigar_to_seq(str(result.cigar.decode, 'utf-8'), s1, s2)
     mismatches = len([ 1 for n1, n2 in zip(s1_alignment,s2_alignment) if n1 != n2 and n1 != "-" and n2 != "-" ])
     matches = len([ 1 for n1, n2 in zip(s1_alignment,s2_alignment) if n1 == n2 and n1 != "-"])
     indels = len(s1_alignment) - mismatches - matches
