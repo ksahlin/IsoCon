@@ -3,6 +3,7 @@ from __future__ import print_function
 import networkx as nx
 import argparse, os
 from time import time
+import copy
 
 from operator import itemgetter
 from collections import defaultdict
@@ -12,150 +13,152 @@ from modules import graphs
 from modules import functions
 
 
-# def get_partitions(G_transpose):
-#     nr_consensus = 0
-#     M = {}
-#     partition = {}
-#     # print("here")
-#     for subgraph in sorted(nx.weakly_connected_component_subgraphs(G_transpose), key=len, reverse=True):
-#         # print("Subgraph of size", len(subgraph.nodes()), "nr edges:", len(subgraph.edges()), [len(x) for x in subgraph.nodes()] )
-#         while subgraph:
+def get_partitions(G_transpose):
+    nr_consensus = 0
+    M = {}
+    partition = {}
+    # print("here")
+    all_weak_components = list(nx.weakly_connected_component_subgraphs(G_transpose))
+    for subgraph in sorted(all_weak_components, key=len, reverse=True):
+        # print("Subgraph of size", len(subgraph.nodes()), "nr edges:", len(subgraph.edges()), [len(x) for x in subgraph.nodes()] )
+        while subgraph:
  
-#             # edit_distances_to_m = {"XXXXX" : 0}
-#             processed = set()
-#             biggest_reachable_comp_size = 0
-#             biggest_reachable_comp_weight = 0
-#             biggest_reachable_comp_nodes = set()
-#             biggest_reachable_comp_center = "XXXXX"
-#             biggest_reachable_comp_center_nr_nbrs = 0
+            # edit_distances_to_m = {"XXXXX" : 0}
+            processed = set()
+            biggest_reachable_comp_size = 0
+            biggest_reachable_comp_weight = 0
+            biggest_reachable_comp_nodes = set()
+            biggest_reachable_comp_center = "XXXXX"
+            biggest_reachable_comp_center_nr_nbrs = 0
 
-#             for m in subgraph:
-#                 # edit_distances_to_m[m] = 0
+            for m in subgraph:
+                # edit_distances_to_m[m] = 0
                 
-#                 if m in processed:
-#                     continue
+                if m in processed:
+                    continue
 
-#                 reachable_comp = set([m])
-#                 reachable_comp_weight = subgraph.node[m]["degree"]
-#                 processed.add(m)
+                reachable_comp = set([m])
+                reachable_comp_weight = subgraph.node[m]["degree"]
+                processed.add(m)
 
 
 
-#                 ####################################################
-#                 # get all reachable nodes
-#                 ####################################################
+                ####################################################
+                # get all reachable nodes
+                ####################################################
 
-#                 for n1,n2 in nx.dfs_edges(subgraph, source=m): # store reachable node as processed here to avoid computation
-#                     if n2 == m:
-#                         continue
-#                     processed.add(n2)
-#                     reachable_comp.add(n2)
-#                     reachable_comp_weight += subgraph.node[n2]["degree"]
-#                     # edit_distances_to_m[m] +=  subgraph.node[n2]["degree"] * subgraph[n1][n2]["edit_distance"]
-#                     assert subgraph.node[n2]["degree"] == 1
-#                 ####################################################
-#                 ####################################################
+                for n1,n2 in nx.dfs_edges(subgraph, source=m): # store reachable node as processed here to avoid computation
+                    if n2 == m:
+                        continue
+                    processed.add(n2)
+                    reachable_comp.add(n2)
+                    reachable_comp_weight += subgraph.node[n2]["degree"]
+                    # edit_distances_to_m[m] +=  subgraph.node[n2]["degree"] * subgraph[n1][n2]["edit_distance"]
+                    assert subgraph.node[n2]["degree"] == 1
+                ####################################################
+                ####################################################
                 
 
-#                 # print("total component weight:", reachable_comp_weight)
-#                 # print("edit distance:",  edit_distances_to_m[m])
+                # print("total component weight:", reachable_comp_weight)
+                # print("edit distance:",  edit_distances_to_m[m])
 
-#                 if biggest_reachable_comp_weight == 0: # initialization for first processed m
-#                     biggest_reachable_comp_weight = reachable_comp_weight
-#                     biggest_reachable_comp_nodes = set(reachable_comp)
-#                     biggest_reachable_comp_size = len(reachable_comp)
-#                     biggest_reachable_comp_center = m
-#                     biggest_reachable_comp_center_nr_nbrs = len(list(subgraph.neighbors(m)))
+                if biggest_reachable_comp_weight == 0: # initialization for first processed m
+                    biggest_reachable_comp_weight = reachable_comp_weight
+                    biggest_reachable_comp_nodes = set(reachable_comp)
+                    biggest_reachable_comp_size = len(reachable_comp)
+                    biggest_reachable_comp_center = m
+                    biggest_reachable_comp_center_nr_nbrs = len(list(subgraph.neighbors(m)))
 
-#                 # elif reachable_comp_weight >= biggest_reachable_comp_weight:
-#                 elif reachable_comp_weight == biggest_reachable_comp_weight:
-#                     # print("HEEERE!!",reachable_comp_weight, biggest_reachable_comp_weight)
-#                     if biggest_reachable_comp_center_nr_nbrs < len(list(subgraph.neighbors(m))):
-#                         biggest_reachable_comp_weight = reachable_comp_weight
-#                         biggest_reachable_comp_nodes = set(reachable_comp)
-#                         biggest_reachable_comp_size = len(reachable_comp)
-#                         biggest_reachable_comp_center = m
-#                         biggest_reachable_comp_center_nr_nbrs = len(list(subgraph.neighbors(m)))   
+                # elif reachable_comp_weight >= biggest_reachable_comp_weight:
+                elif reachable_comp_weight == biggest_reachable_comp_weight:
+                    # print("HEEERE!!",reachable_comp_weight, biggest_reachable_comp_weight)
+                    if biggest_reachable_comp_center_nr_nbrs < len(list(subgraph.neighbors(m))):
+                        biggest_reachable_comp_weight = reachable_comp_weight
+                        biggest_reachable_comp_nodes = set(reachable_comp)
+                        biggest_reachable_comp_size = len(reachable_comp)
+                        biggest_reachable_comp_center = m
+                        biggest_reachable_comp_center_nr_nbrs = len(list(subgraph.neighbors(m)))   
                     
-#                     elif biggest_reachable_comp_center_nr_nbrs == len(list(subgraph.neighbors(m))):
-#                         if m < biggest_reachable_comp_center: # just pick lexicographically smallest to remove non determinism
-#                             biggest_reachable_comp_weight = reachable_comp_weight
-#                             biggest_reachable_comp_nodes = set(reachable_comp)
-#                             biggest_reachable_comp_size = len(reachable_comp)
-#                             biggest_reachable_comp_center = m
-#                             biggest_reachable_comp_center_nr_nbrs = len(list(subgraph.neighbors(m)))                             
+                    elif biggest_reachable_comp_center_nr_nbrs == len(list(subgraph.neighbors(m))):
+                        if m < biggest_reachable_comp_center: # just pick lexicographically smallest to remove non determinism
+                            biggest_reachable_comp_weight = reachable_comp_weight
+                            biggest_reachable_comp_nodes = set(reachable_comp)
+                            biggest_reachable_comp_size = len(reachable_comp)
+                            biggest_reachable_comp_center = m
+                            biggest_reachable_comp_center_nr_nbrs = len(list(subgraph.neighbors(m)))                             
 
 
-#                     # if edit_distances_to_m[m] < edit_distances_to_m[biggest_reachable_comp_center]:
-#                     #     # print("tie but smaller edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_center])
-#                     #     biggest_reachable_comp_nodes = set(reachable_comp)
-#                     #     biggest_reachable_comp_size = len(reachable_comp)
-#                     #     biggest_reachable_comp_center = m
+                    # if edit_distances_to_m[m] < edit_distances_to_m[biggest_reachable_comp_center]:
+                    #     # print("tie but smaller edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_center])
+                    #     biggest_reachable_comp_nodes = set(reachable_comp)
+                    #     biggest_reachable_comp_size = len(reachable_comp)
+                    #     biggest_reachable_comp_center = m
 
-#                     # elif edit_distances_to_m[m] > edit_distances_to_m[biggest_reachable_comp_center]:
-#                     #     # print("tie but bigger edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_center])
-#                     #     pass
-#                     # else:
-#                     #     if biggest_reachable_comp_weight > 1:
-#                     #         # print("tie both in weighted partition size and total edit distance. Choosing lexographically smaller center")
-#                     #         # print(" weighted partition size:", biggest_reachable_comp_weight, " total edit distance:", edit_distances_to_m[m])
-#                     #         pass
+                    # elif edit_distances_to_m[m] > edit_distances_to_m[biggest_reachable_comp_center]:
+                    #     # print("tie but bigger edit distance", edit_distances_to_m[m], edit_distances_to_m[biggest_reachable_comp_center])
+                    #     pass
+                    # else:
+                    #     if biggest_reachable_comp_weight > 1:
+                    #         # print("tie both in weighted partition size and total edit distance. Choosing lexographically smaller center")
+                    #         # print(" weighted partition size:", biggest_reachable_comp_weight, " total edit distance:", edit_distances_to_m[m])
+                    #         pass
                         
-#                     #     if m < biggest_reachable_comp_center:
-#                     #         biggest_reachable_comp_nodes = set(reachable_comp)
-#                     #         biggest_reachable_comp_center = m
-#                     #     else:
-#                     #         pass
+                    #     if m < biggest_reachable_comp_center:
+                    #         biggest_reachable_comp_nodes = set(reachable_comp)
+                    #         biggest_reachable_comp_center = m
+                    #     else:
+                    #         pass
 
-#                 elif biggest_reachable_comp_weight < reachable_comp_weight:
-#                     biggest_reachable_comp_weight = reachable_comp_weight
-#                     biggest_reachable_comp_nodes = set(reachable_comp)
-#                     biggest_reachable_comp_size = len(reachable_comp)
-#                     biggest_reachable_comp_center = m
-#                     biggest_reachable_comp_center_nr_nbrs = len(list(subgraph.neighbors(m)))                  
-
-
-#             if biggest_reachable_comp_weight == 0: # if there were no edges! partition is center itself
-#                 M[m] = 0 
-#                 partition[m] = set()
-#             else:
-#                 center = biggest_reachable_comp_center # "XXXXXX" #biggest_reachable_comp_center #
-#                 max_direct_weight = 0
-#                 # print("total nodes searched in this pass:", len(biggest_reachable_comp_nodes))
-#                 for n in biggest_reachable_comp_nodes:
-#                     direct_weight = subgraph.node[n]["degree"]                    
-#                     direct_weight += len(list(subgraph.neighbors(n)))
-
-#                     # if len(list(subgraph.neighbors(n))) > 1 and n != center and len(list(subgraph.neighbors(center))) > 1:
-#                     #     print(n in G_transpose[center], center in G_transpose[n], len(list(subgraph.neighbors(center))), len(list(subgraph.neighbors(n)))) #[n]["edit_distance"])
-#                     #     if n in G_transpose[center]:
-#                     #         print("ed", G_transpose[center][n]["edit_distance"])
-#                     #         print(n)
-#                     #         print(center)
-#                     # print( [ subgraph.node[nbr]["degree"] for nbr in subgraph.neighbors(n)])
-
-#                     assert all( [ subgraph.node[nbr]["degree"] == 1 for nbr in subgraph.neighbors(n)] )
-
-#                     # print("direct weight:", direct_weight)
-#                     if direct_weight > max_direct_weight:
-#                         max_direct_weight = direct_weight
-#                         center = n
-#                     elif direct_weight == max_direct_weight:
-#                         center = min(center, n)
-#                 # print("center direct weight:", max_direct_weight, "nodes in reachable:", len(biggest_reachable_comp_nodes))
-#                 M[center] = biggest_reachable_comp_weight   
-#                 partition[center] = biggest_reachable_comp_nodes.difference(set([center]))
-#                 assert center in biggest_reachable_comp_nodes
-
-#             # vizualize_test_graph(subgraph)
-#             # if len(biggest_reachable_comp_nodes) == 65:
-#             #     sys.exit()
-
-#             subgraph.remove_nodes_from(biggest_reachable_comp_nodes)
+                elif biggest_reachable_comp_weight < reachable_comp_weight:
+                    biggest_reachable_comp_weight = reachable_comp_weight
+                    biggest_reachable_comp_nodes = set(reachable_comp)
+                    biggest_reachable_comp_size = len(reachable_comp)
+                    biggest_reachable_comp_center = m
+                    biggest_reachable_comp_center_nr_nbrs = len(list(subgraph.neighbors(m)))                  
 
 
-#             nr_consensus += 1
-#     return M, partition
+            if biggest_reachable_comp_weight == 0: # if there were no edges! partition is center itself
+                M[m] = 0 
+                partition[m] = set()
+            else:
+                center = biggest_reachable_comp_center # "XXXXXX" #biggest_reachable_comp_center #
+                max_direct_weight = 0
+                # print("total nodes searched in this pass:", len(biggest_reachable_comp_nodes))
+                for n in biggest_reachable_comp_nodes:
+                    direct_weight = subgraph.node[n]["degree"]                    
+                    direct_weight += len(list(subgraph.neighbors(n)))
+
+                    # if len(list(subgraph.neighbors(n))) > 1 and n != center and len(list(subgraph.neighbors(center))) > 1:
+                    #     print(n in G_transpose[center], center in G_transpose[n], len(list(subgraph.neighbors(center))), len(list(subgraph.neighbors(n)))) #[n]["edit_distance"])
+                    #     if n in G_transpose[center]:
+                    #         print("ed", G_transpose[center][n]["edit_distance"])
+                    #         print(n)
+                    #         print(center)
+                    # print( [ subgraph.node[nbr]["degree"] for nbr in subgraph.neighbors(n)])
+
+                    assert all( [ subgraph.node[nbr]["degree"] == 1 for nbr in subgraph.neighbors(n)] )
+
+                    # print("direct weight:", direct_weight)
+                    if direct_weight > max_direct_weight:
+                        max_direct_weight = direct_weight
+                        center = n
+                    elif direct_weight == max_direct_weight:
+                        center = min(center, n)
+                # print("center direct weight:", max_direct_weight, "nodes in reachable:", len(biggest_reachable_comp_nodes))
+                M[center] = biggest_reachable_comp_weight   
+                partition[center] = biggest_reachable_comp_nodes.difference(set([center]))
+                assert center in biggest_reachable_comp_nodes
+
+            # vizualize_test_graph(subgraph)
+            # if len(biggest_reachable_comp_nodes) == 65:
+            #     sys.exit()
+
+            subgraph.remove_nodes_from(biggest_reachable_comp_nodes)
+
+
+            nr_consensus += 1
+    return M, partition
+
 
 
 
@@ -181,7 +184,14 @@ def reachable(G, m):
     
     return reachable_new
 
-# import copy
+# def weakly_connected_components(G, m):
+    
+#     reachable_new = set([n2 for n1,n2 in nx.dfs_edges(G, source=m) if n2 != m ])
+#     # assert reachable == reachable_new
+    
+#     return reachable_new
+
+
 # import heapq 
 # def get_partitions_new2(G):
 #     M_temp = {}
@@ -223,7 +233,7 @@ def reachable(G, m):
 #     M = {}
 #     partition = {}
 
-#     for m in M_temp.keys():
+#     for m in list(M_temp.keys()):
 #         if not partition_temp[m]:
 #             # print("here")
 #             M[m] =  G.node[m]["degree"]
@@ -256,12 +266,14 @@ def get_partitions_new(G):
 
     M_temp = {}
     partition_temp = {}
-
+    
+    G_undirected = G.to_directed()
+    
+    # subgraphs = [ ( weakly_connected_components(G_undirected, n), n) for n in  sorted(G.nodes())]
+    # highest_degree = sorted( subgraphs, key = lambda x: ( - (len(x[0]) + G.node[ x[1] ]["degree"]), x[1] ) ) # sort on partition weight first then string if tiebreakers
+    
     reachable_for_nodes = [ ( reachable(G, n), n) for n in  sorted(G.nodes())]
-    # highest_degree = sorted( reachable_for_nodes, key = lambda x: len(x[0]) + G.node[ x[1] ]["degree"] , reverse = True) # sort on partition weight
-
     highest_degree = sorted( reachable_for_nodes, key = lambda x: ( - (len(x[0]) + G.node[ x[1] ]["degree"]), x[1] ) ) # sort on partition weight first then string if tiebreakers
-    # print("reachable:", [len(r) for r, seq in  highest_degree ] )
 
     processed = set()
     for m_reachable, m in highest_degree: # TODO: do a while loop here          
@@ -304,6 +316,119 @@ def get_partitions_new(G):
 
     return M, partition
 
+def get_partitions_no_copy(G_transpose):
+    nr_consensus = 0
+    M = {}
+    partition = {}
+    # print("here")
+    all_weak_components = [ c for c in nx.weakly_connected_components(G_transpose)]
+    for subgraph_set in sorted(all_weak_components, key=len, reverse=True):
+        while subgraph_set:
+ 
+            processed = set()
+            biggest_reachable_comp_size = 0
+            biggest_reachable_comp_weight = 0
+            biggest_reachable_comp_nodes = set()
+            biggest_reachable_comp_center = "XXXXX"
+            biggest_reachable_comp_center_nr_nbrs = 0
+
+            # subgraph_set_nbrs_sorted = sorted( [ (m, len([n for n in G_transpose[m]])) for m in subgraph_set], key = lambda x: x[1], reverse = True)  
+
+            for m in subgraph_set:
+                # edit_distances_to_m[m] = 0
+                
+                if m in processed:
+                    continue
+
+                reachable_comp = set([m])
+                reachable_comp_weight = G_transpose.node[m]["degree"]
+                processed.add(m)
+
+
+
+                ####################################################
+                # get all reachable nodes
+                ####################################################
+
+                for n1,n2 in nx.dfs_edges(G_transpose, source=m): # store reachable node as processed here to avoid computation
+                    if n2 == m:
+                        continue
+                    processed.add(n2)
+                    reachable_comp.add(n2)
+                    reachable_comp_weight += G_transpose.node[n2]["degree"]
+                    assert G_transpose.node[n2]["degree"] == 1
+                ####################################################
+                ####################################################
+                
+
+                if biggest_reachable_comp_weight == 0: # initialization for first processed m
+                    biggest_reachable_comp_weight = reachable_comp_weight
+                    biggest_reachable_comp_nodes = set(reachable_comp)
+                    biggest_reachable_comp_size = len(reachable_comp)
+                    biggest_reachable_comp_center = m
+                    biggest_reachable_comp_center_nr_nbrs = len(list(G_transpose.neighbors(m)))
+
+                # elif reachable_comp_weight >= biggest_reachable_comp_weight:
+                elif reachable_comp_weight == biggest_reachable_comp_weight:
+                    # print("HEEERE!!",reachable_comp_weight, biggest_reachable_comp_weight)
+                    if biggest_reachable_comp_center_nr_nbrs < len(list(G_transpose.neighbors(m))):
+                        biggest_reachable_comp_weight = reachable_comp_weight
+                        biggest_reachable_comp_nodes = set(reachable_comp)
+                        biggest_reachable_comp_size = len(reachable_comp)
+                        biggest_reachable_comp_center = m
+                        biggest_reachable_comp_center_nr_nbrs = len(list(G_transpose.neighbors(m)))   
+                    
+                    elif biggest_reachable_comp_center_nr_nbrs == len(list(G_transpose.neighbors(m))):
+                        if m < biggest_reachable_comp_center: # just pick lexicographically smallest to remove non determinism
+                            biggest_reachable_comp_weight = reachable_comp_weight
+                            biggest_reachable_comp_nodes = set(reachable_comp)
+                            biggest_reachable_comp_size = len(reachable_comp)
+                            biggest_reachable_comp_center = m
+                            biggest_reachable_comp_center_nr_nbrs = len(list(G_transpose.neighbors(m)))                             
+
+
+
+                elif biggest_reachable_comp_weight < reachable_comp_weight:
+                    biggest_reachable_comp_weight = reachable_comp_weight
+                    biggest_reachable_comp_nodes = set(reachable_comp)
+                    biggest_reachable_comp_size = len(reachable_comp)
+                    biggest_reachable_comp_center = m
+                    biggest_reachable_comp_center_nr_nbrs = len(list(G_transpose.neighbors(m)))                  
+
+
+            if biggest_reachable_comp_weight == 0: # if there were no edges! partition is center itself
+                M[m] = 0 
+                partition[m] = set()
+            else:
+                center = biggest_reachable_comp_center # "XXXXXX" #biggest_reachable_comp_center #
+                max_direct_weight = 0
+                # print("total nodes searched in this pass:", len(biggest_reachable_comp_nodes))
+                for n in biggest_reachable_comp_nodes:
+                    direct_weight = G_transpose.node[n]["degree"]                    
+                    direct_weight += len(list(G_transpose.neighbors(n)))
+
+                    assert all( [ G_transpose.node[nbr]["degree"] == 1 for nbr in G_transpose.neighbors(n)] )
+
+                    # print("direct weight:", direct_weight)
+                    if direct_weight > max_direct_weight:
+                        max_direct_weight = direct_weight
+                        center = n
+                    elif direct_weight == max_direct_weight:
+                        center = min(center, n)
+                # print("center direct weight:", max_direct_weight, "nodes in reachable:", len(biggest_reachable_comp_nodes))
+                M[center] = biggest_reachable_comp_weight   
+                partition[center] = biggest_reachable_comp_nodes.difference(set([center]))
+                assert center in biggest_reachable_comp_nodes
+
+            # vizualize_test_graph(G_transpose)
+            # if len(biggest_reachable_comp_nodes) == 65:
+            #     sys.exit()
+
+            G_transpose.remove_nodes_from(biggest_reachable_comp_nodes)
+            subgraph_set = subgraph_set -  biggest_reachable_comp_nodes
+
+            nr_consensus += 1
+    return M, partition
 
 
 def partition_strings(S, params):
@@ -322,21 +447,33 @@ def partition_strings(S, params):
         print("Neighbors per nodes in nearest neighbor graph", sorted([len(G_transpose.neighbors(n)) for n in G_transpose], reverse=True))
 
 
+    # all_weak_components = list(nx.weakly_connected_component_subgraphs(G_transpose))
+    # print([ len(subG.nodes()) for subG in sorted(all_weak_components, key = len, reverse = True) ] )
+    # G_undirected = G_transpose.to_directed()
+    # subgraphs = [ ( weakly_connected_components(G_undirected, n), n) for n in  sorted(G_undirected.nodes())]
+    # print([len(ss[0]) for ss in sorted(subgraphs, key = lambda x: len(x[0]), reverse = True) ])
+    # subgraphs = nx.weakly_connected_components(G_transpose)
+    # print([len(c) for c in sorted(subgraphs,key=len, reverse=True)])
+    # # print(sorted( subgraphs, key = lambda x: ( - (len(x[0]) + G.node[ x[1] ]["degree"]), x[1] ) ))
+    # # print(set(all_weak_components))
 
     start = time()
     M, partition = get_partitions_new(G_transpose)
     print("tot time new partition:", time() - start )
 
     # print("Number of centers:", len(M), len(partition))
-    # print("partition_new sizes(identical strings are collapsed here and therefore counted as one): ", sorted([len(partition[p]) +1 for p in  partition], reverse = True))
+    # p_lengths = sorted([len(partition[p]) +1 for p in  partition], reverse = True)
+    # print("partition_new sizes(identical strings are collapsed here and therefore counted as one): ", p_lengths )
     # print("SUM PARTITIONS:", sum(sorted([len(partition[p]) +1 for p in  partition], reverse = True)))
     # print()
+
     # start = time()
     # M2, partition2 = get_partitions_new2(G_transpose)
-    # print("tot time new partition:", time() - start )
+    # print("tot time new2 partition:", time() - start )
+    # p2_lengths = sorted([len(partition2[p]) +1 for p in  partition2], reverse = True)
 
-    # print("Number of centers:", len(M2), len(partition2))
-    # print("partition_new2 sizes(identical strings are collapsed here and therefore counted as one): ", sorted([len(partition2[p]) +1 for p in  partition2], reverse = True))
+    # print("Number of new2 centers:", len(M2), len(partition2))
+    # print("partition_new2 sizes(identical strings are collapsed here and therefore counted as one): ", p2_lengths)
     # print("SUM PARTITIONS:", sum(sorted([len(partition2[p]) +1 for p in  partition2], reverse = True)))
 
 
@@ -352,53 +489,86 @@ def partition_strings(S, params):
     # print("tot time new2 partition:", time() - start )
 
     # start = time()
-    # M_old, partition_old = get_partitions(G_transpose)
-    # print("tot time old partition:", time() - start )
-    # print("Number of centers:", len(M_old), len(partition_old))
-    # print("partition_old sizes(identical strings are collapsed here and therefore counted as one): ", sorted([len(partition_old[p]) +1 for p in  partition_old], reverse = True))
-    # print("SUM PARTITIONS:", sum(sorted([len(partition_old[p]) +1 for p in  partition_old], reverse = True)))
+    # list(nx.weakly_connected_component_subgraphs(G_transpose))
+    # print("tot time copy:", time() - start )
+
+    # start = time()
+    # list(nx.weakly_connected_component_subgraphs(G_transpose, copy= False))
+    # print("tot time without copy:", time() - start )
+    
+    start = time()
+    G_transpose_tmp =  copy.deepcopy(G_transpose)
+    print("tot time copy G_transpose:", time() - start )
+
+    start = time()
+    M_old_nc, partition_old_nc = get_partitions_no_copy(G_transpose_tmp)
+    print("tot time old partition no copy:", time() - start )
+
+    start = time()
+    M_old, partition_old = get_partitions(G_transpose)
+    print("tot time old partition:", time() - start )
+    print("Number of old centers:", len(M_old), len(partition_old))
+    p_old_lengths = sorted([len(partition_old[p]) +1 for p in  partition_old], reverse = True)
+    print("partition_old sizes(identical strings are collapsed here and therefore counted as one): ", p_old_lengths)
+    print("SUM PARTITIONS:", sum(sorted([len(partition_old[p]) +1 for p in  partition_old], reverse = True)))
 
     # assert sorted([len(partition_old[s]) for s in partition_old]) == sorted([len(partition[s]) for s in partition])
-    # if M == M2:
+    partition_old_lengths = sorted([len(partition_old[p]) +1 for p in  partition_old], reverse = True)
+    partition_old_nc_lengths = sorted([len(partition_old_nc[p]) +1 for p in  partition_old_nc], reverse = True)
+    print(partition_old_lengths)
+    print(partition_old_nc_lengths)
+    print( len(set(M_old_nc.keys()) ^ set(M_old.keys())) )
+    assert M_old_nc == M_old
+    assert partition_old_nc == partition_old
+    M, partition = M_old_nc, partition_old_nc
+
+
+    # if list(M.keys()) == list(M2.keys()):
     #     print("M equal to M2")
-    # if M_old == M2:
+    # if list(M_old.keys()) == list(M2.keys()):
     #     print("M_old equal to M2")
-    # if M_old == M:
+    # if list(M_old.keys()) == list(M.keys()):
     #     print("M_old equal to M")
 
+    # if p_old_lengths == p_lengths:
+    #     print("p_old equal to p")
+    # if p_old_lengths == p2_lengths:
+    #     print("p_old equal to p2")
+    # if p2_lengths == p_lengths:
+    #     print("p2_old equal to p")
 
 
-    # print(set(M2.keys()) ^ set(M_old.keys()))
+    # print(set(M.keys()) ^ set(M_old.keys()))
     # print(set(M2.keys()) - set(M_old.keys()))
     # print(set(M_old.keys()) - set(M2.keys()))
-    # print(sorted([len(partition2[m]) for m in M2]))
+    # print(sorted([len(partition[m]) for m in M]))
     # print(sorted([len(partition_old[m]) for m in M_old]))
 
-    # print("deg in m:", sorted([len(partition2[m]) for m in set(M) ^ set(M_old) if m in M]) )
+    # print("deg in m:", sorted([len(partition[m]) for m in set(M) ^ set(M_old) if m in M]) )
     # print("node deg in m:", [G_transpose.node[m]["degree"] + len(list(G_transpose.neighbors(m))) for m in set(M) ^ set(M_old) if m in M] )
     # print("node nbrs in m:", [len(list(G_transpose.neighbors(m))) for m in set(M) ^ set(M_old) if m in M] )
     
     # print( "deg in m_old:", sorted([len(partition_old[m]) for m in set(M) ^ set(M_old) if m in M_old]) )
     # print( "node deg in m_old:", [G_transpose.node[m]["degree"] + len(list(G_transpose.neighbors(m))) for m in set(M) ^ set(M_old) if m in M_old] )
     # print( "node nbrs in m_old:", [len(list(G_transpose.neighbors(m))) for m in set(M) ^ set(M_old) if m in M_old] )
-    # if set(M) ^ set(M_new):
-    #     m_new = [m for m in set(M) ^ set(M_new) if m in M_new][0]
-    #     m = [m for m in set(M) ^ set(M_new) if m in M][0]
-    #     print(G_transpose.has_edge(m,m_new))
-    #     print(G_transpose.has_edge(m_new,m))
-    #     print(len(partition_new[m_new]))
+    # if set(M) ^ set(M_old):
+    #     m_old = [m for m in set(M) ^ set(M_old) if m in M_old][0]
+    #     m = [m for m in set(M) ^ set(M_old) if m in M][0]
+    #     print(G_transpose.has_edge(m,m_old))
+    #     print(G_transpose.has_edge(m_old,m))
+    #     print(len(partition_old[m_old]))
     #     print(len(partition[m]))
-    #     m_new_nns = [n for n in G_transpose.neighbors(m_new) if G_transpose.has_edge(n,m_new)]
+    #     m_old_nns = [n for n in G_transpose.neighbors(m_old) if G_transpose.has_edge(n,m_old)]
     #     m_nns = [n for n in G_transpose.neighbors(m) if G_transpose.has_edge(n,m)]
-    #     print(len( list( set(G_transpose.neighbors(m)) & set(G_transpose.neighbors(m_new))) ))
-    #     print(len( list( set(G_transpose.neighbors(m)) ^ set(G_transpose.neighbors(m_new))) ))
-    #     m_in_new = [len(partition[n]) for n in partition_new if m in partition_new[n] ]
-    #     print("in what size partition is m in new:", m_in_new )
-    #     mnew_in_n = [len(partition[n]) for n in partition if m_new in partition[n] ]
-    #     print("in what size partition is m_new in old:", mnew_in_n )
+    #     print(len( list( set(G_transpose.neighbors(m)) & set(G_transpose.neighbors(m_old))) ))
+    #     print(len( list( set(G_transpose.neighbors(m)) ^ set(G_transpose.neighbors(m_old))) ))
+    #     m_in_old = [len(partition_old[n]) for n in partition_old if m in partition_old[n] ]
+    #     print("m in old, size:", m_in_old )
+    #     m_old_in_new = [len(partition[n]) for n in partition if m_old in partition[n] ]
+    #     print("m_old in new:", m_old_in_new )
 
-    #     print("shortest_path:",len(nx.shortest_path(G_transpose,source=m,target=m_new)))
-    #     print("shortest_path:",len(nx.shortest_path(G_transpose,source=m_new,target=m)))
+    #     print("shortest_path:",len(nx.shortest_path(G_transpose,source=m,target=m_old)))
+    #     print("shortest_path:",len(nx.shortest_path(G_transpose,source=m_old,target=m)))
     #     # H = G_transpose.subgraph(list(G_transpose.neighbors(m)) + list(G_transpose.neighbors(m_new)) + [m, m_new])
     #     # H = G_transpose.subgraph(list( set(G_transpose.neighbors(m)) ^ set(G_transpose.neighbors(m_new))) + [m, m_new])
     #     H = G_transpose.subgraph(m_new_nns + m_nns + [m, m_new])
@@ -407,8 +577,8 @@ def partition_strings(S, params):
     #     nx.draw_networkx_edges(H, pos) #, arrows=True)
     #     import matplotlib.pyplot as plt
     #     plt.show()
-    # assert set(M.keys()) == set(M_new.keys())
-    # assert partition == partition_new  
+    # assert set(M.keys()) == set(M_old.keys())
+    # assert partition == partition_old  
 
     center_lenghts = [len(m) for m in sorted(partition)]
     if params.verbose:

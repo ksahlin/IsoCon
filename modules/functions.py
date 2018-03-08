@@ -337,10 +337,11 @@ def get_read_ccs_probabilities_t(read_alignments_to_t, variant_coords_t, alignme
             c_align_snippet = alignment_c_to_t[i]
             if v_type == "I": # will need to check shifted snippet on t alignment because base is indexed immediately to the right
                 exact_match_to_c = aln_read[max(0, alnmt_pos -2): alnmt_pos + u_v] == c_align_snippet 
-                # print("LOL HERE T", aln_read[alnmt_pos -2: alnmt_pos + u_v], c_align_snippet)
+                # print("LOL HERE T", aln_read[max(0, alnmt_pos -2): alnmt_pos + u_v], c_align_snippet)
             else:
                 exact_match_to_c = aln_read[max(0, alnmt_pos -1): alnmt_pos + u_v + 1] == c_align_snippet
-                # print( aln_read[alnmt_pos -1: alnmt_pos + u_v + 1], c_align_snippet)
+                # print( aln_read[max(0, alnmt_pos -1): alnmt_pos + u_v + 1], c_align_snippet)
+
 
             assert not (exact_match_to_c and exact_match_to_t) # they cannot both be perfect matches, that means a bug
 

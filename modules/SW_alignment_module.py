@@ -3,16 +3,81 @@ from multiprocessing import Pool
 import multiprocessing as mp
 import sys
 
+import parasail
+import re
 
 import ssw
 from Bio import pairwise2
 from Bio.SubsMat import MatrixInfo as matlist
 
-# def ssw_alignment_vector( (x_acc, y_acc, x, y) ):
-#     result_vector = []
-#     for i in range(100):
-#         result_vector.append(ssw_alignment( (x_acc, y_acc, x, y) ))
-#     return result_vector
+
+
+def cigar_to_seq(cigar, query, ref):
+    cigar_tuples = []
+    result = re.split(r'[=DXSMI]+', cigar)
+    i = 0
+    for length in result[:-1]:
+        i += len(length)
+        type_ = cigar[i]
+        i += 1
+        cigar_tuples.append((int(length), type_ ))
+
+    r_index = 0
+    q_index = 0
+    q_aln = []
+    r_aln = []
+    for length_ , type_ in cigar_tuples:
+        if type_ == "=" or type_ == "X":
+            q_aln.append(query[q_index : q_index + length_])
+            r_aln.append(ref[r_index : r_index + length_])
+
+            r_index += length_
+            q_index += length_
+        
+        elif  type_ == "I":
+            # insertion w.r.t. reference
+            r_aln.append('-' * length_)
+            q_aln.append(query[q_index: q_index + length_])
+            #  only query index change
+            q_index += length_
+
+        elif type_ == 'D':
+            # deletion w.r.t. reference
+            r_aln.append(ref[r_index: r_index + length_])
+            q_aln.append('-' * length_)
+            #  only ref index change
+            r_index += length_
+        
+        else:
+            print("error")
+            print(cigar)
+            sys.exit()
+
+    return  "".join([s for s in q_aln]), "".join([s for s in r_aln])
+
+
+def parasail_alignment_helper(arguments):
+    args, kwargs = arguments
+    return parasail_alignment(*args, **kwargs)
+
+
+def parasail_alignment(s1, s2, i, j, x_acc = "", y_acc = "", mismatch_penalty = -3, ends_discrepancy_threshold = 0):
+    user_matrix = parasail.matrix_create("ACGT", 2, mismatch_penalty)
+    result = parasail.nw_trace_scan_16(s1, s2, 2, 0, user_matrix)
+    if result.saturated:
+        print("SATURATED!")
+        result = parasail.nw_trace_scan_32(s1, s2, 2, 0, user_matrix)
+
+    s1_alignment, s2_alignment = cigar_to_seq(result.cigar.decode, s1, s2)
+    mismatches = len([ 1 for n1, n2 in zip(s1_alignment,s2_alignment) if n1 != n2 and n1 != "-" and n2 != "-" ])
+    matches = len([ 1 for n1, n2 in zip(s1_alignment,s2_alignment) if n1 == n2 and n1 != "-"])
+    indels = len(s1_alignment) - mismatches - matches
+
+    if x_acc == y_acc == "":
+        return (s1, s2, (s1_alignment, s2_alignment, (matches, mismatches, indels)) )
+    else:
+        return (x_acc, y_acc, (s1_alignment, s2_alignment, (matches, mismatches, indels)) ) 
+
 
 def sw_align_sequences(matches, nr_cores = 1, mismatch_penalty = -1, ignore_ends_len = 15):
     """
@@ -38,7 +103,7 @@ def sw_align_sequences(matches, nr_cores = 1, mismatch_penalty = -1, ignore_ends
                     mismatch_penalty = -4
 
                 # print(s1,s2)
-                s1, s2, stats = ssw_alignment_helper( ((s1, s2, i, j), {"mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold }) )
+                s1, s2, stats = parasail_alignment_helper( ((s1, s2, i, j), {"mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold }) )
                 if stats:
                     if s1 in exact_matches:
                         exact_matches[s1][s2] = stats
@@ -70,7 +135,7 @@ def sw_align_sequences(matches, nr_cores = 1, mismatch_penalty = -1, ignore_ends
                 matches_with_mismatch[s1][s2] = mismatch_penalty
 
         try:
-            res = pool.map_async(ssw_alignment_helper, [ ((s1, s2, i,j), {"mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold}) for j, s1 in enumerate(matches_with_mismatch) for i, (s2, mismatch_penalty) in enumerate(matches_with_mismatch[s1].items()) ] )
+            res = pool.map_async(parasail_alignment_helper, [ ((s1, s2, i,j), {"mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold}) for j, s1 in enumerate(matches_with_mismatch) for i, (s2, mismatch_penalty) in enumerate(matches_with_mismatch[s1].items()) ] )
             alignment_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -115,7 +180,7 @@ def sw_align_sequences_keeping_accession(matches, nr_cores = 1, ignore_ends_len 
                 else:
                     mismatch_penalty = -4
 
-                s1_acc, s2_acc, stats = ssw_alignment_helper( ((s1, s2, i, j), {"x_acc" : s1_acc, "y_acc" :s2_acc, "mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold}) )
+                s1_acc, s2_acc, stats = parasail_alignment_helper( ((s1, s2, i, j), {"x_acc" : s1_acc, "y_acc" :s2_acc, "mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold}) )
 
                 if stats:
                     if s1_acc in exact_matches:
@@ -152,7 +217,7 @@ def sw_align_sequences_keeping_accession(matches, nr_cores = 1, ignore_ends_len 
         #     for i, s2_acc in enumerate(matches[s1_acc]):
         #         print("lool", matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j, {"x_acc": s1_acc, "y_acc" : s2_acc} ) 
         try:
-            res = pool.map_async(ssw_alignment_helper, [ ((matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j), {"x_acc": s1_acc, "y_acc" : s2_acc, "mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold}) for j, s1_acc in enumerate(matches_with_mismatch) for i, (s2_acc, mismatch_penalty) in enumerate(matches_with_mismatch[s1_acc].items()) ] )
+            res = pool.map_async(parasail_alignment_helper, [ ((matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j), {"x_acc": s1_acc, "y_acc" : s2_acc, "mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold}) for j, s1_acc in enumerate(matches_with_mismatch) for i, (s2_acc, mismatch_penalty) in enumerate(matches_with_mismatch[s1_acc].items()) ] )
             alignment_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
