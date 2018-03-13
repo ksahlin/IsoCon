@@ -207,7 +207,7 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
     print("Number of reads to realign:", len(to_realign))
     step = 1
     prefilter = True
-    previous_partition_of_X = copy.deepcopy(read_partition) #{ c_acc : set() for c_acc in C.keys()}
+    previous_partition_of_X = copy.deepcopy(read_partition) 
     previous_components = { c_acc : set() for c_acc in C.keys()}
     previous_edges = { c_acc : set() for c_acc in C.keys()}
     significance_values = {}   
@@ -455,6 +455,25 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
         statistical_elapsed = time() - statistical_start
         write_output.logger('Time for Statistical test, step {0}:{1}'.format(step, str(statistical_elapsed)), params.logfile)
    
+
+    if params.ignore_ends_len > 0:
+        c_acc_to_support = {c_acc : len(all_candidate_assigned_reads) for c_acc, all_candidate_assigned_reads in read_partition.items()}
+        remaining_c_after_invariant = end_invariant_functions.collapse_candidates_under_ends_invariant(C, c_acc_to_support, params)
+        # print(remaining_c_after_invariant)
+        # sys.exit()
+        for c_acc in remaining_c_after_invariant:
+            c_seq = C[ c_acc ] 
+            for removed_c_acc in remaining_c_after_invariant[c_acc]:
+                removed_c_seq = C[ removed_c_acc ]
+                reads_to_removed_c_acc = read_partition[removed_c_acc]
+
+                for read_acc in reads_to_removed_c_acc:
+                    read_partition[c_acc][read_acc] = reads_to_removed_c_acc[read_acc]
+
+                del C[ removed_c_acc ]
+                del c_acc_to_support[ removed_c_acc ]
+                del read_partition[ removed_c_acc ]
+
 
     final_out_file_name =  os.path.join(params.outfolder, "final_candidates.fa")
     tsv_info = os.path.join(params.outfolder, "cluster_info.tsv")

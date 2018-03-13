@@ -70,7 +70,12 @@ def parasail_alignment(s1, s2, i, j, x_acc = "", y_acc = "", mismatch_penalty = 
     # print(result.cigar.seq)
     # print(result.cigar.decode )
     # print(str(result.cigar.decode,'utf-8') )
-    s1_alignment, s2_alignment = cigar_to_seq(str(result.cigar.decode, 'utf-8'), s1, s2)
+    if sys.version_info[0] < 3:
+        cigar_string = str(result.cigar.decode).decode('utf-8')
+    else:
+        cigar_string = str(result.cigar.decode, 'utf-8')
+
+    s1_alignment, s2_alignment = cigar_to_seq(cigar_string, s1, s2)
     mismatches = len([ 1 for n1, n2 in zip(s1_alignment,s2_alignment) if n1 != n2 and n1 != "-" and n2 != "-" ])
     matches = len([ 1 for n1, n2 in zip(s1_alignment,s2_alignment) if n1 == n2 and n1 != "-"])
     indels = len(s1_alignment) - mismatches - matches

@@ -385,7 +385,7 @@ def get_nearest_neighbors_graph_under_ignored_ends(candidate_transcripts, args):
 
 
 def collapse_candidates_under_ends_invariant(candidate_transcripts, candidate_support, params):
-    print("Candidates before edge invariants:", len(candidate_transcripts))
+    print("Final candidates before edge invariants:", len(candidate_transcripts))
 
     # SAM_file = minimap2_alignment_module.align(targets, queries, nr_cores)
     G = nx.DiGraph()
@@ -413,23 +413,26 @@ def collapse_candidates_under_ends_invariant(candidate_transcripts, candidate_su
                         #Make sure this doesnet crach out statistical test if two candidates differ only in ends!!!
                         G.add_edge(acc2, acc1) # directed edge seq2 --> seq1
 
-    G_transpose = nx.reverse(G)
 
-    # sort order: largest number of neigbors, then largest degree. If still tie, sort by smallest string
-    largest_nr_neighbors = sorted([ (len(list(G_transpose.neighbors(n))), G_transpose.node[n]["degree"], n) for n in  sorted(G_transpose.nodes())], key= lambda x: (-x[0], -x[1], x[2]) )
-    marked = set()
-    partition = {}
-    for nr_nbrs, deg, c in largest_nr_neighbors:
-        if c not in marked:
-            nbrs = [n for n in G_transpose.neighbors(c) if n not in marked]
-            partition[c] = set(nbrs)
-            marked.add(c)
-            marked.update(nbrs)
+    G_star, partition, M = partition_highest_reachable_with_edge_degrees(G, params)
+    
+    # # sort order: largest number of neigbors, then largest degree. If still tie, sort by smallest string
+    # G_transpose = nx.reverse(G)
+    # largest_nr_neighbors = sorted([ (len(list(G_transpose.neighbors(n))), G_transpose.node[n]["degree"], n) for n in  sorted(G_transpose.nodes())], key= lambda x: (-x[0], -x[1], x[2]) )
+    
+    # marked = set()
+    # partition = {}
+    # for nr_nbrs, deg, c in largest_nr_neighbors:
+    #     if c not in marked:
+    #         nbrs = [n for n in G_transpose.neighbors(c) if n not in marked]
+    #         partition[c] = set(nbrs)
+    #         marked.add(c)
+    #         marked.update(nbrs)
 
     if params.verbose:
         for t in partition:
             print(t, partition[t])
-    print("Candidates after edge invariants:", len(partition))
+    print("Final candidates after edge invariants:", len(partition))
     print()
     return partition
 
