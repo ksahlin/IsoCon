@@ -259,22 +259,22 @@ def find_candidate_transcripts(read_file, params):
         c_acc_to_seq[c_acc] = m 
         c_acc_to_support[c_acc] = N_t
 
-    # if params.ignore_ends_len > 0:
-    #     remaining_c_after_invariant = end_invariant_functions.collapse_candidates_under_ends_invariant(c_acc_to_seq, c_acc_to_support, params)
-    #     # print(remaining_c_after_invariant)
-    #     # sys.exit()
-    #     for c_acc in remaining_c_after_invariant:
-    #         c_seq = c_acc_to_seq[ c_acc ] 
-    #         for removed_c_acc in remaining_c_after_invariant[c_acc]:
-    #             removed_c_seq = c_acc_to_seq[ removed_c_acc ]
-    #             reads_to_removed_c_acc = c_seq_to_read_acc[removed_c_seq]
+    if params.ignore_ends_len > 0:
+        remaining_c_after_invariant = end_invariant_functions.collapse_candidates_under_ends_invariant(c_acc_to_seq, c_acc_to_support, params)
+        # print(remaining_c_after_invariant)
+        # sys.exit()
+        for c_acc in remaining_c_after_invariant:
+            c_seq = c_acc_to_seq[ c_acc ] 
+            for removed_c_acc in remaining_c_after_invariant[c_acc]:
+                removed_c_seq = c_acc_to_seq[ removed_c_acc ]
+                reads_to_removed_c_acc = c_seq_to_read_acc[removed_c_seq]
 
-    #             for read_acc in reads_to_removed_c_acc:
-    #                 c_seq_to_read_acc[c_seq].append(read_acc)
+                for read_acc in reads_to_removed_c_acc:
+                    c_seq_to_read_acc[c_seq].append(read_acc)
 
-    #             del c_acc_to_seq[ removed_c_acc ]
-    #             del c_acc_to_support[ removed_c_acc ]
-    #             del c_seq_to_read_acc[ removed_c_seq ]
+                del c_acc_to_seq[ removed_c_acc ]
+                del c_acc_to_support[ removed_c_acc ]
+                del c_seq_to_read_acc[ removed_c_seq ]
 
     
     if params.is_fastq:
