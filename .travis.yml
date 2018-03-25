@@ -17,7 +17,7 @@ install:
 branches:
   only:
   - master
-  - develop
+  # - develop
 # command to run tests
 script: python  IsoCon pipeline -fl_reads test/data/simulated_pacbio_reads_n_200.fa -outfolder test/out/ 
 # after_success:
