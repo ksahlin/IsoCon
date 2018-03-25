@@ -262,59 +262,59 @@ def reachable(G, m):
 
 
 
-def get_partitions_new(G):
+# def get_partitions_new(G):
 
-    M_temp = {}
-    partition_temp = {}
+#     M_temp = {}
+#     partition_temp = {}
     
-    G_undirected = G.to_directed()
+#     G_undirected = G.to_directed()
     
-    # subgraphs = [ ( weakly_connected_components(G_undirected, n), n) for n in  sorted(G.nodes())]
-    # highest_degree = sorted( subgraphs, key = lambda x: ( - (len(x[0]) + G.node[ x[1] ]["degree"]), x[1] ) ) # sort on partition weight first then string if tiebreakers
+#     # subgraphs = [ ( weakly_connected_components(G_undirected, n), n) for n in  sorted(G.nodes())]
+#     # highest_degree = sorted( subgraphs, key = lambda x: ( - (len(x[0]) + G.node[ x[1] ]["degree"]), x[1] ) ) # sort on partition weight first then string if tiebreakers
     
-    reachable_for_nodes = [ ( reachable(G, n), n) for n in  sorted(G.nodes())]
-    highest_degree = sorted( reachable_for_nodes, key = lambda x: ( - (len(x[0]) + G.node[ x[1] ]["degree"]), x[1] ) ) # sort on partition weight first then string if tiebreakers
+#     reachable_for_nodes = [ ( reachable(G, n), n) for n in  sorted(G.nodes())]
+#     highest_degree = sorted( reachable_for_nodes, key = lambda x: ( - (len(x[0]) + G.node[ x[1] ]["degree"]), x[1] ) ) # sort on partition weight first then string if tiebreakers
 
-    processed = set()
-    for m_reachable, m in highest_degree: # TODO: do a while loop here          
-        if m in processed:
-            continue
+#     processed = set()
+#     for m_reachable, m in highest_degree: # TODO: do a while loop here          
+#         if m in processed:
+#             continue
 
-        partition_temp[m] = set([node for node in m_reachable if node not in processed])
-        M_temp[m] = G.node[m]["degree"] + sum([G.node[node]["degree"] for node in partition_temp[m]])   
-        processed.update(partition_temp[m]) 
-        processed.add(m)
+#         partition_temp[m] = set([node for node in m_reachable if node not in processed])
+#         M_temp[m] = G.node[m]["degree"] + sum([G.node[node]["degree"] for node in partition_temp[m]])   
+#         processed.update(partition_temp[m]) 
+#         processed.add(m)
 
-    M = {}
-    partition = {}
+#     M = {}
+#     partition = {}
 
-    for m in list(M_temp.keys()):
-        if not partition_temp[m]:
-            # print("here")
-            M[m] =  G.node[m]["degree"]
-            partition[m] = set([])
-        else:
-            highest_degree = G.node[m]["degree"] +  len(list(G.neighbors(m))) # len(list([ nbr for nbr in G.neighbors(m) if nbr in partition_temp[m] ]))
-            center = m
-            for n in partition_temp[m]:
-                # print(len(nx.shortest_path(G,source=m,target=n)))
-                n_degree = G.node[n]["degree"] + len(list(G.neighbors(n))) # len(list([ nbr for nbr in G.neighbors(n) if nbr in partition_temp[m] ]))
-                if n_degree > highest_degree:
-                    center = n
-                    highest_degree = n_degree
-                elif n_degree == highest_degree:
-                    center = min(center, n)
+#     for m in list(M_temp.keys()):
+#         if not partition_temp[m]:
+#             # print("here")
+#             M[m] =  G.node[m]["degree"]
+#             partition[m] = set([])
+#         else:
+#             highest_degree = G.node[m]["degree"] +  len(list(G.neighbors(m))) # len(list([ nbr for nbr in G.neighbors(m) if nbr in partition_temp[m] ]))
+#             center = m
+#             for n in partition_temp[m]:
+#                 # print(len(nx.shortest_path(G,source=m,target=n)))
+#                 n_degree = G.node[n]["degree"] + len(list(G.neighbors(n))) # len(list([ nbr for nbr in G.neighbors(n) if nbr in partition_temp[m] ]))
+#                 if n_degree > highest_degree:
+#                     center = n
+#                     highest_degree = n_degree
+#                 elif n_degree == highest_degree:
+#                     center = min(center, n)
 
 
-            M[center] = highest_degree
-            partition_temp[m].add(m)
-            partition_temp[m].remove(center)
-            partition[center] = partition_temp[m]
+#             M[center] = highest_degree
+#             partition_temp[m].add(m)
+#             partition_temp[m].remove(center)
+#             partition[center] = partition_temp[m]
 
-        del partition_temp[m]
-        del M_temp[m]
+#         del partition_temp[m]
+#         del M_temp[m]
 
-    return M, partition
+#     return M, partition
 
 def get_partitions_no_copy(G_transpose):
     nr_consensus = 0
@@ -457,9 +457,9 @@ def partition_strings(S, params):
     # # print(sorted( subgraphs, key = lambda x: ( - (len(x[0]) + G.node[ x[1] ]["degree"]), x[1] ) ))
     # # print(set(all_weak_components))
 
-    start = time()
-    M, partition = get_partitions_new(G_transpose)
-    print("tot time new partition:", time() - start )
+    # start = time()
+    # M, partition = get_partitions_new(G_transpose)
+    # print("tot time new partition:", time() - start )
 
     # print("Number of centers:", len(M), len(partition))
     # p_lengths = sorted([len(partition[p]) +1 for p in  partition], reverse = True)
@@ -501,29 +501,29 @@ def partition_strings(S, params):
     print("tot time copy G_transpose:", time() - start )
 
     start = time()
-    M_old_nc, partition_old_nc = get_partitions_no_copy(G_transpose_tmp)
-    print("tot time old partition no copy:", time() - start )
+    M, partition = get_partitions_no_copy(G_transpose_tmp)
+    print("tot time partition no copy:", time() - start )
 
-    start = time()
-    M_old, partition_old = get_partitions(G_transpose)
-    print("tot time old partition:", time() - start )
-    print("Number of old centers:", len(M_old), len(partition_old))
-    p_old_lengths = sorted([len(partition_old[p]) +1 for p in  partition_old], reverse = True)
-    print("partition_old sizes(identical strings are collapsed here and therefore counted as one): ", p_old_lengths)
-    print("SUM PARTITIONS:", sum(sorted([len(partition_old[p]) +1 for p in  partition_old], reverse = True)))
+    # start = time()
+    # M_old, partition_old = get_partitions(G_transpose)
+    # print("tot time old partition:", time() - start )
+    # print("Number of old centers:", len(M_old), len(partition_old))
+    # p_old_lengths = sorted([len(partition_old[p]) +1 for p in  partition_old], reverse = True)
+    # print("partition_old sizes(identical strings are collapsed here and therefore counted as one): ", p_old_lengths)
+    # print("SUM PARTITIONS:", sum(sorted([len(partition_old[p]) +1 for p in  partition_old], reverse = True)))
 
     # assert sorted([len(partition_old[s]) for s in partition_old]) == sorted([len(partition[s]) for s in partition])
-    partition_old_lengths = sorted([len(partition_old[p]) +1 for p in  partition_old], reverse = True)
-    partition_old_nc_lengths = sorted([len(partition_old_nc[p]) +1 for p in  partition_old_nc], reverse = True)
-    print(partition_old_lengths)
-    print(partition_old_nc_lengths)
-    print( len(set(M_old_nc.keys()) ^ set(M_old.keys())) )
-    if M_old_nc != M_old:
-        print(len(set(M_old_nc.keys()) ^ set(M_old.keys())))
+    # partition_old_lengths = sorted([len(partition_old[p]) +1 for p in  partition_old], reverse = True)
+    # partition_old_nc_lengths = sorted([len(partition_old_nc[p]) +1 for p in  partition_old_nc], reverse = True)
+    # print(partition_old_lengths)
+    # print(partition_old_nc_lengths)
+    # print( len(set(M_old_nc.keys()) ^ set(M_old.keys())) )
+    # if M_old_nc != M_old:
+    #     print(len(set(M_old_nc.keys()) ^ set(M_old.keys())))
 
-    if partition_old_nc != partition_old:
-        print("partitions not equal")
-    M, partition = M_old_nc, partition_old_nc
+    # if partition_old_nc != partition_old:
+    #     print("partitions not equal")
+    # M, partition = M_old_nc, partition_old_nc
 
 
     # if list(M.keys()) == list(M2.keys()):
