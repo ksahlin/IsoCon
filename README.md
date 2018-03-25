@@ -85,7 +85,7 @@ USAGE
 IsoCon's algorithm consists of two main phases; the error correction step and the statistical testing step. IsoCon can run these two steps in one go using `IsoCon pipeline`, or it can run only the correction or statistical test steps using `IsoCon get_candidates` and `IsoCon stat_filter` respectively. The preffered and most tested way is to use the entire pipeline `IsoCon pipeline`, but the other two settings can come in handy for specific cases. For example, running only `IsoCon get_candidates` will give more sequences if one is not concerned about precision and will also be faster, while one might use only `IsoCon stat_filter` using different parameters for a set of already constructed candidates in order to prevent rerunning the error correction step.
 
 
-### Pipline
+### Pipeline
 
 IsoCon takes two input files: (1) a fasta file of full length non-chimeric (flnc) CCS reads and (2) the bam file of CCS reads containing predicted base call quality values. The fasta file containing flnc can be obtained from PacBios Iso-Seq pipeline [ToFU](https://github.com/PacificBiosciences/IsoSeq_SA3nUP/wiki) and the bam file is the output of running the consensus caller algorthm [ccs](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md) on the Iso-Seq reads (ccs takes bam files so if you have bax files, convert them using [bax2bam](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md#input) ). IsoCon can then be run as
 
