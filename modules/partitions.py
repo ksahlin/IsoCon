@@ -444,7 +444,7 @@ def partition_strings(S, params):
 
     if params.verbose:
         print("Nodes in nearest_neighbor graph:", len(G_transpose))
-        print("Neighbors per nodes in nearest neighbor graph", sorted([len(G_transpose.neighbors(n)) for n in G_transpose], reverse=True))
+        print("Neighbors per nodes in nearest neighbor graph", sorted([len(list(G_transpose.neighbors(n))) for n in G_transpose], reverse=True))
 
 
     # all_weak_components = list(nx.weakly_connected_component_subgraphs(G_transpose))

@@ -4,10 +4,15 @@ IsoCon
 IsoCon is distributed as a python package supported on Linux / OSX with python v>=2.7, and 3.4-3.6, 3.5-dev and 3.6-dev [![Build Status](https://travis-ci.org/ksahlin/IsoCon.svg?branch=master)](https://travis-ci.org/ksahlin/IsoCon)
 
 
-IsoCon is a tool for deriving *finished transcripts* from *Iso-Seq* reads from targeted sequencing. Input is a set of full-length-non-chimeric reads in fasta format and the CCS base call values as a bam file. The output is a set of predicted transcripts. IsoCon can be run as follows
+IsoCon is a tool for deriving *finished transcripts* from *Iso-Seq* reads from *targeted* sequencing. Input is either a set of full-length-non-chimeric reads in fasta format and the CCS base call values as a bam file, or a fastq file of CCS reads and their quality values provided by the ccs caller. IsoCon can only run on targeted Iso-Seq datasets due to underlying alignment approach --- runtime does not scale for nontargeted sequencing. The output is a set of predicted transcripts. IsoCon can be run as follows
 
 ```
 IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --ccs </path/to/filename.ccs.bam>
+```
+or
+
+```
+IsoCon pipeline -fl_reads <flnc.fastq> -outfolder </path/to/output>
 ```
 
 predicted transcripts are found in file **/path/to/output/final_candidates.fa**. Reads that could not be corrected or clustered are found in /path/to/output/not_converged.fa. For more instructions see below.
@@ -61,9 +66,8 @@ IsoCon pipeline -fl_reads [path/simulated_pacbio_reads.fa] -outfolder [output pa
 Make sure the below listed dependencies are installed (installation links below). Versions in parenthesis are suggested as IsoCon has not been tested with earlier versions of these libraries. However, IsoCon may also work with earliear versions of these libaries.
 * [edlib](https://github.com/Martinsos/edlib "edlib's Homepage"), for installation see [link](https://github.com/Martinsos/edlib/tree/master/bindings/python#installation) (>= v1.1.2)
 * [networkx](https://networkx.github.io/) (>= v1.10)
-* [ssw](https://github.com/vishnubob/ssw "Python wrapper for SSW"), for installation see [link](https://github.com/vishnubob/ssw#installation)
+* [parasail](https://github.com/jeffdaily/parasail-python)
 * [pysam](http://pysam.readthedocs.io/en/latest/installation.html) (>= v0.11)
-* [BioPython](http://biopython.org/wiki/Download) (>= v1.66)
 
 
 With these dependencies installed. Run

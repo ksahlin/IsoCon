@@ -6,9 +6,9 @@ import sys
 import parasail
 import re
 
-import ssw
-from Bio import pairwise2
-from Bio.SubsMat import MatrixInfo as matlist
+# import ssw
+# from Bio import pairwise2
+# from Bio.SubsMat import MatrixInfo as matlist
 
 
 
@@ -248,131 +248,131 @@ def sw_align_sequences_keeping_accession(matches, nr_cores = 1, ignore_ends_len 
     return exact_matches
 
 
-def ssw_alignment_helper(arguments):
-    args, kwargs = arguments
-    return ssw_alignment(*args, **kwargs)
+# def ssw_alignment_helper(arguments):
+#     args, kwargs = arguments
+#     return ssw_alignment(*args, **kwargs)
 
-def ssw_alignment(x, y, i,j, ends_discrepancy_threshold = 25 , x_acc = "", y_acc = "", mismatch_penalty = -3 ):
-    """
-        Aligns two sequences with SSW
-        x: query
-        y: reference
+# def ssw_alignment(x, y, i,j, ends_discrepancy_threshold = 25 , x_acc = "", y_acc = "", mismatch_penalty = -3 ):
+#     """
+#         Aligns two sequences with SSW
+#         x: query
+#         y: reference
 
-    """
-    # if i == 100 and j % 1000 == 0:
-    #     print("SW processed alignments:{0}, mismatch_penalty: {1}".format(j+1, mismatch_penalty))
+#     """
+#     # if i == 100 and j % 1000 == 0:
+#     #     print("SW processed alignments:{0}, mismatch_penalty: {1}".format(j+1, mismatch_penalty))
 
-    score_matrix = ssw.DNA_ScoreMatrix(match=2, mismatch=mismatch_penalty)
-    aligner = ssw.Aligner(gap_open=2, gap_extend=0, matrix=score_matrix)
+#     score_matrix = ssw.DNA_ScoreMatrix(match=2, mismatch=mismatch_penalty)
+#     aligner = ssw.Aligner(gap_open=2, gap_extend=0, matrix=score_matrix)
 
-    # for the ends that SSW leaves behind
-    bio_matrix = matlist.blosum62
-    g_open = -1
-    g_extend = -0.5
-    ######################################
+#     # for the ends that SSW leaves behind
+#     bio_matrix = matlist.blosum62
+#     g_open = -1
+#     g_extend = -0.5
+#     ######################################
 
-    # result = aligner.align("GA", "G", revcomp=False)
-    # y_alignment, match_line, x_alignment = result.alignment
-    # c = Counter(match_line)
-    # matches, mismatches, indels = c["|"], c["*"], c[" "]
-    # alignment_length = len(match_line)
-    # print("matches:{0}, mismatches:{1}, indels:{2} ".format(matches, mismatches, indels))
-    # print(match_line)
+#     # result = aligner.align("GA", "G", revcomp=False)
+#     # y_alignment, match_line, x_alignment = result.alignment
+#     # c = Counter(match_line)
+#     # matches, mismatches, indels = c["|"], c["*"], c[" "]
+#     # alignment_length = len(match_line)
+#     # print("matches:{0}, mismatches:{1}, indels:{2} ".format(matches, mismatches, indels))
+#     # print(match_line)
 
-    result = aligner.align(x, y, revcomp=False)
-    y_alignment, match_line, x_alignment = result.alignment
+#     result = aligner.align(x, y, revcomp=False)
+#     y_alignment, match_line, x_alignment = result.alignment
 
-    matches, mismatches, indels = match_line.count("|"), match_line.count("*"), match_line.count(" ")
+#     matches, mismatches, indels = match_line.count("|"), match_line.count("*"), match_line.count(" ")
 
-    # alignment_length = len(match_line)
+#     # alignment_length = len(match_line)
     
-    start_discrepancy = max(result.query_begin, result.reference_begin)  # 0-indexed # max(result.query_begin, result.reference_begin) - min(result.query_begin, result.reference_begin)
-    query_end_discrepancy = len(x) - result.query_end - 1
-    ref_end_discrepancy = len(y) - result.reference_end - 1
-    end_discrepancy = max(query_end_discrepancy, ref_end_discrepancy)  # max(result.query_end, result.reference_end) - min(result.query_end, result.reference_end)
-    # print(start_discrepancy, end_discrepancy)
-    tot_discrepancy = start_discrepancy + end_discrepancy
+#     start_discrepancy = max(result.query_begin, result.reference_begin)  # 0-indexed # max(result.query_begin, result.reference_begin) - min(result.query_begin, result.reference_begin)
+#     query_end_discrepancy = len(x) - result.query_end - 1
+#     ref_end_discrepancy = len(y) - result.reference_end - 1
+#     end_discrepancy = max(query_end_discrepancy, ref_end_discrepancy)  # max(result.query_end, result.reference_end) - min(result.query_end, result.reference_end)
+#     # print(start_discrepancy, end_discrepancy)
+#     tot_discrepancy = start_discrepancy + end_discrepancy
 
-    if 0 < start_discrepancy <= ends_discrepancy_threshold:
-        # print("HERE")
-        matches_snippet = 0
-        mismatches_snippet = 0
-        if result.query_begin and result.reference_begin:
-            query_start_snippet = x[:result.query_begin]
-            ref_start_snippet = y[:result.reference_begin]
-            alns = pairwise2.align.globalds(query_start_snippet, ref_start_snippet, bio_matrix, g_open, g_extend)
-            top_aln = alns[0]
-            # print(alns)
-            mismatches_snippet = len(list(filter(lambda x: x[0] != x[1] and x[0] != '-' and x[1] != "-", zip(top_aln[0],top_aln[1]))))
-            indels_snippet = top_aln[0].count("-") + top_aln[1].count("-")
-            matches_snippet = len(top_aln[0]) - mismatches_snippet - indels_snippet
-            # print(matches_snippet, mismatches_snippet, indels_snippet)
-            query_start_alignment_snippet = top_aln[0]
-            ref_start_alignment_snippet = top_aln[1]
-        elif result.query_begin:
-            query_start_alignment_snippet = x[:result.query_begin]
-            ref_start_alignment_snippet = "-"*len(query_start_alignment_snippet)
-            indels_snippet = len(ref_start_alignment_snippet)
-        elif result.reference_begin:
-            ref_start_alignment_snippet = y[:result.reference_begin]
-            query_start_alignment_snippet = "-"*len(ref_start_alignment_snippet)
-            indels_snippet = len(query_start_alignment_snippet)
-        else:
-            print("BUG")
-            sys.exit()
-        matches, mismatches, indels = matches + matches_snippet, mismatches + mismatches_snippet, indels + indels_snippet
+#     if 0 < start_discrepancy <= ends_discrepancy_threshold:
+#         # print("HERE")
+#         matches_snippet = 0
+#         mismatches_snippet = 0
+#         if result.query_begin and result.reference_begin:
+#             query_start_snippet = x[:result.query_begin]
+#             ref_start_snippet = y[:result.reference_begin]
+#             alns = pairwise2.align.globalds(query_start_snippet, ref_start_snippet, bio_matrix, g_open, g_extend)
+#             top_aln = alns[0]
+#             # print(alns)
+#             mismatches_snippet = len(list(filter(lambda x: x[0] != x[1] and x[0] != '-' and x[1] != "-", zip(top_aln[0],top_aln[1]))))
+#             indels_snippet = top_aln[0].count("-") + top_aln[1].count("-")
+#             matches_snippet = len(top_aln[0]) - mismatches_snippet - indels_snippet
+#             # print(matches_snippet, mismatches_snippet, indels_snippet)
+#             query_start_alignment_snippet = top_aln[0]
+#             ref_start_alignment_snippet = top_aln[1]
+#         elif result.query_begin:
+#             query_start_alignment_snippet = x[:result.query_begin]
+#             ref_start_alignment_snippet = "-"*len(query_start_alignment_snippet)
+#             indels_snippet = len(ref_start_alignment_snippet)
+#         elif result.reference_begin:
+#             ref_start_alignment_snippet = y[:result.reference_begin]
+#             query_start_alignment_snippet = "-"*len(ref_start_alignment_snippet)
+#             indels_snippet = len(query_start_alignment_snippet)
+#         else:
+#             print("BUG")
+#             sys.exit()
+#         matches, mismatches, indels = matches + matches_snippet, mismatches + mismatches_snippet, indels + indels_snippet
 
-        # print(ref_start_alignment_snippet)
-        # print(query_start_alignment_snippet)
-        y_alignment = ref_start_alignment_snippet + y_alignment
-        x_alignment = query_start_alignment_snippet + x_alignment
+#         # print(ref_start_alignment_snippet)
+#         # print(query_start_alignment_snippet)
+#         y_alignment = ref_start_alignment_snippet + y_alignment
+#         x_alignment = query_start_alignment_snippet + x_alignment
 
-    if 0 < end_discrepancy <= ends_discrepancy_threshold:
-        # print("HERE2")
-        matches_snippet = 0
-        mismatches_snippet = 0
-        if query_end_discrepancy and ref_end_discrepancy:
-            query_end_snippet = x[result.query_end+1:]
-            ref_end_snippet = y[result.reference_end+1:]
-            alns = pairwise2.align.globalds(query_end_snippet, ref_end_snippet, bio_matrix, g_open, g_extend)
-            top_aln = alns[0]
-            mismatches_snippet = len(list(filter(lambda x: x[0] != x[1] and x[0] != '-' and x[1] != "-", zip(top_aln[0],top_aln[1]))))
-            indels_snippet = top_aln[0].count("-") + top_aln[1].count("-")
-            matches_snippet = len(top_aln[0]) - mismatches_snippet - indels_snippet
-            query_end_alignment_snippet = top_aln[0]
-            ref_end_alignment_snippet = top_aln[1]
-        elif query_end_discrepancy:
-            query_end_alignment_snippet = x[result.query_end+1:]
-            ref_end_alignment_snippet = "-"*len(query_end_alignment_snippet)
-            indels_snippet = len(ref_end_alignment_snippet)
+#     if 0 < end_discrepancy <= ends_discrepancy_threshold:
+#         # print("HERE2")
+#         matches_snippet = 0
+#         mismatches_snippet = 0
+#         if query_end_discrepancy and ref_end_discrepancy:
+#             query_end_snippet = x[result.query_end+1:]
+#             ref_end_snippet = y[result.reference_end+1:]
+#             alns = pairwise2.align.globalds(query_end_snippet, ref_end_snippet, bio_matrix, g_open, g_extend)
+#             top_aln = alns[0]
+#             mismatches_snippet = len(list(filter(lambda x: x[0] != x[1] and x[0] != '-' and x[1] != "-", zip(top_aln[0],top_aln[1]))))
+#             indels_snippet = top_aln[0].count("-") + top_aln[1].count("-")
+#             matches_snippet = len(top_aln[0]) - mismatches_snippet - indels_snippet
+#             query_end_alignment_snippet = top_aln[0]
+#             ref_end_alignment_snippet = top_aln[1]
+#         elif query_end_discrepancy:
+#             query_end_alignment_snippet = x[result.query_end+1:]
+#             ref_end_alignment_snippet = "-"*len(query_end_alignment_snippet)
+#             indels_snippet = len(ref_end_alignment_snippet)
 
-        elif ref_end_discrepancy:
-            ref_end_alignment_snippet = y[result.reference_end+1:]
-            query_end_alignment_snippet = "-"*len(ref_end_alignment_snippet)
-            indels_snippet = len(query_end_alignment_snippet)
+#         elif ref_end_discrepancy:
+#             ref_end_alignment_snippet = y[result.reference_end+1:]
+#             query_end_alignment_snippet = "-"*len(ref_end_alignment_snippet)
+#             indels_snippet = len(query_end_alignment_snippet)
 
-        else:
-            print("BUG")
-            sys.exit()
-        matches, mismatches, indels = matches + matches_snippet, mismatches + mismatches_snippet, indels + indels_snippet
+#         else:
+#             print("BUG")
+#             sys.exit()
+#         matches, mismatches, indels = matches + matches_snippet, mismatches + mismatches_snippet, indels + indels_snippet
 
-        y_alignment = y_alignment + ref_end_alignment_snippet
-        x_alignment = x_alignment + query_end_alignment_snippet
+#         y_alignment = y_alignment + ref_end_alignment_snippet
+#         x_alignment = x_alignment + query_end_alignment_snippet
 
 
-    if x_acc == y_acc == "":
-        if start_discrepancy > ends_discrepancy_threshold or end_discrepancy > ends_discrepancy_threshold:
-            # print("REMOVING", start_discrepancy, end_discrepancy)
-            return (x, y, None)
+#     if x_acc == y_acc == "":
+#         if start_discrepancy > ends_discrepancy_threshold or end_discrepancy > ends_discrepancy_threshold:
+#             # print("REMOVING", start_discrepancy, end_discrepancy)
+#             return (x, y, None)
 
-        else:
-            return (x, y, (x_alignment, y_alignment, (matches, mismatches, indels)) )
-    else:
-        if start_discrepancy > ends_discrepancy_threshold or end_discrepancy > ends_discrepancy_threshold:
-            # print("REMOVING", start_discrepancy, end_discrepancy)
-            return (x_acc, y_acc, None)
+#         else:
+#             return (x, y, (x_alignment, y_alignment, (matches, mismatches, indels)) )
+#     else:
+#         if start_discrepancy > ends_discrepancy_threshold or end_discrepancy > ends_discrepancy_threshold:
+#             # print("REMOVING", start_discrepancy, end_discrepancy)
+#             return (x_acc, y_acc, None)
 
-        else:
+#         else:
 
-            return (x_acc, y_acc, (x_alignment, y_alignment, (matches, mismatches, indels)) )       
+#             return (x_acc, y_acc, (x_alignment, y_alignment, (matches, mismatches, indels)) )       
 
