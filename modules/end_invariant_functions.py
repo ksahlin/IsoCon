@@ -8,6 +8,7 @@ import signal
 from multiprocessing import Pool
 import multiprocessing as mp
 import math
+from time import time
 
 import networkx as nx
 import edlib
@@ -15,7 +16,6 @@ import edlib
 from modules import functions
 from modules.input_output import write_output
 from modules.SW_alignment_module import parasail_alignment
-
 
 def parasail_traceback_allow_ends(x, y, end_threshold = 0):
     (s1, s2, (s1_alignment, s2_alignment, (matches, mismatches, indels)) ) = parasail_alignment(x, y, 0, 0, mismatch_penalty = -3)
@@ -618,24 +618,143 @@ def get_invariants_under_ignored_edge_ends(seq_to_acc_list_sorted, params):
 
     return best_edit_distances
 
-def collapse_candidates_under_ends_invariant(candidate_transcripts, candidate_support, params):
-    print("Final candidates before edge invariants:", len(candidate_transcripts))
 
-    seq_to_acc = {seq: acc for (acc, seq) in candidate_transcripts.items()}
-    seq_to_acc_list = list(seq_to_acc.items())
-    seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
-    invariant_graph = get_invariants_under_ignored_edge_ends(seq_to_acc_list_sorted, params)
+def is_overlap(text1, text2, ignore_ends_threshold):  
+  # Cache the text lengths to prevent multiple calls.  
+  text1_length = len(text1)  
+  text2_length = len(text2)  
+  # Eliminate the null case.  
+  if text1_length == 0 or text2_length == 0:  
+    return 0  
+  # Truncate the longer string.  
+  if text1_length > text2_length:  
+    text1 = text1[-text2_length:]  
+  elif text1_length < text2_length:  
+    text2 = text2[:text1_length]  
+  # Quick check for the worst case.  
+  if text1 == text2:  
+    return min(text1_length, text2_length)  
+   
+  # Start by looking for a single character match  
+  # and increase length until no match is found.  
+  best = 0  
+  length = 1  
+  while True:  
+    pattern = text1[-length:]  
+    found = text2.find(pattern)  
+    if found == -1: 
+      prefix_offset =  text1_length - best
+      suffix_offset =  text2_length - best
+      if prefix_offset <= ignore_ends_threshold and suffix_offset <= ignore_ends_threshold:
+        return True
+      else:
+        return False
+    length += found  
+    if text1[-length:] == text2[:length]:  
+      best = length  
+      length += 1 
 
+
+def get_invariants_under_ignored_edge_ends_speed(candidate_transcripts, candidate_support, params):
+    edge_invariant_threshold = params.ignore_ends_len
     G = nx.DiGraph()
     for acc in candidate_transcripts:
         deg = candidate_support[acc]
         G.add_node(acc, degree = deg)
-    # add edges
-    for acc1 in  invariant_graph:
-        for acc2 in invariant_graph[acc1]:
-            G.add_edge(acc1, acc2)
+    sorted_lenghts = sorted(candidate_transcripts.items(), key = lambda x: len(x[1]))
+    for i, (acc1, seq1) in enumerate(sorted_lenghts):
+        if i % 1000 == 0:
+            print(i, "candidates processed") 
+        for (acc2, seq2) in sorted_lenghts:
+            if acc2 == acc1:
+                continue
+
+            if len(seq2) < len(seq1) - 2*edge_invariant_threshold:
+                continue
+            elif len(seq1) - 2*edge_invariant_threshold <= len(seq2) <= len(seq1): # is long enough to be merged
+                   
+                if seq2 in seq1: # is strict substring
+                    start_offset = seq1.find(seq2)
+                    end_offset = len(seq1) - (start_offset + len(seq2))
+                    if start_offset <= edge_invariant_threshold and end_offset <= edge_invariant_threshold:
+                        G.add_edge(acc2, acc1) # directed edge seq2 --> seq1
+                        G.add_edge(acc1, acc2) # directed edge seq2 --> seq1
+                
+                else: # check if perfect overlap within ends threshold
+                    bool_overlap1 = is_overlap(seq1, seq2, edge_invariant_threshold)
+                    bool_overlap2 = is_overlap(seq2, seq1, edge_invariant_threshold)
+                    if bool_overlap1 or bool_overlap2:
+                        G.add_edge(acc2, acc1) 
+                        G.add_edge(acc1, acc2) 
+            else:
+                break
+
+    return G
+
+# def get_invariants_under_ignored_edge_ends_OLD(candidate_transcripts, candidate_support, params):
+
+#     seq_to_acc = {seq: acc for (acc, seq) in candidate_transcripts.items()}
+#     seq_to_acc_list = list(seq_to_acc.items())
+#     seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
+#     invariant_graph = get_invariants_under_ignored_edge_ends(seq_to_acc_list_sorted, params)
+
+#     G = nx.DiGraph()
+#     for acc in candidate_transcripts:
+#         deg = candidate_support[acc]
+#         G.add_node(acc, degree = deg)
+#     # add edges
+#     for acc1 in  invariant_graph:
+#         for acc2 in invariant_graph[acc1]:
+#             G.add_edge(acc1, acc2)
+#     return G
+
+
+
+def collapse_candidates_under_ends_invariant(candidate_transcripts, candidate_support, params):
+    print("Final candidates before edge invariants:", len(candidate_transcripts))
+
+    # start = time()
+    # G_old = get_invariants_under_ignored_edge_ends_OLD(candidate_transcripts, candidate_support, params)
+    # elapsed = time() - start
+    # print("INVARIANTS OLD:", elapsed)
+
+    start = time()
+    G = get_invariants_under_ignored_edge_ends_speed(candidate_transcripts, candidate_support, params)
+    elapsed = time() - start
+    print("INVARIANTS NEW:", elapsed)
+    # print(len(list(G_old.nodes())), len(list(G.nodes())) )
+
+    # print(len(list(G_old.edges())), len(list(G.edges())) )
+
+    # for edge in list(G.edges()):
+    #     if not G_old.has_edge(*edge):
+    #         print(edge[0])
+    #         print(candidate_transcripts[edge[0]])
+    #         print(edge[1])
+    #         print(candidate_transcripts[edge[1]])            
+    #         print()
+    # print(nx.is_isomorphic(G_old, G))
+    
+    # seq_to_acc = {seq: acc for (acc, seq) in candidate_transcripts.items()}
+    # seq_to_acc_list = list(seq_to_acc.items())
+    # seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
+    # invariant_graph = get_invariants_under_ignored_edge_ends(seq_to_acc_list_sorted, params)
+
+    # G = nx.DiGraph()
+    # for acc in candidate_transcripts:
+    #     deg = candidate_support[acc]
+    #     G.add_node(acc, degree = deg)
+    # # add edges
+    # for acc1 in  invariant_graph:
+    #     for acc2 in invariant_graph[acc1]:
+    #         G.add_edge(acc1, acc2)
             
     G_star, partition, M = partition_highest_reachable_with_edge_degrees(G, params)
+    # _, partition_old, _ = partition_highest_reachable_with_edge_degrees(G_old, params)
+
+    # print("Final candidates old:", len(partition_old))
+    print("Final candidates:", len(partition))
+    # sys.exit()
 
     # # SAM_file = minimap2_alignment_module.align(targets, queries, nr_cores)
 

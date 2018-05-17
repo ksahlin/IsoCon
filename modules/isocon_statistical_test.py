@@ -406,6 +406,8 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
                 print("Filtering threshold (p_val*mult_correction_factor):",  p_val_threshold)
 
         to_realign = {}
+        p_value_tsv_file = open(os.path.join(params.outfolder, "p_values_{0}.tsv".format(step)), "w")
+
         for c_acc, (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants) in highest_significance_values.items():
             if p_value == "not_tested":
                 if params.verbose:
@@ -428,6 +430,11 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
                 for x_acc in read_partition[c_acc]:
                     to_realign[x_acc] = X[x_acc]
                 del read_partition[c_acc]
+            
+            if p_value != "not_tested": 
+                p_value_tsv_file.write("{0}\t{1}\n".format( c_acc + "_" + str(k) + "_" + str(1.0 if k == 0 else min(1.0, product_with_check_overflow(p_value, mult_factor_inv))) + "_" + str(N_t) + "_" + str(len(variants)), str(p_value)))
+        p_value_tsv_file.close()
+
 
         previous_partition_of_X = copy.deepcopy(read_partition)
 
