@@ -104,6 +104,9 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
     
     aln_t, aln_c, (matches, mismatches, indels) = exact_alignments[t_acc][c_acc]
     start, end = functions.get_mask_start_and_end(aln_t, aln_c) # mask indels in ends due to legnth differences
+    print(exact_alignments[t_acc][c_acc])
+    print(start, end)
+    print()
     variants = [ (i,p_t,p_c) for i, (p_t, p_c) in  enumerate(zip(aln_t, aln_c)) if p_t != p_c and start <= i < end ]
 
     # 2. Get the coordinates on the candidate and reference respectively
