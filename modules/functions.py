@@ -405,7 +405,10 @@ def get_read_ccs_probabilities_t(read_alignments_to_t, variant_coords_t, alignme
 def get_empirical_error_probabilities(segment_length, errors, variant_coords_t):
     probability = {}
     delta_size = float(len(variant_coords_t))
-
+    if delta_size == 0.0:
+        print(variant_coords_t, len(errors), segment_length)
+        print("No variant between candidates")
+    assert delta_size > 0.0
     for read_acc in errors:
         prob = 1.0
         (insertions, deletions, substitutions) = errors[read_acc]
@@ -424,6 +427,9 @@ def get_empirical_error_probabilities(segment_length, errors, variant_coords_t):
                 prob *= min(0.5, p_D*u_v)
         if prob >= 1.0:
             prob = 0.99999
+        
+        elif prob <= 0.0:
+            print("NONPOSITIVE PVAL:",prob, insertions, deletions, substitutions, p_S, p_I, p_D, variant_coords_t)
 
         probability[read_acc] = prob
 
