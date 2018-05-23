@@ -20,6 +20,31 @@ import edlib
 from itertools import permutations
 
 
+def filter_exon_differences(pairwise_alignments, min_exon_diff):
+    pattern = r"[-]{{{min_exon_diff},}}".format( min_exon_diff = str(min_exon_diff)  )  # r"[-]{20,}"
+    filtered = set()
+    for s1 in list(pairwise_alignments.keys()): 
+        for s2 in list(pairwise_alignments[s1].keys()):
+            s1_alignment, s2_alignment, (matches, mismatches, indels) = pairwise_alignments[s1][s2]
+            missing_exon_s1 = re.search(pattern, s1_alignment)
+            missing_exon_s2 = re.search(pattern, s2_alignment)
+            if missing_exon_s1 or missing_exon_s2:
+                # print(missing_exon_s1.group(0))
+                # print(s1)
+                # print(s2)
+                # print(len(pairwise_alignments[s1].keys()))
+                del pairwise_alignments[s1][s2]
+                filtered.add(s2)
+            # elif missing_exon_s2:
+            #     # print(missing_exon_s2.group(0))
+            #     # print(s1)
+            #     # print(s2)
+            #     # print(len(pairwise_alignments[s1].keys()))
+            #     del pairwise_alignments[s1][s2]
+            #     filtered.add(s2)
+    return filtered
+
+
 def transform(read):
     transformed_seq = []
     prev_nucl = ""

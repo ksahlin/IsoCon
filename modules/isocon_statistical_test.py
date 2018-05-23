@@ -259,18 +259,9 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
             alignments_of_c_to_reads = sw_align_sequences_keeping_accession(edit_distances_of_c_to_reads, nr_cores = params.nr_cores)
             # structure: read_partition[c_acc][read_acc] = (c_aln, read_aln, (matches, mismatches, indels))
 
-            ##################################
+            ############## REMOVE EXON LEVEL DIFFERENCES IN ALIGNMENTS ####################
             ssw_temp = [ alignments_of_c_to_reads[c_acc][read_acc] for c_acc in alignments_of_c_to_reads for read_acc in alignments_of_c_to_reads[c_acc]  ] 
-            pattern = r"[-]{{{min_exon_diff},}}".format( min_exon_diff = str(params.min_exon_diff)  )  # r"[-]{20,}"
-            for c_acc in list(alignments_of_c_to_reads.keys()): 
-                for read_acc in list(alignments_of_c_to_reads[c_acc].keys()):
-                    c_alignment, read_alignment, (matches, mismatches, indels) = alignments_of_c_to_reads[c_acc][read_acc]
-                    missing_exon_s1 = re.search(pattern, c_alignment)
-                    missing_exon_s2 = re.search(pattern, read_alignment)
-                    if missing_exon_s1:
-                        del alignments_of_c_to_reads[c_acc][read_acc]
-                    elif missing_exon_s2:
-                        del alignments_of_c_to_reads[c_acc][read_acc]
+            _ = functions.filter_exon_differences(alignments_of_c_to_reads, params.min_exon_diff)
             ssw_after_exon_temp = [ alignments_of_c_to_reads[c_acc][read_acc] for c_acc in alignments_of_c_to_reads for read_acc in alignments_of_c_to_reads[c_acc]  ] 
             print("Number of alignments that were removed before statistical test because best match to candidate had exon difference larger than {0}bp: {1} ".format(str(params.min_exon_diff) , len(ssw_temp) - len(ssw_after_exon_temp) ))
             #################################
