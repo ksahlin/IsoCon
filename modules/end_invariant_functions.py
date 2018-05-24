@@ -411,12 +411,13 @@ def partition_highest_reachable_with_edge_degrees(G_star, params):
         print("Nodes in nearest_neighbor graph:", len(G_transpose))
         print("Neighbors per nodes in nearest neighbor graph", sorted([len(list(G_transpose.neighbors(n)) ) for n in G_transpose], reverse=True))
 
+    all_weak_components = [ c for c in nx.weakly_connected_components(G_transpose)]
     M = {}
     partition = {}
     # print("here")
-    for subgraph in sorted(nx.weakly_connected_component_subgraphs(G_transpose), key=len, reverse=True):
+    for subgraph_set in sorted(all_weak_components, key=len, reverse=True):
         # print("Subgraph of size", len(subgraph.nodes()), "nr edges:", [x for x in subgraph.nodes()] )
-        while subgraph:
+        while subgraph_set:
             reachable_comp_sizes = []
             reachable_comp_weights = {}
             reachable_comp_nodes = []
@@ -429,12 +430,12 @@ def partition_highest_reachable_with_edge_degrees(G_star, params):
             biggest_reachable_comp_nearest_neighbor = "XXXXX"
 
 
-            for m in subgraph:                
+            for m in subgraph_set:                
                 if m in processed:
                     continue
 
                 reachable_comp = set([m])
-                reachable_comp_weight = subgraph.node[m]["degree"]
+                reachable_comp_weight = G_transpose.node[m]["degree"]
                 processed.add(m)
 
 
@@ -443,12 +444,12 @@ def partition_highest_reachable_with_edge_degrees(G_star, params):
                 # take all reachable nodes
                 ####################################################
 
-                for n1,n2 in nx.dfs_edges(subgraph, source=m): # store reachable node as processed here to avoid computation
+                for n1,n2 in nx.dfs_edges(G_transpose, source=m): # store reachable node as processed here to avoid computation
                     if n2 == m:
                         continue
                     processed.add(n2)
                     reachable_comp.add(n2)
-                    reachable_comp_weight += subgraph.node[n2]["degree"]
+                    reachable_comp_weight += G_transpose.node[n2]["degree"]
                 ####################################################
                 ####################################################
                 
@@ -491,8 +492,8 @@ def partition_highest_reachable_with_edge_degrees(G_star, params):
                 max_direct_weight = 0
                 # print("total nodes searched in this pass:", len(biggest_reachable_comp_nodes))
                 for n in biggest_reachable_comp_nodes:
-                    direct_weight = subgraph.node[n]["degree"]                    
-                    direct_weight += len(list(subgraph.neighbors(n)))
+                    direct_weight = G_transpose.node[n]["degree"]                    
+                    direct_weight += len(list(G_transpose.neighbors(n)))
 
                     if direct_weight > max_direct_weight:
                         max_direct_weight = direct_weight
@@ -504,7 +505,8 @@ def partition_highest_reachable_with_edge_degrees(G_star, params):
                 partition[nearest_neighbor] = biggest_reachable_comp_nodes.difference(set([nearest_neighbor]))
                 assert nearest_neighbor in biggest_reachable_comp_nodes
 
-            subgraph.remove_nodes_from(biggest_reachable_comp_nodes)
+            G_transpose.remove_nodes_from(biggest_reachable_comp_nodes)
+            subgraph_set = subgraph_set -  biggest_reachable_comp_nodes
             nr_consensus += 1
 
     if params.verbose:
@@ -734,7 +736,7 @@ def collapse_candidates_under_ends_invariant(candidate_transcripts, candidate_su
     #         print(candidate_transcripts[edge[1]])            
     #         print()
     # print(nx.is_isomorphic(G_old, G))
-    
+
     # seq_to_acc = {seq: acc for (acc, seq) in candidate_transcripts.items()}
     # seq_to_acc_list = list(seq_to_acc.items())
     # seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
@@ -748,8 +750,8 @@ def collapse_candidates_under_ends_invariant(candidate_transcripts, candidate_su
     # for acc1 in  invariant_graph:
     #     for acc2 in invariant_graph[acc1]:
     #         G.add_edge(acc1, acc2)
-            
-    G_star, partition, M = partition_highest_reachable_with_edge_degrees(G, params)
+    G_tmp = copy.deepcopy(G)
+    G_star, partition, M = partition_highest_reachable_with_edge_degrees(G_tmp, params)
     # _, partition_old, _ = partition_highest_reachable_with_edge_degrees(G_old, params)
 
     # print("Final candidates old:", len(partition_old))

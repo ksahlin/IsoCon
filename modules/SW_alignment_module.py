@@ -63,10 +63,10 @@ def parasail_alignment_helper(arguments):
 
 def parasail_alignment(s1, s2, i, j, x_acc = "", y_acc = "", mismatch_penalty = -3, ends_discrepancy_threshold = 0):
     user_matrix = parasail.matrix_create("ACGT", 2, mismatch_penalty)
-    result = parasail.nw_trace_scan_16(s1, s2, 2, 0, user_matrix)
+    result = parasail.sg_trace_scan_16(s1, s2, 2, 0, user_matrix)
     if result.saturated:
         print("SATURATED!")
-        result = parasail.nw_trace_scan_32(s1, s2, 2, 0, user_matrix)
+        result = parasail.sg_trace_scan_32(s1, s2, 2, 0, user_matrix)
     # print(result.cigar.seq)
     # print(result.cigar.decode )
     # print(str(result.cigar.decode,'utf-8') )

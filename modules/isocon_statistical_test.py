@@ -261,7 +261,7 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
 
             ############## REMOVE EXON LEVEL DIFFERENCES IN ALIGNMENTS ####################
             ssw_temp = [ alignments_of_c_to_reads[c_acc][read_acc] for c_acc in alignments_of_c_to_reads for read_acc in alignments_of_c_to_reads[c_acc]  ] 
-            _ = functions.filter_exon_differences(alignments_of_c_to_reads, params.min_exon_diff)
+            _ = functions.filter_exon_differences(alignments_of_c_to_reads, params.min_exon_diff, params.ignore_ends_len)
             ssw_after_exon_temp = [ alignments_of_c_to_reads[c_acc][read_acc] for c_acc in alignments_of_c_to_reads for read_acc in alignments_of_c_to_reads[c_acc]  ] 
             print("Number of alignments that were removed before statistical test because best match to candidate had exon difference larger than {0}bp: {1} ".format(str(params.min_exon_diff) , len(ssw_temp) - len(ssw_after_exon_temp) ))
             #################################

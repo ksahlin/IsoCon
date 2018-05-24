@@ -53,7 +53,7 @@ def get_partition_alignments(graph_partition, M, G_star, params):
         print("Number of alignments that were removed before correction phase -- too many mismatchas in ends (#ED-alignments - # SSW-alignments): {0} ".format(  len(ed_temp) - len(ssw_temp) ))
 
 
-    _ = functions.filter_exon_differences(exact_alignments, params.min_exon_diff)
+    _ = functions.filter_exon_differences(exact_alignments, params.min_exon_diff, params.ignore_ends_len)
     ssw_after_exon_temp = [ exact_alignments[s1][s2] for s1 in exact_alignments for s2 in exact_alignments[s1]  ] 
     print("Number of alignments that were removed before correction phase due to exon difference larger than {0}bp: {1} ".format(str(params.min_exon_diff) , len(ssw_temp) - len(ssw_after_exon_temp) ))
 
@@ -300,7 +300,7 @@ def find_candidate_transcripts(read_file, params):
     c_to_reads_edit_distances = edlib_align_sequences_keeping_accession(c_to_reads, nr_cores = params.nr_cores)
     print("Total reads in partition (assigned reads after edlib):", len([1 for c_acc in c_to_reads_edit_distances for read_acc in c_to_reads_edit_distances[c_acc] ]))
     read_partition = sw_align_sequences_keeping_accession(c_to_reads_edit_distances, nr_cores = params.nr_cores)
-    filtered_reads = functions.filter_exon_differences(read_partition, params.min_exon_diff)
+    filtered_reads = functions.filter_exon_differences(read_partition, params.min_exon_diff, params.ignore_ends_len)
     print("DEVELOP: Number of read to candidate assignments removed because of exon differences: ",len(filtered_reads))
     # sys.exit()
     for read_acc in filtered_reads:
