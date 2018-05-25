@@ -9,6 +9,7 @@ from multiprocessing import Pool
 import multiprocessing as mp
 import math
 from time import time
+import copy
 
 import networkx as nx
 import edlib
