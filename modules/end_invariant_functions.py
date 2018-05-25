@@ -19,28 +19,31 @@ from modules.input_output import write_output
 from modules.SW_alignment_module import parasail_alignment
 
 def parasail_traceback_allow_ends(x, y, end_threshold = 0):
-    (s1, s2, (s1_alignment, s2_alignment, (matches, mismatches, indels)) ) = parasail_alignment(x, y, 0, 0, mismatch_penalty = -3)
+    (s1, s2, (s1_alignment, s2_alignment, (matches, mismatches, indels)) ) = parasail_alignment(x, y, 0, 0, opening_penalty = 3, mismatch_penalty = -3)
     ed = mismatches + indels
     p = "[-]+"
     m_start1 = re.match(p,s1_alignment)
     m_start2 = re.match(p,s2_alignment)
     if m_start1:
-        ed -= len(m_start1.group(0))
+        cut_start_diff1 = len(m_start1.group(0))
+        ed -= min(cut_start_diff1, end_threshold)
     elif m_start2:
-        ed -= len(m_start2.group(0))
+        cut_start_diff2 = len(m_start2.group(0))
+        ed -= min(cut_start_diff2, end_threshold)
 
     m_end1 = re.match(p,s1_alignment[::-1])
     m_end2 = re.match(p,s2_alignment[::-1])
     if m_end1:
-        ed -= len(m_end1.group(0))
+        cut_end_diff1 = len(m_end1.group(0))
+        ed -= min(cut_end_diff1, end_threshold)
     elif m_end2:
-        ed -= len(m_end2.group(0))
-
+        cut_end_diff2 = len(m_end2.group(0))
+        ed -= min(cut_end_diff2, end_threshold)
 
     return ed
 
 
-def get_nearest_neighbors_parasail(batch_of_queries, global_index_in_matrix, start_index, seq_to_acc_list_sorted, neighbor_search_depth, ignore_ends_threshold):
+def get_nearest_neighbors_parasail(batch_of_queries, global_index_in_matrix, start_index, seq_to_acc_list_sorted, neighbor_search_depth, ignore_ends_len):
     best_edit_distances = {}
     lower_target_edit_distances = {}
     # print("Processing global index:" , global_index_in_matrix)
@@ -72,18 +75,18 @@ def get_nearest_neighbors_parasail(batch_of_queries, global_index_in_matrix, sta
                 seq2 = seq_to_acc_list_sorted[i - j][0]
                 acc2 = seq_to_acc_list_sorted[i - j][1]  
 
-                if math.fabs(len(seq1) - len(seq2)) > best_ed + 2*ignore_ends_threshold:
+                if math.fabs(len(seq1) - len(seq2)) > best_ed + 2*ignore_ends_len:
                     stop_down = True
 
             if not stop_up:
                 seq3 = seq_to_acc_list_sorted[i + j][0]
                 acc3 = seq_to_acc_list_sorted[i + j][1]  
 
-                if math.fabs(len(seq1) - len(seq3)) > best_ed + 2*ignore_ends_threshold:
+                if math.fabs(len(seq1) - len(seq3)) > best_ed + 2*ignore_ends_len:
                     stop_up = True
 
             if not stop_down:
-                edit_distance = parasail_traceback_allow_ends(seq1, seq2, end_threshold = ignore_ends_threshold)
+                edit_distance = parasail_traceback_allow_ends(seq1, seq2, end_threshold = ignore_ends_len)
 
                 if 0 < edit_distance < best_ed:
                     best_ed = edit_distance
@@ -100,7 +103,7 @@ def get_nearest_neighbors_parasail(batch_of_queries, global_index_in_matrix, sta
                         lower_target_edit_distances[acc2] = edit_distance 
 
             if not stop_up:
-                edit_distance = parasail_traceback_allow_ends(seq1, seq3, end_threshold = ignore_ends_threshold)
+                edit_distance = parasail_traceback_allow_ends(seq1, seq3, end_threshold = ignore_ends_len)
 
                 if 0 < edit_distance < best_ed:
                     best_ed = edit_distance

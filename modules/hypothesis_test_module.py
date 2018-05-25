@@ -14,6 +14,8 @@ from modules import functions
 from modules.SW_alignment_module import sw_align_sequences_keeping_accession
 from modules.edlib_alignment_module import edlib_align_sequences_keeping_accession
 from modules import ccs_info
+from modules.SW_alignment_module import parasail_alignment
+
 
 def do_statistical_tests_per_edge(nearest_neighbor_graph, C, X, read_partition, ccs_dict, params):
     p_values = {}
@@ -92,22 +94,24 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
     # pr = cProfile.Profile()
     # pr.enable()
 
-    partition_dict = {t_acc : {}}
-    partition_dict[t_acc][c_acc] = (t_seq, c_seq)
-    # partition_dict[t_acc][t_acc] = (t_seq, t_seq)
-
-    exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, nr_cores = 1)    
-    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, nr_cores = 1, ignore_ends_len = ignore_ends_len)
-    # print("saved re-aligning", len(read_alignments_to_t) + len(read_alignments_to_c), "sequences")
-
     # 1. Find positions differing between reference and candidate (ignoring any indel differences in ends)
-    
-    aln_t, aln_c, (matches, mismatches, indels) = exact_alignments[t_acc][c_acc]
+    # aln_t, aln_c, (matches, mismatches, indels) = exact_alignments[t_acc][c_acc]
+    (_, _, (aln_t, aln_c, (_, _, _)) ) = parasail_alignment(t_seq, c_seq, 0, 0, opening_penalty = 3, mismatch_penalty = -3)
     start, end = functions.get_mask_start_and_end(aln_t, aln_c) # mask indels in ends due to legnth differences
-    print(exact_alignments[t_acc][c_acc])
-    print(start, end)
-    print()
     variants = [ (i,p_t,p_c) for i, (p_t, p_c) in  enumerate(zip(aln_t, aln_c)) if p_t != p_c and start <= i < end ]
+    
+    (_, _, (aln_c_flip, aln_t_flip, (_, _, _)) ) = parasail_alignment(c_seq, t_seq, 0, 0, opening_penalty = 3, mismatch_penalty = -3)
+    start, end = functions.get_mask_start_and_end(aln_t_flip, aln_c_flip) # mask indels in ends due to legnth differences
+    variants_flipped = [ (i,p_t,p_c) for i, (p_t, p_c) in  enumerate(zip(aln_t_flip, aln_c_flip)) if p_t != p_c and start <= i < end ]
+
+    if len(variants_flipped) < len(variants):
+        variants = variants_flipped
+        aln_t = aln_t_flip
+        aln_c = aln_c_flip
+
+    # print(aln_t)
+    # print(aln_c)
+    # print()
 
     # 2. Get the coordinates on the candidate and reference respectively
     
@@ -120,6 +124,11 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
     if len(variants) == 0:
         p_value = 0.0
         print("{0} no difference to ref {1} after ignoring ends!".format(c_acc, t_acc))
+        # print(aln_c)
+        # print(aln_t)
+        # print(aln_c_flip)
+        # print(aln_t_flip)
+        # sys.exit()
         return variant_coords_t, p_value, reads_support, len(read_alignments_to_c) + len(read_alignments_to_t) 
 
     # reads_support_from_c = get_support_from_c(read_alignments_to_c, variant_coords_c)
@@ -166,40 +175,40 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
 
 
 
-def arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, C, ignore_ends_len):
-    partition_dict = {t_acc : {}}
-    for read_acc in reads_to_c:
-        partition_dict[t_acc][read_acc] = (C[t_acc], reads_to_c[read_acc])
-    for c_acc in C:
-            partition_dict[t_acc][c_acc] = (C[t_acc], C[c_acc])
+# def arrange_alignments(t_acc, reads_to_c, read_alignments_to_t, C, ignore_ends_len):
+#     partition_dict = {t_acc : {}}
+#     for read_acc in reads_to_c:
+#         partition_dict[t_acc][read_acc] = (C[t_acc], reads_to_c[read_acc])
+#     for c_acc in C:
+#             partition_dict[t_acc][c_acc] = (C[t_acc], C[c_acc])
 
-    exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, nr_cores = 1)    
-    exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, nr_cores = 1, ignore_ends_len = ignore_ends_len)
-    partition_alignments = {} 
+#     exact_edit_distances = edlib_align_sequences_keeping_accession(partition_dict, nr_cores = 1)    
+#     exact_alignments = sw_align_sequences_keeping_accession(exact_edit_distances, nr_cores = 1, ignore_ends_len = ignore_ends_len)
+#     partition_alignments = {} 
 
-    assert len(exact_alignments) == 1
-    for t_acc in exact_alignments:
-        partition_alignments[t_acc] = {}
-        for read_acc in exact_alignments[t_acc]:
-            aln_t, aln_read, (matches, mismatches, indels) = exact_alignments[t_acc][read_acc]
-            edit_dist = mismatches + indels
-            partition_alignments[t_acc][read_acc] = (edit_dist, aln_t, aln_read, 1)
+#     assert len(exact_alignments) == 1
+#     for t_acc in exact_alignments:
+#         partition_alignments[t_acc] = {}
+#         for read_acc in exact_alignments[t_acc]:
+#             aln_t, aln_read, (matches, mismatches, indels) = exact_alignments[t_acc][read_acc]
+#             edit_dist = mismatches + indels
+#             partition_alignments[t_acc][read_acc] = (edit_dist, aln_t, aln_read, 1)
 
-            x_aln_seq = "".join([n for n in aln_read if n != "-"])
-            if read_acc in reads_to_c:
-                assert reads_to_c[read_acc] == x_aln_seq
+#             x_aln_seq = "".join([n for n in aln_read if n != "-"])
+#             if read_acc in reads_to_c:
+#                 assert reads_to_c[read_acc] == x_aln_seq
 
-    for read_acc in read_alignments_to_t:
-        aln_t, aln_read, (matches, mismatches, indels) = read_alignments_to_t[read_acc]
-        edit_dist = mismatches + indels
-        partition_alignments[t_acc][read_acc] = (edit_dist, aln_t, aln_read, 1)
+#     for read_acc in read_alignments_to_t:
+#         aln_t, aln_read, (matches, mismatches, indels) = read_alignments_to_t[read_acc]
+#         edit_dist = mismatches + indels
+#         partition_alignments[t_acc][read_acc] = (edit_dist, aln_t, aln_read, 1)
 
-    print("Re-aligned",len(reads_to_c), "sequences")
-    print("Saved re-aligning",len(read_alignments_to_t), "sequences")
-    alignment_matrix_to_t = functions.create_multialignment_matrix(C[t_acc], partition_alignments[t_acc])
-    # PFM_to_t = functions.create_position_frequency_matrix(alignment_matrix_to_t, partition_alignments[t_acc])
+#     print("Re-aligned",len(reads_to_c), "sequences")
+#     print("Saved re-aligning",len(read_alignments_to_t), "sequences")
+#     alignment_matrix_to_t = functions.create_multialignment_matrix(C[t_acc], partition_alignments[t_acc])
+#     # PFM_to_t = functions.create_position_frequency_matrix(alignment_matrix_to_t, partition_alignments[t_acc])
 
-    return alignment_matrix_to_t #, PFM_to_t
+#     return alignment_matrix_to_t #, PFM_to_t
 
 
 
