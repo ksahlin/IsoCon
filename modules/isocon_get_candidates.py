@@ -34,7 +34,7 @@ def get_unique_seq_accessions(S):
 
     return seq_to_acc
 
-def get_partition_alignments(graph_partition, M, G_star, params):
+def get_partition_alignments(graph_partition, M, G_star, exon_filtered, params):
     exact_edit_distances = edlib_align_sequences(graph_partition, nr_cores = params.nr_cores)    
         
     ed_temp = [ exact_edit_distances[s1][s2] for s1 in exact_edit_distances for s2 in exact_edit_distances[s1]  ] 
@@ -53,7 +53,8 @@ def get_partition_alignments(graph_partition, M, G_star, params):
         print("Number of alignments that were removed before correction phase -- too many mismatchas in ends (#ED-alignments - # SSW-alignments): {0} ".format(  len(ed_temp) - len(ssw_temp) ))
 
 
-    _ = functions.filter_exon_differences(exact_alignments, params.min_exon_diff, params.ignore_ends_len)
+    filtered = functions.filter_exon_differences(exact_alignments, params.min_exon_diff, params.ignore_ends_len)
+    exon_filtered.update(filtered)
     ssw_after_exon_temp = [ exact_alignments[s1][s2] for s1 in exact_alignments for s2 in exact_alignments[s1]  ] 
     print("Number of alignments that were removed before correction phase due to exon difference larger than {0}bp: {1} ".format(str(params.min_exon_diff) , len(ssw_temp) - len(ssw_after_exon_temp) ))
 
@@ -120,12 +121,13 @@ def find_candidate_transcripts(read_file, params):
     max_len = max(lenghts)
     min_len = min(lenghts)
     print("Max transcript length:{0}, Min transcript length:{1}".format(max_len, min_len))
-
+    exon_filtered = set()
+    
     seq_to_acc = get_unique_seq_accessions(S)
 
     nearest_neighbor_start = time() 
     G_star, graph_partition, M, converged = partitions.partition_strings(S, params)
-    partition_alignments = get_partition_alignments(graph_partition, M, G_star, params)       
+    partition_alignments = get_partition_alignments(graph_partition, M, G_star, exon_filtered, params)       
 
     nearest_neighbor_elapsed = time() - nearest_neighbor_start
     write_output.logger('Time for nearest_neighbors and partition, step 1:{0}'.format(str(nearest_neighbor_elapsed)), params.logfile)
@@ -194,11 +196,10 @@ def find_candidate_transcripts(read_file, params):
         print()
         print("ITERATION:", step)
         print()
-
-        # partition_alignments, partition, M, converged = partition_strings(S)
-
-        G_star, graph_partition, M, converged = partitions.partition_strings(S, params)
-        partition_alignments = get_partition_alignments(graph_partition, M, G_star, params)  
+        print("Total number of unique reads put aside becauese of exon differences to all other strings:", len(exon_filtered))
+        S_to_align = {acc: seq for acc, seq in S.items() if seq not in exon_filtered }
+        G_star, graph_partition, M, converged = partitions.partition_strings(S_to_align, params)
+        partition_alignments = get_partition_alignments(graph_partition, M, G_star, exon_filtered, params)  
         out_file_name = os.path.join(params.outfolder, "candidates_step_" +  str(step) + ".fa")
         out_file = open(out_file_name, "w")
         for i, m in enumerate(partition_alignments):
