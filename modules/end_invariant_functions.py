@@ -533,6 +533,131 @@ def partition_highest_reachable_with_edge_degrees(G_star, params):
     return G_star, partition, M
 
 
+def get_all_NN(batch_of_queries, global_index_in_matrix, start_index, seq_to_acc_list_sorted, neighbor_search_depth, ignore_ends_threshold):
+    all_neighbors_graph = {}
+    lower_target_edit_distances = {}
+    max_variants = 10
+    max_ed_allowed = max_variants + 2*ignore_ends_threshold
+    # print("Processing global index:" , global_index_in_matrix)
+    # error_types = {"D":0, "S": 0, "I": 0}
+    for i in range(start_index, start_index + len(batch_of_queries)):
+        if i % 500 == 0:
+            print("processing ", i)
+        seq1 = seq_to_acc_list_sorted[i][0]
+        acc1 = seq_to_acc_list_sorted[i][1]
+        all_neighbors_graph[acc1] = {}
+        stop_up = False
+        stop_down = False
+        j = 1
+        while True:
+        # for j in range(1,len(seq_to_acc_list_sorted)):
+            if i - j < 0:
+                stop_down = True
+            if i + j >= len(seq_to_acc_list_sorted):
+                stop_up = True
+
+            if not stop_down:
+                seq2 = seq_to_acc_list_sorted[i - j][0]
+                acc2 = seq_to_acc_list_sorted[i - j][1]  
+
+                if math.fabs(len(seq1) - len(seq2)) > max_variants + 2*ignore_ends_threshold:
+                    stop_down = True
+
+            if not stop_up:
+                seq3 = seq_to_acc_list_sorted[i + j][0]
+                acc3 = seq_to_acc_list_sorted[i + j][1]  
+
+                if math.fabs(len(seq1) - len(seq3)) > max_variants + 2*ignore_ends_threshold:
+                    stop_up = True
+
+            if not stop_down:
+                result = edlib.align(seq1, seq2, "NW", k=max_ed_allowed) # , task="path")
+                ed = result["editDistance"]
+                if 0 <= ed : #implies its smaller or equal to max_ed_allowed
+                    all_neighbors_graph[acc1][acc2] = (seq1, seq2, ed)
+
+            if not stop_up:
+                result = edlib.align(seq1, seq3, "NW", k=max_ed_allowed) # , task="path")
+                ed = result["editDistance"]
+                if 0 <= ed : #implies its smaller or equal to max_ed_allowed
+                    all_neighbors_graph[acc1][acc3] = (seq1, seq3, ed)
+            
+            if stop_down and stop_up:
+                break
+
+            if j >= neighbor_search_depth:
+                break
+            j += 1
+
+    return all_neighbors_graph
+
+def get_all_NN_helper(arguments):
+    args, kwargs = arguments
+    return get_all_NN(*args, **kwargs)
+
+def get_all_NN_under_ignored_edge_ends(seq_to_acc_list_sorted, params):
+    if params.nr_cores == 1:
+        all_neighbors_graph = get_all_NN(seq_to_acc_list_sorted, 0, 0, seq_to_acc_list_sorted, params.neighbor_search_depth, params.ignore_ends_len)
+
+        # implement check here to se that all seqs got a nearest_neighbor, if not, print which noes that did not get a nearest_neighbor computed.!
+
+    else:
+        ####### parallelize alignment #########
+        # pool = Pool(processes=mp.cpu_count())
+        original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGINT, original_sigint_handler)
+        pool = Pool(processes=mp.cpu_count())
+
+        # here we split the input into chunks
+        chunk_size = max(int(len(seq_to_acc_list_sorted) / (10*mp.cpu_count())), 20 )
+        ref_seq_chunks = [ ( max(0, i - params.neighbor_search_depth -1), seq_to_acc_list_sorted[max(0, i - params.neighbor_search_depth -1) : i + chunk_size + params.neighbor_search_depth +1 ]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size) ]
+        chunks = [(i, seq_to_acc_list_sorted[i:i + chunk_size]) for i in range(0, len(seq_to_acc_list_sorted), chunk_size)] 
+
+        if params.verbose:
+            write_output.logger(str([j for j, ch in ref_seq_chunks]), params.develop_logfile, timestamp=False)
+            write_output.logger("reference chunks:" + str([len(ch) for j,ch in ref_seq_chunks]), params.develop_logfile, timestamp=False)
+            # print([j for j, ch in ref_seq_chunks])
+            # print("reference chunks:", [len(ch) for j,ch in ref_seq_chunks])
+            write_output.logger(str([i for i,ch in chunks]), params.develop_logfile, timestamp=False)
+            write_output.logger("query chunks:" + str([len(ch) for i,ch in chunks]), params.develop_logfile, timestamp=False)
+
+            print([i for i,ch in chunks])
+            print("query chunks:", [len(ch) for i,ch in chunks])
+        # get nearest_neighbors takes thre sub containers: 
+        #  chunk - a container with (sequences, accesions)-tuples to be aligned (queries)
+        #  ref_seq_chunks - a container with (sequences, accesions)-tuples to be aligned to (references)
+        #  already_converged_chunks - a set of query sequences that has already converged 
+
+        try:
+            res = pool.map_async(get_all_NN_helper, [ ((chunks[i][1],  chunks[i][0], chunks[i][0] - ref_seq_chunks[i][0], ref_seq_chunks[i][1], params.neighbor_search_depth, params.ignore_ends_len), {}) for i in range(len(chunks))] )
+            best_edit_distances_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
+        except KeyboardInterrupt:
+            print("Caught KeyboardInterrupt, terminating workers")
+            pool.terminate()
+            sys.exit()
+        else:
+            # print("Normal termination")
+            pool.close()
+        pool.join()
+        all_neighbors_graph = {}
+        for sub_graph in best_edit_distances_results:
+            for seq in sub_graph:
+                assert seq not in all_neighbors_graph
+            all_neighbors_graph.update(sub_graph)
+
+    return all_neighbors_graph
+
+
+def get_NN_graph_ignored_ends_edlib(candidate_transcripts, args):
+    seq_to_acc = {seq: acc for (acc, seq) in candidate_transcripts.items()}
+    seq_to_acc_list = list(seq_to_acc.items())
+    seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
+    all_neighbors_graph = get_all_NN_under_ignored_edge_ends(seq_to_acc_list_sorted, args)
+    assert len(candidate_transcripts) == len(all_neighbors_graph)
+    return all_neighbors_graph
+
+
+
 def get_nearest_neighbors_graph_under_ignored_ends(candidate_transcripts, args):
     seq_to_acc = {seq: acc for (acc, seq) in candidate_transcripts.items()}
     seq_to_acc_list = list(seq_to_acc.items())

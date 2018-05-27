@@ -200,6 +200,36 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
         ccs_dict = {}
 
     ################################
+    all_neighbors_graph = end_invariant_functions.get_NN_graph_ignored_ends_edlib(C, params)
+    print("TOTAL EDGES G_ALL edlib:", len([1 for s in all_neighbors_graph for t in all_neighbors_graph[s]]))
+    print("TOTAL Edit distances G_ALL edlib:", sum([all_neighbors_graph[s][t][2] for s in all_neighbors_graph for t in all_neighbors_graph[s]]))
+    all_neighbors_graph_static = sw_align_sequences_keeping_accession(all_neighbors_graph, nr_cores = params.nr_cores)
+    no_alignments = set(C.keys()) - set(all_neighbors_graph_static.keys())
+    for c_acc in no_alignments:
+        print("here")
+        all_neighbors_graph_static[c_acc] = {}
+    # print("TOTAL EDGES G_STATIC parasail:", len([1 for s in all_neighbors_graph_static for t in all_neighbors_graph_static[s]]))
+    # print("TOTAL Edit distances G_STATIC parasail:", sum([ sum(all_neighbors_graph_static[s][t][2][1:]) for s in all_neighbors_graph_static for t in all_neighbors_graph_static[s]]))
+    candidates_nn_graph_static = {}
+    print(len(all_neighbors_graph_static), len(C), len(all_neighbors_graph))
+    for s in all_neighbors_graph_static:
+        candidates_nn_graph_static[s] = {}
+        for t in all_neighbors_graph_static[s]:
+            # print(all_neighbors_graph_static[s][t][0])
+            # print(all_neighbors_graph_static[s][t][1])
+            # print(all_neighbors_graph_static[s][t][2])
+            s_aln, t_aln = all_neighbors_graph_static[s][t][0], all_neighbors_graph_static[s][t][1]
+            mask_start, mask_end = functions.get_mask_start_and_end(s_aln, t_aln)
+            ed = sum(all_neighbors_graph_static[s][t][2][1:]) -  min(mask_start, params.ignore_ends_len) - min(params.ignore_ends_len, (len(s_aln) - mask_end))
+            # print(ed)
+            if ed > 10:
+                continue
+            else:
+                candidates_nn_graph_static[s][t] = ed
+            # print()
+    print("TOTAL EDGES G_STATIC parasail:", len([1 for s in candidates_nn_graph_static for t in candidates_nn_graph_static[s]]))
+    print("TOTAL Edit distances G_STATIC parasail after ignoring ends differences:", sum([ candidates_nn_graph_static[s][t] for s in candidates_nn_graph_static for t in candidates_nn_graph_static[s]]))
+    print()
 
     print()
     print("STARTING STATISTICAL TESTING")
@@ -291,14 +321,39 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
         # check_exon_diffs(alignments_of_x_to_c, params)
 
         ############# GET THE CLOSES HIGHEST SUPPORTED REFERENCE TO TEST AGAINST FOR EACH CANDIDATE ############
+        nearest_neighbor_graph = {}
+        for c_acc in C.keys():
+            nearest_neighbor_graph[c_acc] = {} 
+            if len(candidates_nn_graph_static[c_acc]) > 0:
+                candidate_edit_distances = [ed for c_nbr_acc, ed in candidates_nn_graph_static[c_acc].items() if c_nbr_acc in C]
+                if candidate_edit_distances:
+                    min_ed = min(candidate_edit_distances)
+                    # print("new min:", min_ed)
+                else:
+                    print("no tests left")
+                # here we get the relevant tests for the current iteration
+                for c_nbr_acc in candidates_nn_graph_static[c_acc]:
+                    if c_nbr_acc in C and candidates_nn_graph_static[c_acc][c_nbr_acc] == min_ed:
+                        nearest_neighbor_graph[c_acc][c_nbr_acc] = min_ed
 
+        print("Edges in NEW candidate NN graph:", len([ 1 for c_acc in nearest_neighbor_graph for t_acc in nearest_neighbor_graph[c_acc] ]) )
+        print("Edit distances in NEW candidate NN graph:", sum([ nearest_neighbor_graph[c_acc][t_acc] for c_acc in nearest_neighbor_graph for t_acc in nearest_neighbor_graph[c_acc] ]) )
 
-        if params.ignore_ends_len > 0:
-            nearest_neighbor_graph = end_invariant_functions.get_nearest_neighbors_graph_under_ignored_ends(C, params)
-        else:
-            nearest_neighbor_graph = get_nearest_neighbor_graph(C)
+        # if params.ignore_ends_len > 0:
+        #     nearest_neighbor_graph_old = end_invariant_functions.get_nearest_neighbors_graph_under_ignored_ends(C, params)
+        # else:
+        #     nearest_neighbor_graph_old = get_nearest_neighbor_graph(C)
 
-        print("Edges in candidate NN graph:", len([ 1 for c_acc in nearest_neighbor_graph for t_acc in nearest_neighbor_graph[c_acc] ]) )
+        # for c_acc in nearest_neighbor_graph:
+        #     for t_acc in nearest_neighbor_graph[c_acc]:
+        #         if t_acc not in nearest_neighbor_graph_old[c_acc]:
+        #             print("new test:", nearest_neighbor_graph[c_acc][t_acc])
+        #             print(C[c_acc])
+        #             print(C[t_acc])
+        #             print(all_neighbors_graph_static[c_acc][t_acc])
+
+        # print("Edges in candidate NN graph:", len([ 1 for c_acc in nearest_neighbor_graph_old for t_acc in nearest_neighbor_graph_old[c_acc] ]) )
+        # print("Edit distances in candidate NN graph:", sum([ nearest_neighbor_graph_old[c_acc][t_acc] for c_acc in nearest_neighbor_graph_old for t_acc in nearest_neighbor_graph_old[c_acc] ]) )
 
         if realignment_to_avoid_local_max > 0:
             homopolymenr_invariant_graph = functions.get_homopolymer_invariants(C)
