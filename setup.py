@@ -77,7 +77,6 @@ setup(
     install_requires=['edlib>=1.1.2',
                       'pysam>=0.11',
                       'networkx>=1.10',
-                      'biopython>=1.66',
                       'parasail>=1.1.11'],  # Optional
     dependency_links=[
         'https://github.com/vishnubob/ssw/archive/master.zip'

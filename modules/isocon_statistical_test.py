@@ -202,35 +202,36 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
     ################################
     all_neighbors_graph = end_invariant_functions.get_NN_graph_ignored_ends_edlib(C, params)
     print("TOTAL EDGES G_ALL edlib:", len([1 for s in all_neighbors_graph for t in all_neighbors_graph[s]]))
-    print("TOTAL Edit distances G_ALL edlib:", sum([all_neighbors_graph[s][t][2] for s in all_neighbors_graph for t in all_neighbors_graph[s]]))
-    all_neighbors_graph_static = sw_align_sequences_keeping_accession(all_neighbors_graph, nr_cores = params.nr_cores)
-    no_alignments = set(C.keys()) - set(all_neighbors_graph_static.keys())
-    for c_acc in no_alignments:
-        print("here")
-        all_neighbors_graph_static[c_acc] = {}
-    # print("TOTAL EDGES G_STATIC parasail:", len([1 for s in all_neighbors_graph_static for t in all_neighbors_graph_static[s]]))
-    # print("TOTAL Edit distances G_STATIC parasail:", sum([ sum(all_neighbors_graph_static[s][t][2][1:]) for s in all_neighbors_graph_static for t in all_neighbors_graph_static[s]]))
-    candidates_nn_graph_static = {}
-    print(len(all_neighbors_graph_static), len(C), len(all_neighbors_graph))
-    for s in all_neighbors_graph_static:
-        candidates_nn_graph_static[s] = {}
-        for t in all_neighbors_graph_static[s]:
-            # print(all_neighbors_graph_static[s][t][0])
-            # print(all_neighbors_graph_static[s][t][1])
-            # print(all_neighbors_graph_static[s][t][2])
-            s_aln, t_aln = all_neighbors_graph_static[s][t][0], all_neighbors_graph_static[s][t][1]
-            mask_start, mask_end = functions.get_mask_start_and_end(s_aln, t_aln)
-            ed = sum(all_neighbors_graph_static[s][t][2][1:]) -  min(mask_start, params.ignore_ends_len) - min(params.ignore_ends_len, (len(s_aln) - mask_end))
-            # print(ed)
-            if ed > 10:
-                continue
-            else:
-                candidates_nn_graph_static[s][t] = ed
-            # print()
-    print("TOTAL EDGES G_STATIC parasail:", len([1 for s in candidates_nn_graph_static for t in candidates_nn_graph_static[s]]))
-    print("TOTAL Edit distances G_STATIC parasail after ignoring ends differences:", sum([ candidates_nn_graph_static[s][t] for s in candidates_nn_graph_static for t in candidates_nn_graph_static[s]]))
-    print()
+    print("TOTAL Edit distances G_ALL edlib:", sum([all_neighbors_graph[s][t] for s in all_neighbors_graph for t in all_neighbors_graph[s]]))
+    candidates_nn_graph_static = all_neighbors_graph
 
+    # all_neighbors_graph_static = sw_align_sequences_keeping_accession(all_neighbors_graph, nr_cores = params.nr_cores)
+    # no_alignments = set(C.keys()) - set(all_neighbors_graph_static.keys())
+    # for c_acc in no_alignments:
+    #     all_neighbors_graph_static[c_acc] = {}
+    # # print("TOTAL EDGES G_STATIC parasail:", len([1 for s in all_neighbors_graph_static for t in all_neighbors_graph_static[s]]))
+    # # print("TOTAL Edit distances G_STATIC parasail:", sum([ sum(all_neighbors_graph_static[s][t][2][1:]) for s in all_neighbors_graph_static for t in all_neighbors_graph_static[s]]))
+    # candidates_nn_graph_static = {}
+    # print(len(all_neighbors_graph_static), len(C), len(all_neighbors_graph))
+    # for s in all_neighbors_graph_static:
+    #     candidates_nn_graph_static[s] = {}
+    #     for t in all_neighbors_graph_static[s]:
+    #         s_aln, t_aln = all_neighbors_graph_static[s][t][0], all_neighbors_graph_static[s][t][1]
+    #         mask_start, mask_end = functions.get_mask_start_and_end(s_aln, t_aln)
+    #         ed = sum(all_neighbors_graph_static[s][t][2][1:]) -  min(mask_start, params.ignore_ends_len) - min(params.ignore_ends_len, (len(s_aln) - mask_end))
+    #         # print(ed)
+    #         if ed > 10:
+    #             print(ed,"edlib:", all_neighbors_graph_static[s][t][2])
+    #             print(s_aln)
+    #             print(t_aln)
+    #             continue
+    #         else:
+    #             candidates_nn_graph_static[s][t] = ed
+    #         # print()
+    # print("TOTAL EDGES G_STATIC parasail:", len([1 for s in candidates_nn_graph_static for t in candidates_nn_graph_static[s]]))
+    # print("TOTAL Edit distances G_STATIC parasail after ignoring ends differences:", sum([ candidates_nn_graph_static[s][t] for s in candidates_nn_graph_static for t in candidates_nn_graph_static[s]]))
+    print()
+    # sys.exit()
     print()
     print("STARTING STATISTICAL TESTING")
     print()

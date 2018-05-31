@@ -96,11 +96,11 @@ def arrange_alignments_new_no_realign(t_acc, c_acc, t_seq, c_seq, read_alignment
 
     # 1. Find positions differing between reference and candidate (ignoring any indel differences in ends)
     # aln_t, aln_c, (matches, mismatches, indels) = exact_alignments[t_acc][c_acc]
-    (_, _, (aln_t, aln_c, (_, _, _)) ) = parasail_alignment(t_seq, c_seq, 0, 0, opening_penalty = 3, mismatch_penalty = -3)
+    (_, _, (aln_t, aln_c, (_, _, _)) ) = parasail_alignment(t_seq, c_seq, 0, 0, opening_penalty = 3, mismatch_penalty = -3, gap_ext= 1)
     start, end = functions.get_mask_start_and_end(aln_t, aln_c) # mask indels in ends due to legnth differences
     variants = [ (i,p_t,p_c) for i, (p_t, p_c) in  enumerate(zip(aln_t, aln_c)) if p_t != p_c and start <= i < end ]
     
-    (_, _, (aln_c_flip, aln_t_flip, (_, _, _)) ) = parasail_alignment(c_seq, t_seq, 0, 0, opening_penalty = 3, mismatch_penalty = -3)
+    (_, _, (aln_c_flip, aln_t_flip, (_, _, _)) ) = parasail_alignment(c_seq, t_seq, 0, 0, opening_penalty = 3, mismatch_penalty = -3, gap_ext= 1)
     start, end = functions.get_mask_start_and_end(aln_t_flip, aln_c_flip) # mask indels in ends due to legnth differences
     variants_flipped = [ (i,p_t,p_c) for i, (p_t, p_c) in  enumerate(zip(aln_t_flip, aln_c_flip)) if p_t != p_c and start <= i < end ]
 

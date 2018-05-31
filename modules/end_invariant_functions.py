@@ -532,8 +532,7 @@ def partition_highest_reachable_with_edge_degrees(G_star, params):
 
     return G_star, partition, M
 
-
-def get_all_NN(batch_of_queries, global_index_in_matrix, start_index, seq_to_acc_list_sorted, neighbor_search_depth, ignore_ends_threshold):
+def get_all_NN_old(batch_of_queries, global_index_in_matrix, start_index, seq_to_acc_list_sorted, neighbor_search_depth, ignore_ends_threshold):
     all_neighbors_graph = {}
     lower_target_edit_distances = {}
     max_variants = 10
@@ -571,16 +570,106 @@ def get_all_NN(batch_of_queries, global_index_in_matrix, start_index, seq_to_acc
                     stop_up = True
 
             if not stop_down:
-                result = edlib.align(seq1, seq2, "NW", k=max_ed_allowed) # , task="path")
+                result = edlib.align(seq1, seq2, mode="NW", k=max_ed_allowed) # , task="path")
                 ed = result["editDistance"]
                 if 0 <= ed : #implies its smaller or equal to max_ed_allowed
                     all_neighbors_graph[acc1][acc2] = (seq1, seq2, ed)
 
             if not stop_up:
-                result = edlib.align(seq1, seq3, "NW", k=max_ed_allowed) # , task="path")
+                result = edlib.align(seq1, seq3, mode="NW", k=max_ed_allowed) # , task="path")
                 ed = result["editDistance"]
                 if 0 <= ed : #implies its smaller or equal to max_ed_allowed
                     all_neighbors_graph[acc1][acc3] = (seq1, seq3, ed)
+            
+            if stop_down and stop_up:
+                break
+
+            if j >= neighbor_search_depth:
+                break
+            j += 1
+
+    return all_neighbors_graph
+
+def edlib_traceback(x, y, mode="HW", task="path", k=1, end_threshold = 0):
+    result = edlib.align(x, y, mode=mode, task=task, k=k)
+    ed = result["editDistance"]
+    cigar =  result["cigar"]
+
+    if cigar:
+        start, end =  result["locations"][0]
+        start_offset = start
+        end_offset = len(y) - (end + 1)
+        # print(start_offset, end_offset)
+        ed +=  max(0, start_offset - end_threshold)
+        ed +=  max(0, end_offset - end_threshold)
+
+        tuples = []
+        result = re.split(r'[=DXSMI]+', cigar)
+        i = 0
+        for length in result[:-1]:
+            i += len(length)
+            type_ = cigar[i]
+            i += 1
+            tuples.append((length, type_ ))
+
+        if tuples[-1][1] == "I":
+            end_snippet_length = int(tuples[-1][0])
+            ed -= min(int(end_snippet_length),  end_threshold) 
+        if tuples[0][1] == "I":
+            begin_snippet_length = int(tuples[0][0])
+            ed -= min(int(begin_snippet_length),  end_threshold) 
+    return ed
+
+def get_all_NN(batch_of_queries, global_index_in_matrix, start_index, seq_to_acc_list_sorted, neighbor_search_depth, ignore_ends_threshold):
+    all_neighbors_graph = {}
+    lower_target_edit_distances = {}
+    max_variants = 10
+    max_ed_allowed = max_variants + ignore_ends_threshold
+    # print("Processing global index:" , global_index_in_matrix)
+    # error_types = {"D":0, "S": 0, "I": 0}
+    for i in range(start_index, start_index + len(batch_of_queries)):
+        if i % 500 == 0:
+            print("processing ", i)
+        seq1 = seq_to_acc_list_sorted[i][0]
+        acc1 = seq_to_acc_list_sorted[i][1]
+        all_neighbors_graph[acc1] = {}
+        stop_up = False
+        stop_down = False
+        j = 1
+        while True:
+        # for j in range(1,len(seq_to_acc_list_sorted)):
+            if i - j < 0:
+                stop_down = True
+            if i + j >= len(seq_to_acc_list_sorted):
+                stop_up = True
+
+            if not stop_down:
+                seq2 = seq_to_acc_list_sorted[i - j][0]
+                acc2 = seq_to_acc_list_sorted[i - j][1]  
+
+                if math.fabs(len(seq1) - len(seq2)) > max_variants + 2*ignore_ends_threshold:
+                    stop_down = True
+
+            if not stop_up:
+                seq3 = seq_to_acc_list_sorted[i + j][0]
+                acc3 = seq_to_acc_list_sorted[i + j][1]  
+
+                if math.fabs(len(seq1) - len(seq3)) > max_variants + 2*ignore_ends_threshold:
+                    stop_up = True
+
+            if not stop_down:
+                ed = edlib_traceback(seq1, seq2, mode="HW", k=max_ed_allowed, task="path", end_threshold = ignore_ends_threshold)
+                # result = edlib.align(seq1, seq2, mode="HW", k=max_ed_allowed) # , task="path")
+                # ed = result["editDistance"]
+                if 0 <= ed <= max_variants:
+                    all_neighbors_graph[acc1][acc2] = ed #(seq1, seq2, ed)
+
+            if not stop_up:
+                ed = edlib_traceback(seq1, seq3, mode="HW", k=max_ed_allowed, task="path", end_threshold = ignore_ends_threshold)
+                # result = edlib.align(seq1, seq3, mode="HW", k=max_ed_allowed) # , task="path")
+                # ed = result["editDistance"]
+                if 0 <= ed  <= max_variants: 
+                    all_neighbors_graph[acc1][acc3] = ed #(seq1, seq3, ed)
             
             if stop_down and stop_up:
                 break
@@ -598,7 +687,24 @@ def get_all_NN_helper(arguments):
 def get_all_NN_under_ignored_edge_ends(seq_to_acc_list_sorted, params):
     if params.nr_cores == 1:
         all_neighbors_graph = get_all_NN(seq_to_acc_list_sorted, 0, 0, seq_to_acc_list_sorted, params.neighbor_search_depth, params.ignore_ends_len)
-
+        # all_neighbors_graph_old = get_all_NN_old(seq_to_acc_list_sorted, 0, 0, seq_to_acc_list_sorted, params.neighbor_search_depth, params.ignore_ends_len)
+        # print("TOTAL EDGES G_ALL OLD edlib TMP:", len([1 for s in all_neighbors_graph_old for t in all_neighbors_graph_old[s]]))
+        # all_old = set([(s,t) for s in all_neighbors_graph_old for t in all_neighbors_graph_old[s]])
+        # print("TOTAL EDGES G_ALL edlib TMP:", len([1 for s in all_neighbors_graph for t in all_neighbors_graph[s]]))
+        # all_ = set([(s,t) for s in all_neighbors_graph for t in all_neighbors_graph[s]] + [(t,s) for s in all_neighbors_graph for t in all_neighbors_graph[s]])
+        # for s,t in  all_old - all_:
+        #     print("not in old:", s,t)
+        #     # print(edlib.align())
+        #     res = edlib.align(all_neighbors_graph_old[s][t][0], all_neighbors_graph_old[s][t][1], mode="HW", task="path")
+        #     print(res["cigar"], res["editDistance"], res["locations"], len(all_neighbors_graph_old[s][t][1]) - res["locations"][0][1] - 1, res["locations"][0][0] )
+        #     res = edlib.align(all_neighbors_graph_old[s][t][1], all_neighbors_graph_old[s][t][0], mode="HW", task="path")
+        #     print(res["cigar"], res["editDistance"] )
+        #     res = edlib.align(all_neighbors_graph_old[s][t][0], all_neighbors_graph_old[s][t][1], mode="NW", task="path")
+        #     print(res["cigar"], res["editDistance"])
+        #     print(all_neighbors_graph_old[s][t][2])
+        #     (s1, s2, (s1_alignment, s2_alignment, (matches, mismatches, indels)) ) = parasail_alignment(all_neighbors_graph_old[s][t][0], all_neighbors_graph_old[s][t][1], 0, 0, opening_penalty = 3)
+        #     print(s1_alignment)
+        #     print(s2_alignment)
         # implement check here to se that all seqs got a nearest_neighbor, if not, print which noes that did not get a nearest_neighbor computed.!
 
     else:
@@ -653,6 +759,31 @@ def get_NN_graph_ignored_ends_edlib(candidate_transcripts, args):
     seq_to_acc_list = list(seq_to_acc.items())
     seq_to_acc_list_sorted = sorted(seq_to_acc_list, key= lambda x: len(x[0]))
     all_neighbors_graph = get_all_NN_under_ignored_edge_ends(seq_to_acc_list_sorted, args)
+    # edges needs to be symmetric
+    for c1 in all_neighbors_graph:
+        for c2 in all_neighbors_graph[c1]:
+            ed = all_neighbors_graph[c1][c2]
+            if c1 not in all_neighbors_graph[c2]:
+                all_neighbors_graph[c2][c1] = ed
+            else:
+                min_ed = min(all_neighbors_graph[c1][c2], all_neighbors_graph[c2][c1])
+                all_neighbors_graph[c2][c1] = min_ed
+
+                # if all_neighbors_graph[c1][c2][2] < all_neighbors_graph[c2][c1][2]:
+                #     all_neighbors_graph[c2][c1] = (all_neighbors_graph[c2][c1][0],all_neighbors_graph[c2][c1][1],all_neighbors_graph[c1][c2][2])
+
+                # if all_neighbors_graph[c2][c1] != all_neighbors_graph[c1][c2]:
+                #     print(all_neighbors_graph[c2][c1][2], all_neighbors_graph[c1][c2][2])
+                #     res = edlib.align(all_neighbors_graph[c1][c2][0], all_neighbors_graph[c1][c2][1], mode="HW", task="path")
+                #     print(res["cigar"], res["editDistance"], res["locations"], len(all_neighbors_graph[c1][c2][1]) - res["locations"][0][1] - 1, res["locations"][0][0] )
+                #     res = edlib.align(all_neighbors_graph[c1][c2][1], all_neighbors_graph[c1][c2][0], mode="HW", task="path")
+                #     print(res["cigar"], res["editDistance"], res["locations"], len(all_neighbors_graph[c1][c2][0]) - res["locations"][0][1] - 1, res["locations"][0][0] )
+
+                #     (s1, s2, (s1_alignment, s2_alignment, (matches, mismatches, indels)) ) = parasail_alignment(all_neighbors_graph[c1][c2][0], all_neighbors_graph[c1][c2][1], 0, 0, opening_penalty = 3, gap_ext = 1)
+                #     print(s1_alignment)
+                #     print(s2_alignment)
+
+
     assert len(candidate_transcripts) == len(all_neighbors_graph)
     return all_neighbors_graph
 
