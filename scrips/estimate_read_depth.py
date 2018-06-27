@@ -224,8 +224,8 @@ def main(params):
             if params.nr_differences:
                 nr_mut = params.nr_differences
             else:
-                nr_mut = max(1, sum(np.random.choice([1, 0], size = params.gene_length, p = [1.0-params.similarity, params.similarity])))
-                # params.nr_differences = max(1, int(params.gene_length * (1.0 -params.similarity) ) )
+                # nr_mut = max(1, sum(np.random.choice([1, 0], size = params.gene_length, p = [1.0-params.similarity, params.similarity])))
+                nr_mut = params.nr_differences = max(1, int(params.gene_length * (1.0 -params.similarity) ) )
             divergences.append(nr_mut)
             # print("mutations:", nr_mut)
 
@@ -257,10 +257,10 @@ def main(params):
 
     # recall rates
     for read_depth in params.read_depths:
-        print("Median p-value for the transcript: {0}, at read depth {1}. ".format(read_depth, sorted(p_values[read_depth])[len(p_values[read_depth])/2]) )
-        print("Mean p-value for the transcript: {0}, at read depth {1}. ".format(read_depth, sum(p_values[read_depth])/len(p_values[read_depth]) ) )
-        print("90% upper quantile p-value for the transcript: {0}, at read depth {1}. ".format(read_depth, sorted(p_values[read_depth])[int(len(p_values[read_depth])*0.9)] ) )
-        print()
+        # print("Median p-value for the transcript: {1}, at read depth {0}. ".format(read_depth, sorted(p_values[read_depth])[len(p_values[read_depth])/2]) )
+        # print("Mean p-value for the transcript: {1}, at read depth {0}. ".format(read_depth, sum(p_values[read_depth])/len(p_values[read_depth]) ) )
+        print("{0}% recall of the transcript with the p-value threshold: {2}, at read depth {1}. ".format(round(100*params.recall_rate, 0), read_depth, sorted(p_values[read_depth])[int(len(p_values[read_depth])*0.9)] ) )
+        # print()
 
 
 def mkdir_p(path):
@@ -281,9 +281,10 @@ if __name__ == '__main__':
     parser.add_argument('--gene_length', type=int, help='Estimated gene length for the gene families(s). The longer the estimate the more conservative the coverage value. ')
     parser.add_argument('--abundance_ratio', type=float, help='Sample abundance of the transcript')
     parser.add_argument('--similarity', type=float, default = None, help='Average identity.')
-    parser.add_argument('--read_depths', nargs="+", type=int, default = [100,500, 1000, 2000, 3000, 5000, 10000, 20000], help='Different read depths to do calculations over.')
+    parser.add_argument('--read_depths', nargs="+", type=int, default = [100, 250, 500, 750, 1000, 2000, 3000, 5000], help='Different read depths to do calculations over.')
     parser.add_argument('--nr_differences', type=int, default=None, help='Integer. Exact number of mismatches between the gene copies. This will override extimation of gene divergence obtained from the similarity and gene length parameters.')
     parser.add_argument('--replicates', type=int, default=100, help='Number od simulated replicates for calculating abundance.')
+    parser.add_argument('--recall_rate', type=int, default=0.9, help='The upper p-value quantile [0,1], default=0.9. For example, 0.9 corresponts to a recall rate of 90% at the given p-value threshold.')
     # parser.add_argument('reads_outfile', type=str, help='Generated reads output file')
     # parser.add_argument('ref_outfile', type=str, help='generated ref output file ')
     params = parser.parse_args()
