@@ -284,7 +284,7 @@ if __name__ == '__main__':
     parser.add_argument('--read_depths', nargs="+", type=int, default = [100, 250, 500, 750, 1000, 2000, 3000, 5000], help='Different read depths to do calculations over.')
     parser.add_argument('--nr_differences', type=int, default=None, help='Integer. Exact number of mismatches between the gene copies. This will override extimation of gene divergence obtained from the similarity and gene length parameters.')
     parser.add_argument('--replicates', type=int, default=100, help='Number od simulated replicates for calculating abundance.')
-    parser.add_argument('--recall_rate', type=int, default=0.9, help='The upper p-value quantile [0,1], default=0.9. For example, 0.9 corresponts to a recall rate of 90% at the given p-value threshold.')
+    parser.add_argument('--recall_rate', type=float, default=0.9, help='The upper p-value quantile [0,1], default=0.9. For example, 0.9 corresponts to a recall rate of 90% at the given p-value threshold.')
     # parser.add_argument('reads_outfile', type=str, help='Generated reads output file')
     # parser.add_argument('ref_outfile', type=str, help='generated ref output file ')
     params = parser.parse_args()
