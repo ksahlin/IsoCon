@@ -19,7 +19,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 setup(
 
     name='IsoCon',  # Required
-    version='0.3.1',  # Required
+    version='0.3.2',  # Required
     description='Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads.',  # Required
     long_description=long_description,  # Optional
     url='https://github.com/ksahlin/IsoCon',  # Optional
