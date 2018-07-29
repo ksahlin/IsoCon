@@ -200,7 +200,38 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
         ccs_dict = {}
 
     ################################
+    all_neighbors_graph = end_invariant_functions.get_NN_graph_ignored_ends_edlib(C, params)
+    print("TOTAL EDGES G_ALL edlib:", len([1 for s in all_neighbors_graph for t in all_neighbors_graph[s]]))
+    print("TOTAL Edit distances G_ALL edlib:", sum([all_neighbors_graph[s][t] for s in all_neighbors_graph for t in all_neighbors_graph[s]]))
+    candidates_nn_graph_static = all_neighbors_graph
 
+    # all_neighbors_graph_static = sw_align_sequences_keeping_accession(all_neighbors_graph, nr_cores = params.nr_cores)
+    # no_alignments = set(C.keys()) - set(all_neighbors_graph_static.keys())
+    # for c_acc in no_alignments:
+    #     all_neighbors_graph_static[c_acc] = {}
+    # # print("TOTAL EDGES G_STATIC parasail:", len([1 for s in all_neighbors_graph_static for t in all_neighbors_graph_static[s]]))
+    # # print("TOTAL Edit distances G_STATIC parasail:", sum([ sum(all_neighbors_graph_static[s][t][2][1:]) for s in all_neighbors_graph_static for t in all_neighbors_graph_static[s]]))
+    # candidates_nn_graph_static = {}
+    # print(len(all_neighbors_graph_static), len(C), len(all_neighbors_graph))
+    # for s in all_neighbors_graph_static:
+    #     candidates_nn_graph_static[s] = {}
+    #     for t in all_neighbors_graph_static[s]:
+    #         s_aln, t_aln = all_neighbors_graph_static[s][t][0], all_neighbors_graph_static[s][t][1]
+    #         mask_start, mask_end = functions.get_mask_start_and_end(s_aln, t_aln)
+    #         ed = sum(all_neighbors_graph_static[s][t][2][1:]) -  min(mask_start, params.ignore_ends_len) - min(params.ignore_ends_len, (len(s_aln) - mask_end))
+    #         # print(ed)
+    #         if ed > 10:
+    #             print(ed,"edlib:", all_neighbors_graph_static[s][t][2])
+    #             print(s_aln)
+    #             print(t_aln)
+    #             continue
+    #         else:
+    #             candidates_nn_graph_static[s][t] = ed
+    #         # print()
+    # print("TOTAL EDGES G_STATIC parasail:", len([1 for s in candidates_nn_graph_static for t in candidates_nn_graph_static[s]]))
+    # print("TOTAL Edit distances G_STATIC parasail after ignoring ends differences:", sum([ candidates_nn_graph_static[s][t] for s in candidates_nn_graph_static for t in candidates_nn_graph_static[s]]))
+    print()
+    # sys.exit()
     print()
     print("STARTING STATISTICAL TESTING")
     print()
@@ -259,18 +290,9 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
             alignments_of_c_to_reads = sw_align_sequences_keeping_accession(edit_distances_of_c_to_reads, nr_cores = params.nr_cores)
             # structure: read_partition[c_acc][read_acc] = (c_aln, read_aln, (matches, mismatches, indels))
 
-            ##################################
+            ############## REMOVE EXON LEVEL DIFFERENCES IN ALIGNMENTS ####################
             ssw_temp = [ alignments_of_c_to_reads[c_acc][read_acc] for c_acc in alignments_of_c_to_reads for read_acc in alignments_of_c_to_reads[c_acc]  ] 
-            pattern = r"[-]{{{min_exon_diff},}}".format( min_exon_diff = str(params.min_exon_diff)  )  # r"[-]{20,}"
-            for c_acc in list(alignments_of_c_to_reads.keys()): 
-                for read_acc in list(alignments_of_c_to_reads[c_acc].keys()):
-                    c_alignment, read_alignment, (matches, mismatches, indels) = alignments_of_c_to_reads[c_acc][read_acc]
-                    missing_exon_s1 = re.search(pattern, c_alignment)
-                    missing_exon_s2 = re.search(pattern, read_alignment)
-                    if missing_exon_s1:
-                        del alignments_of_c_to_reads[c_acc][read_acc]
-                    elif missing_exon_s2:
-                        del alignments_of_c_to_reads[c_acc][read_acc]
+            _ = functions.filter_exon_differences(alignments_of_c_to_reads, params.min_exon_diff, params.ignore_ends_len)
             ssw_after_exon_temp = [ alignments_of_c_to_reads[c_acc][read_acc] for c_acc in alignments_of_c_to_reads for read_acc in alignments_of_c_to_reads[c_acc]  ] 
             print("Number of alignments that were removed before statistical test because best match to candidate had exon difference larger than {0}bp: {1} ".format(str(params.min_exon_diff) , len(ssw_temp) - len(ssw_after_exon_temp) ))
             #################################
@@ -300,14 +322,39 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
         # check_exon_diffs(alignments_of_x_to_c, params)
 
         ############# GET THE CLOSES HIGHEST SUPPORTED REFERENCE TO TEST AGAINST FOR EACH CANDIDATE ############
+        nearest_neighbor_graph = {}
+        for c_acc in C.keys():
+            nearest_neighbor_graph[c_acc] = {} 
+            if len(candidates_nn_graph_static[c_acc]) > 0:
+                candidate_edit_distances = [ed for c_nbr_acc, ed in candidates_nn_graph_static[c_acc].items() if c_nbr_acc in C]
+                if candidate_edit_distances:
+                    min_ed = min(candidate_edit_distances)
+                    # print("new min:", min_ed)
+                else:
+                    print("no tests left")
+                # here we get the relevant tests for the current iteration
+                for c_nbr_acc in candidates_nn_graph_static[c_acc]:
+                    if c_nbr_acc in C and candidates_nn_graph_static[c_acc][c_nbr_acc] == min_ed:
+                        nearest_neighbor_graph[c_acc][c_nbr_acc] = min_ed
 
+        print("Edges in NEW candidate NN graph:", len([ 1 for c_acc in nearest_neighbor_graph for t_acc in nearest_neighbor_graph[c_acc] ]) )
+        print("Edit distances in NEW candidate NN graph:", sum([ nearest_neighbor_graph[c_acc][t_acc] for c_acc in nearest_neighbor_graph for t_acc in nearest_neighbor_graph[c_acc] ]) )
 
-        if params.ignore_ends_len > 0:
-            nearest_neighbor_graph = end_invariant_functions.get_nearest_neighbors_graph_under_ignored_ends(C, params)
-        else:
-            nearest_neighbor_graph = get_nearest_neighbor_graph(C)
+        # if params.ignore_ends_len > 0:
+        #     nearest_neighbor_graph_old = end_invariant_functions.get_nearest_neighbors_graph_under_ignored_ends(C, params)
+        # else:
+        #     nearest_neighbor_graph_old = get_nearest_neighbor_graph(C)
 
-        print("Edges in candidate NN graph:", len([ 1 for c_acc in nearest_neighbor_graph for t_acc in nearest_neighbor_graph[c_acc] ]) )
+        # for c_acc in nearest_neighbor_graph:
+        #     for t_acc in nearest_neighbor_graph[c_acc]:
+        #         if t_acc not in nearest_neighbor_graph_old[c_acc]:
+        #             print("new test:", nearest_neighbor_graph[c_acc][t_acc])
+        #             print(C[c_acc])
+        #             print(C[t_acc])
+        #             print(all_neighbors_graph_static[c_acc][t_acc])
+
+        # print("Edges in candidate NN graph:", len([ 1 for c_acc in nearest_neighbor_graph_old for t_acc in nearest_neighbor_graph_old[c_acc] ]) )
+        # print("Edit distances in candidate NN graph:", sum([ nearest_neighbor_graph_old[c_acc][t_acc] for c_acc in nearest_neighbor_graph_old for t_acc in nearest_neighbor_graph_old[c_acc] ]) )
 
         if realignment_to_avoid_local_max > 0:
             homopolymenr_invariant_graph = functions.get_homopolymer_invariants(C)
@@ -406,6 +453,8 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
                 print("Filtering threshold (p_val*mult_correction_factor):",  p_val_threshold)
 
         to_realign = {}
+        p_value_tsv_file = open(os.path.join(params.outfolder, "p_values_{0}.tsv".format(step)), "w")
+
         for c_acc, (c_acc, t_acc, p_value, mult_factor_inv, k, N_t, variants) in highest_significance_values.items():
             if p_value == "not_tested":
                 if params.verbose:
@@ -428,6 +477,11 @@ def stat_filter_candidates(read_file, candidate_file, read_partition, to_realign
                 for x_acc in read_partition[c_acc]:
                     to_realign[x_acc] = X[x_acc]
                 del read_partition[c_acc]
+            
+            if p_value != "not_tested": 
+                p_value_tsv_file.write("{0}\t{1}\n".format( c_acc + "_" + str(k) + "_" + str(1.0 if k == 0 else min(1.0, product_with_check_overflow(p_value, mult_factor_inv))) + "_" + str(N_t) + "_" + str(len(variants)), str(p_value)))
+        p_value_tsv_file.close()
+
 
         previous_partition_of_X = copy.deepcopy(read_partition)
 

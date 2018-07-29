@@ -15,7 +15,12 @@ or
 IsoCon pipeline -fl_reads <flnc.fastq> -outfolder </path/to/output>
 ```
 
-predicted transcripts are found in file **/path/to/output/final_candidates.fa**. Reads that could not be corrected or clustered are found in /path/to/output/not_converged.fa. For more instructions see below.
+predicted transcripts are found in file **/path/to/output/final_candidates.fa**. Reads that could not be corrected or clustered are found in /path/to/output/not_converged.fa. 
+
+* Can IsoCon be run on nontargeted Iso-Seq datasets? [see here](https://github.com/ksahlin/IsoCon/issues/2). 
+* How does my data set affect the runtime? [see here](https://github.com/ksahlin/IsoCon/issues/3) 
+
+For more instructions see below.
 
 
 Table of Contents

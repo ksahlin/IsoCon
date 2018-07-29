@@ -61,12 +61,12 @@ def parasail_alignment_helper(arguments):
     return parasail_alignment(*args, **kwargs)
 
 
-def parasail_alignment(s1, s2, i, j, x_acc = "", y_acc = "", mismatch_penalty = -3, ends_discrepancy_threshold = 0):
-    user_matrix = parasail.matrix_create("ACGT", 2, mismatch_penalty)
-    result = parasail.nw_trace_scan_16(s1, s2, 2, 0, user_matrix)
+def parasail_alignment(s1, s2, i, j, x_acc = "", y_acc = "", match_score = 2, mismatch_penalty = -3, opening_penalty = 2, gap_ext = 0):
+    user_matrix = parasail.matrix_create("ACGT", match_score, mismatch_penalty)
+    result = parasail.sg_trace_scan_16(s1, s2, opening_penalty, gap_ext, user_matrix)
     if result.saturated:
         print("SATURATED!")
-        result = parasail.nw_trace_scan_32(s1, s2, 2, 0, user_matrix)
+        result = parasail.sg_trace_scan_32(s1, s2, opening_penalty, gap_ext, user_matrix)
     # print(result.cigar.seq)
     # print(result.cigar.decode )
     # print(str(result.cigar.decode,'utf-8') )
@@ -86,12 +86,11 @@ def parasail_alignment(s1, s2, i, j, x_acc = "", y_acc = "", mismatch_penalty = 
         return (x_acc, y_acc, (s1_alignment, s2_alignment, (matches, mismatches, indels)) ) 
 
 
-def sw_align_sequences(matches, nr_cores = 1, mismatch_penalty = -1, ignore_ends_len = 15):
+def sw_align_sequences(matches, nr_cores = 1, mismatch_penalty = -1):
     """
         Matches should be a 2D matrix implemented as a dict of dict, the value should be the edit distance.
     """
     exact_matches = {}
-    ends_discrepancy_threshold = max(25, ignore_ends_len + 1)
 
     if nr_cores == 1:
         for j, s1 in enumerate(matches):
@@ -110,7 +109,7 @@ def sw_align_sequences(matches, nr_cores = 1, mismatch_penalty = -1, ignore_ends
                     mismatch_penalty = -4
 
                 # print(s1,s2)
-                s1, s2, stats = parasail_alignment_helper( ((s1, s2, i, j), {"mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold }) )
+                s1, s2, stats = parasail_alignment_helper( ((s1, s2, i, j), {"mismatch_penalty" : mismatch_penalty }) )
                 if stats:
                     if s1 in exact_matches:
                         exact_matches[s1][s2] = stats
@@ -142,7 +141,7 @@ def sw_align_sequences(matches, nr_cores = 1, mismatch_penalty = -1, ignore_ends
                 matches_with_mismatch[s1][s2] = mismatch_penalty
 
         try:
-            res = pool.map_async(parasail_alignment_helper, [ ((s1, s2, i,j), {"mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold}) for j, s1 in enumerate(matches_with_mismatch) for i, (s2, mismatch_penalty) in enumerate(matches_with_mismatch[s1].items()) ] )
+            res = pool.map_async(parasail_alignment_helper, [ ((s1, s2, i,j), {"mismatch_penalty" : mismatch_penalty}) for j, s1 in enumerate(matches_with_mismatch) for i, (s2, mismatch_penalty) in enumerate(matches_with_mismatch[s1].items()) ] )
             alignment_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -165,12 +164,12 @@ def sw_align_sequences(matches, nr_cores = 1, mismatch_penalty = -1, ignore_ends
     return exact_matches
 
 
-def sw_align_sequences_keeping_accession(matches, nr_cores = 1, ignore_ends_len = 15):
+def sw_align_sequences_keeping_accession(matches, nr_cores = 1):
     """
         Matches should be a 2D matrix implemented as a dict of dict, the value should be a tuple (s1,s2, edit_distance) .
     """
+    print(len(matches))
     exact_matches = {}
-    ends_discrepancy_threshold = max(25, ignore_ends_len + 1)
     if nr_cores == 1:
         for j, s1_acc in enumerate(matches):
             for i, s2_acc in enumerate(matches[s1_acc]):
@@ -187,7 +186,7 @@ def sw_align_sequences_keeping_accession(matches, nr_cores = 1, ignore_ends_len 
                 else:
                     mismatch_penalty = -4
 
-                s1_acc, s2_acc, stats = parasail_alignment_helper( ((s1, s2, i, j), {"x_acc" : s1_acc, "y_acc" :s2_acc, "mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold}) )
+                s1_acc, s2_acc, stats = parasail_alignment_helper( ((s1, s2, i, j), {"x_acc" : s1_acc, "y_acc" :s2_acc, "mismatch_penalty" : mismatch_penalty}) )
 
                 if stats:
                     if s1_acc in exact_matches:
@@ -219,12 +218,12 @@ def sw_align_sequences_keeping_accession(matches, nr_cores = 1, ignore_ends_len 
                     mismatch_penalty = -4
 
                 matches_with_mismatch[s1_acc][s2_acc] = mismatch_penalty
-
+        print(len(matches_with_mismatch), "lewl")
         # for j, s1_acc in enumerate(matches):
         #     for i, s2_acc in enumerate(matches[s1_acc]):
         #         print("lool", matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j, {"x_acc": s1_acc, "y_acc" : s2_acc} ) 
         try:
-            res = pool.map_async(parasail_alignment_helper, [ ((matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j), {"x_acc": s1_acc, "y_acc" : s2_acc, "mismatch_penalty" : mismatch_penalty, "ends_discrepancy_threshold" : ends_discrepancy_threshold}) for j, s1_acc in enumerate(matches_with_mismatch) for i, (s2_acc, mismatch_penalty) in enumerate(matches_with_mismatch[s1_acc].items()) ] )
+            res = pool.map_async(parasail_alignment_helper, [ ((matches[s1_acc][s2_acc][0], matches[s1_acc][s2_acc][1], i,j), {"x_acc": s1_acc, "y_acc" : s2_acc, "mismatch_penalty" : mismatch_penalty}) for j, s1_acc in enumerate(matches_with_mismatch) for i, (s2_acc, mismatch_penalty) in enumerate(matches_with_mismatch[s1_acc].items()) ] )
             alignment_results =res.get(999999999) # Without the timeout this blocking call ignores all signals.
         except KeyboardInterrupt:
             print("Caught KeyboardInterrupt, terminating workers")
@@ -245,6 +244,8 @@ def sw_align_sequences_keeping_accession(matches, nr_cores = 1, ignore_ends_len 
                 # print("OMG!")
                 # print(len(matches[s1_acc][s2_acc][0]), len(matches[s1_acc][s2_acc][1]) )
                 pass
+    print(len(exact_matches))
+
     return exact_matches
 
 

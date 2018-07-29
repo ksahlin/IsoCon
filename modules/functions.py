@@ -20,6 +20,36 @@ import edlib
 from itertools import permutations
 
 
+def filter_exon_differences(pairwise_alignments, min_exon_diff, ignore_ends_len):
+    pattern = r"[-]{{{min_exon_diff},}}".format( min_exon_diff = str(min_exon_diff)  )  # r"[-]{20,}"
+    filtered = set()
+    for s1 in list(pairwise_alignments.keys()): 
+        for s2 in list(pairwise_alignments[s1].keys()):
+            s1_alignment, s2_alignment, (matches, mismatches, indels) = pairwise_alignments[s1][s2]
+            
+            start, end = get_mask_start_and_end(s1_alignment, s2_alignment) # mask indels in ends due to legnth differences
+            start = min(ignore_ends_len, start)
+            end = max(len(s1_alignment) - ignore_ends_len, end )
+            missing_exon_s1 = re.search(pattern, s1_alignment[start:end])
+            missing_exon_s2 = re.search(pattern, s2_alignment[start:end])
+            if missing_exon_s1 or missing_exon_s2:
+                # print(missing_exon_s1.group(0))
+                # print(s1_alignment)
+                # print(s2_alignment)
+                # print()
+                # print(len(pairwise_alignments[s1].keys()))
+                del pairwise_alignments[s1][s2]
+                filtered.add(s2)
+            # elif missing_exon_s2:
+            #     # print(missing_exon_s2.group(0))
+            #     # print(s1)
+            #     # print(s2)
+            #     # print(len(pairwise_alignments[s1].keys()))
+            #     del pairwise_alignments[s1][s2]
+            #     filtered.add(s2)
+    return filtered
+
+
 def transform(read):
     transformed_seq = []
     prev_nucl = ""
@@ -405,7 +435,10 @@ def get_read_ccs_probabilities_t(read_alignments_to_t, variant_coords_t, alignme
 def get_empirical_error_probabilities(segment_length, errors, variant_coords_t):
     probability = {}
     delta_size = float(len(variant_coords_t))
-
+    if delta_size == 0.0:
+        print(variant_coords_t, len(errors), segment_length)
+        print("No variant between candidates")
+    assert delta_size > 0.0
     for read_acc in errors:
         prob = 1.0
         (insertions, deletions, substitutions) = errors[read_acc]
@@ -424,6 +457,9 @@ def get_empirical_error_probabilities(segment_length, errors, variant_coords_t):
                 prob *= min(0.5, p_D*u_v)
         if prob >= 1.0:
             prob = 0.99999
+        
+        elif prob <= 0.0:
+            print("NONPOSITIVE PVAL:",prob, insertions, deletions, substitutions, p_S, p_I, p_D, variant_coords_t)
 
         probability[read_acc] = prob
 
