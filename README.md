@@ -26,19 +26,19 @@ For more instructions see below.
 Table of Contents
 =================
 
-  * [Table of Contents](#table-of-contents)
-  * [INSTALLATION](#installation)
-    * [Using pip](#using-pip)
-    * [Downloading source from GitHub](#downloading-source-from-github)
-    * [Dependencies](#dependencies)
-  * [USAGE](#usage)
-    * [Pipline](#pipline)
-      * [Output](#output)
+  * [Table of Contents](#Table-of-Contents)
+  * [INSTALLATION](#INSTALLATION)
+    * [Using pip](#Using-pip)
+    * [Downloading source from GitHub](#Downloading-source-from-GitHub)
+    * [Dependencies](#Dependencies)
+  * [USAGE](#USAGE)
+    * [Pipline](#Pipline)
+      * [Output](#Output)
     * [get_candidates](#get_candidates)
     * [stat_filter](#stat_filter)
     * [Parameters](#parameters)
-  * [CREDITS](#credits)
-  * [LICENCE](#licence)
+  * [CREDITS](#CREDITS)
+  * [LICENCE](#LICENCE)
 
 
 INSTALLATION
@@ -202,7 +202,7 @@ CREDITS
 
 Please cite [1] when using IsoCon.
 
-1. Kristoffer Sahlin*, Marta Tomaszkiewicz*, Kateryna D. Makova†, Paul Medvedev† (2018) "IsoCon: Deciphering highly similar multigene family transcripts from Iso-Seq data", bioRxiv [Link](https://www.biorxiv.org/content/early/2018/01/10/246066).
+1. Kristoffer Sahlin*, Marta Tomaszkiewicz*, Kateryna D. Makova†, Paul Medvedev† Deciphering highly similar multigene family transcripts from iso-seq data with isocon. Nature Communications, 9(1):4601, 2018. [Link](https://www.nature.com/articles/s41467-018-06910-x).
 
 LICENCE
 ----------------
