@@ -28,6 +28,7 @@ Table of Contents
 
   * [Table of Contents](#Table-of-Contents)
   * [INSTALLATION](#INSTALLATION)
+    * [Using conda](#Using-conda)
     * [Using pip](#Using-pip)
     * [Downloading source from GitHub](#Downloading-source-from-GitHub)
     * [Dependencies](#Dependencies)
@@ -44,7 +45,31 @@ Table of Contents
 INSTALLATION
 ----------------
 
-The preferred way to install IsoCon is with pythons package installer pip.
+### Using conda
+Conda is the preferred way to install IsoCon.
+
+1. Create and activate a new environment called, named e.g., "isocon"
+
+```
+conda create -n isocon python=3 pip 
+source activate isocon
+```
+
+2. Install IsoCon
+
+```
+pip install IsoCon
+```
+3. You should now have 'isocon' installed; try it:
+```
+isocon --help
+```
+
+Upon start/login to your server/computer you need to activate the conda environment "isocon" to run isONclust as:
+```
+source activate isocon
+``` 
+
 
 ### Using pip 
 
