@@ -4,15 +4,15 @@ IsoCon
 IsoCon is distributed as a python package supported on Linux / OSX with python v>=2.7, and 3.4-3.6, 3.5-dev and 3.6-dev [![Build Status](https://travis-ci.org/ksahlin/IsoCon.svg?branch=master)](https://travis-ci.org/ksahlin/IsoCon)
 
 
-IsoCon is a tool for reconstructing highly similar sequences from long noisy reads. It's original use case was transcripts from highly similar copies [paper](https://www.nature.com/articles/s41467-018-06910-x), however the methodology extends to any dataset where (i) sequences have been obtained from a region (or ser of regions) and spans the region(s) end-to-end. Simplest usage is an input file of fastq or fasta containing reads. IsoCon use examples: 
+IsoCon is a tool for reconstructing highly similar sequences present in a dataset of from long noisy reads. Its original use case was transcripts from highly similar gene copies ([paper here](https://www.nature.com/articles/s41467-018-06910-x)), however the methodology extends to any dataset where sequences spans the region(s) of interest end-to-end. IsoCon use examples: 
 
 * Deriving *finished transcripts* from *Iso-Seq* or ONT reads from *targeted* sequencing of gene families using primers. 
-* Deriving a consensus reads from several passes (e.g., consensus calling for pacbio CCS or ONT R2C2)
-* Deriving viral strains from any viral sequencing where reads are assumed to span the full viral sequence (e.g. HIV)
-* Deriving conesnsus ribosomal RNA
+* Deriving consensus sequence from several passes of long noisy reads (e.g., pacbio polymerase reads to CCS or ONT Rolling Circle Amplification to Concatemeric Consensus (R2C2)).
+* Deriving viral strains from  reads (assuming the reads spans the viral sequence, e.g., as for HIV).
+* Deriving conesnsus ribosomal RNA.
 
 
-IsoCon can be run as follows
+Simplest usage is an input file of fastq or fasta containing reads. IsoCon can be run as follows
 
 ```
 IsoCon pipeline -fl_reads <reads.fastq> -outfolder </path/to/output>
