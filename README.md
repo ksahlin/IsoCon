@@ -4,16 +4,27 @@ IsoCon
 IsoCon is distributed as a python package supported on Linux / OSX with python v>=2.7, and 3.4-3.6, 3.5-dev and 3.6-dev [![Build Status](https://travis-ci.org/ksahlin/IsoCon.svg?branch=master)](https://travis-ci.org/ksahlin/IsoCon)
 
 
-IsoCon is a tool for deriving *finished transcripts* from *Iso-Seq* reads from *targeted* sequencing. Input is either a set of full-length-non-chimeric reads in fasta format and the CCS base call values as a bam file, or a fastq file of CCS reads and their quality values provided by the ccs caller. IsoCon can only run on targeted Iso-Seq datasets due to underlying alignment approach --- runtime does not scale for nontargeted sequencing. The output is a set of predicted transcripts. IsoCon can be run as follows
+IsoCon is a tool for reconstructing highly similar sequences from long noisy reads. It's original use case was transcripts from highly similar copies [paper](https://www.nature.com/articles/s41467-018-06910-x), however the methodology extends to any dataset where (i) sequences have been obtained from a region (or ser of regions) and spans the region(s) end-to-end. Simplest usage is an input file of fastq or fasta containing reads. IsoCon use examples: 
+
+* Deriving *finished transcripts* from *Iso-Seq* or ONT reads from *targeted* sequencing of gene families using primers. 
+* Deriving a consensus reads from several passes (e.g., consensus calling for pacbio CCS or ONT R2C2)
+* Deriving viral strains from any viral sequencing where reads are assumed to span the full viral sequence (e.g. HIV)
+* Deriving conesnsus ribosomal RNA
+
+
+IsoCon can be run as follows
 
 ```
-IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --ccs </path/to/filename.ccs.bam>
+IsoCon pipeline -fl_reads <reads.fastq> -outfolder </path/to/output>
 ```
-or
+
+or 
 
 ```
-IsoCon pipeline -fl_reads <flnc.fastq> -outfolder </path/to/output>
+IsoCon pipeline -fl_reads <reads.fasta> -outfolder </path/to/output> --ccs </path/to/filename.ccs.bam>
 ```
+
+
 
 predicted transcripts are found in file **/path/to/output/final_candidates.fa**. Reads that could not be corrected or clustered are found in /path/to/output/not_converged.fa. 
 
