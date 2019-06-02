@@ -57,28 +57,28 @@ INSTALLATION
 ----------------
 
 ### Using conda
-Conda is the preferred way to install isONclust.
+Conda is the preferred way to install IsoCon.
 
-1. Create and activate a new environment called isonclust
-
-```
-conda create -n isonclust python=3 pip 
-source activate isonclust
-```
-
-2. Install isONclust 
+1. Create and activate a new environment called IsoCon
 
 ```
-pip install isONclust
-```
-3. You should now have 'isONclust' installed; try it:
-```
-isONclust --help
+conda create -n IsoCon python=3 pip 
+source activate IsoCon
 ```
 
-Upon start/login to your server/computer you need to activate the conda environment "isonclust" to run isONclust as:
+2. Install IsoCon 
+
 ```
-source activate isonclust
+pip install IsoCon
+```
+3. You should now have 'IsoCon' installed; try it:
+```
+IsoCon --help
+```
+
+Upon start/login to your server/computer you need to activate the conda environment "IsoCon" to run IsoCon as:
+```
+source activate IsoCon
 ```
 
 ### Using pip 
