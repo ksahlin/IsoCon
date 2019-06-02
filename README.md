@@ -9,7 +9,8 @@ IsoCon is a tool for reconstructing highly similar sequences present in a datase
 * Deriving *finished transcripts* from *Iso-Seq* or ONT reads from *targeted* sequencing of gene families using primers. 
 * Deriving consensus sequence from several passes of long noisy reads (e.g., pacbio polymerase reads to CCS or ONT Rolling Circle Amplification to Concatemeric Consensus (R2C2)).
 * Deriving viral strains from  reads (assuming the reads spans the viral sequence, e.g., as for HIV).
-* Deriving conesnsus ribosomal RNA.
+* Deriving consensus ribosomal RNA.
+* Deriving consensus from any targeted amplicone based sequencing technique.
 
 
 Simplest usage is an input file of fastq or fasta containing reads. IsoCon can be run as follows
