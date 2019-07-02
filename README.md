@@ -4,16 +4,28 @@ IsoCon
 IsoCon is distributed as a python package supported on Linux / OSX with python v>=2.7, and 3.4-3.6, 3.5-dev and 3.6-dev [![Build Status](https://travis-ci.org/ksahlin/IsoCon.svg?branch=master)](https://travis-ci.org/ksahlin/IsoCon)
 
 
-IsoCon is a tool for deriving *finished transcripts* from *Iso-Seq* reads from *targeted* sequencing. Input is either a set of full-length-non-chimeric reads in fasta format and the CCS base call values as a bam file, or a fastq file of CCS reads and their quality values provided by the ccs caller. IsoCon can only run on targeted Iso-Seq datasets due to underlying alignment approach --- runtime does not scale for nontargeted sequencing. The output is a set of predicted transcripts. IsoCon can be run as follows
+IsoCon is a tool for reconstructing highly similar sequences present in a dataset of from long noisy reads. Its original use case was transcripts from highly similar gene copies ([paper here](https://www.nature.com/articles/s41467-018-06910-x)), however the methodology extends to any dataset where sequences spans the region(s) of interest end-to-end. IsoCon use examples: 
+
+* Deriving *finished transcripts* from *Iso-Seq* or ONT reads from *targeted* sequencing of gene families using primers. 
+* Deriving consensus sequence from several passes of long noisy reads (e.g., pacbio polymerase reads to CCS or ONT Rolling Circle Amplification to Concatemeric Consensus (R2C2)).
+* Deriving viral strains from  reads (assuming the reads spans the viral sequence, e.g., as for HIV).
+* Deriving consensus ribosomal RNA.
+* Deriving consensus from any targeted amplicone based sequencing technique.
+
+
+Simplest usage is an input file of fastq or fasta containing reads. IsoCon can be run as follows
 
 ```
-IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> --ccs </path/to/filename.ccs.bam>
+IsoCon pipeline -fl_reads <reads.fastq> -outfolder </path/to/output>
 ```
-or
+
+or 
 
 ```
-IsoCon pipeline -fl_reads <flnc.fastq> -outfolder </path/to/output>
+IsoCon pipeline -fl_reads <reads.fasta> -outfolder </path/to/output> --ccs </path/to/filename.ccs.bam>
 ```
+
+
 
 predicted transcripts are found in file **/path/to/output/final_candidates.fa**. Reads that could not be corrected or clustered are found in /path/to/output/not_converged.fa. 
 
@@ -48,27 +60,29 @@ INSTALLATION
 ### Using conda
 Conda is the preferred way to install IsoCon.
 
-1. Create and activate a new environment called, named e.g., "isocon"
+1. Create and activate a new environment called IsoCon
 
 ```
-conda create -n isocon python=3 pip 
-source activate isocon
+conda create -n IsoCon python=3 pip 
+source activate IsoCon
 ```
 
-2. Install IsoCon
+2. Install IsoCon 
 
 ```
 pip install IsoCon
 ```
-3. You should now have 'isocon' installed; try it:
+
+3. You should now have 'IsoCon' installed; try it:
+
 ```
-isocon --help
+IsoCon --help
 ```
 
-Upon start/login to your server/computer you need to activate the conda environment "isocon" to run isONclust as:
+Upon start/login to your server/computer you need to activate the conda environment "IsoCon" to run IsoCon as:
 ```
-source activate isocon
-``` 
+source activate IsoCon
+```
 
 
 ### Using pip 
@@ -117,29 +131,36 @@ IsoCon's algorithm consists of two main phases; the error correction step and th
 
 ### Pipeline
 
-IsoCon takes two input files: (1) a fasta file of full length non-chimeric (flnc) CCS reads and (2) the bam file of CCS reads containing predicted base call quality values. The fasta file containing flnc can be obtained from PacBios Iso-Seq pipeline [ToFU](https://github.com/PacificBiosciences/IsoSeq_SA3nUP/wiki) and the bam file is the output of running the consensus caller algorthm [ccs](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md) on the Iso-Seq reads (ccs takes bam files so if you have bax files, convert them using [bax2bam](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md#input) ). IsoCon can then be run as
+Using quality values (fastq) is preferred over fasta as IsoCon uses the quality values for statistical analysis.
+<!-- IsoCon takes two input files: (1) a fasta file of full length non-chimeric (flnc) CCS reads and (2) the bam file of CCS reads containing predicted base call quality values. The fasta file containing flnc can be obtained from PacBios Iso-Seq pipeline [ToFU](https://github.com/PacificBiosciences/IsoSeq_SA3nUP/wiki) and the bam file is the output of running the consensus caller algorthm [ccs](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md) on the Iso-Seq reads (ccs takes bam files so if you have bax files, convert them using [bax2bam](https://github.com/PacificBiosciences/unanimity/blob/master/doc/PBCCS.md#input) ). IsoCon can then be run as -->
 
 ```
-IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> [--ccs </path/to/filename.ccs.bam>]
+IsoCon pipeline -fl_reads <reads.fast[a/q]> -outfolder </path/to/output>
 ```
 
-IsoCon also supports taking only the fasta read file as input. Without the base call quality values in `--ccs`, IsoCon will use an empirically estimated error model. The ability to take only the flnc fasta file as input is useful when the reads have been altered after the CCS base calling algorithm, \emph{e.g.}, from error correction using Illumina reads. **However, we highly recommend supplying the CCS quality values to IsoCon if CCS reads has not gone through any additional correction.** 
 
-Simply omit the `--ccs` parameter if running IsoCon without base call quality values as
+<!-- ```
+IsoCon pipeline -fl_reads <reads.fasta> -outfolder </path/to/output> 
+```
+ -->
+
+<!-- IsoCon also supports taking only the fasta read file as input. Without the base call quality values in `--ccs`, IsoCon will use an empirically estimated error model. The ability to take only the flnc fasta file as input is useful when the reads have been altered after the CCS base calling algorithm, \emph{e.g.}, from error correction using Illumina reads. **However, we highly recommend supplying the CCS quality values to IsoCon if CCS reads has not gone through any additional correction.**  -->
+
+<!-- Simply omit the `--ccs` parameter if running IsoCon without base call quality values as
 ```
 IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output>
-```
+ -->```
 
 #### Output
 
-The final high quality transcripts are written to the file `final_candidates.fa` in the output folder. If there was only one or two reads coming from a transcript, which is sufficiently different from other reads (exon difference), it will be output in the file `not_converged.fa`. This file may contain other erroneous CCS reads such as chimeras. The output also contains a file `cluster_info.tsv` that shows for each read which candidate it was assigned to in `final_candidates.fa`.
+The final high quality transcripts are written to the file `final_candidates.fa` in the output folder. If there was only one or two reads coming from a transcript, which is sufficiently different from other reads (exon difference), it will be output in the file `not_converged.fa`. This file may contain other erroneous reads such as chimeras. The output also contains a file `cluster_info.tsv` that shows for each read which candidate it was assigned to in `final_candidates.fa`.
 
 ### get_candidates
 
 Runs only the error correction step. The output is the converged candidates in a fasta file.
 
 ```
-IsoCon get_candidates -fl_reads <flnc.fasta> -outfolder </path/to/output>
+IsoCon get_candidates -fl_reads <flnc.fast[a/q]> -outfolder </path/to/output>
 ```
 
 ### stat_filter
@@ -147,9 +168,9 @@ IsoCon get_candidates -fl_reads <flnc.fasta> -outfolder </path/to/output>
 Runs only the statistical filtering of candidates.
 
 ```
-IsoCon pipeline -fl_reads <flnc.fasta> -outfolder </path/to/output> -candidates <candidate_transcripts.fa>  [--ccs </path/to/filename.ccs.bam>]
+IsoCon pipeline -fl_reads <flnc.fast[a/q]> -outfolder </path/to/output> -candidates <candidate_transcripts.fa> 
 ```
-Observe that `candidate_transcripts.fa` does not have to come from IsoCon's error correction algorithm. For example, this could either be a set of already validated transcripts to which one would like to see if they occur in the CCS reads, or they could be Illumina (or in other ways) corrected CCS reads.
+Observe that `candidate_transcripts.fa` does not have to come from IsoCon's error correction algorithm. For example, this could either be a set of already validated transcripts to which one would like to see if they occur in the reads, or they could be Illumina (or in other ways) corrected CCS reads.
 
 
 ### Parameters
