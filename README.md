@@ -38,19 +38,20 @@ For more instructions see below.
 Table of Contents
 =================
 
-  * [Table of Contents](#table-of-contents)
-  * [INSTALLATION](#installation)
-    * [Using pip](#using-pip)
-    * [Downloading source from GitHub](#downloading-source-from-github)
-    * [Dependencies](#dependencies)
-  * [USAGE](#usage)
-    * [Pipline](#pipline)
-      * [Output](#output)
+  * [Table of Contents](#Table-of-Contents)
+  * [INSTALLATION](#INSTALLATION)
+    * [Using conda](#Using-conda)
+    * [Using pip](#Using-pip)
+    * [Downloading source from GitHub](#Downloading-source-from-GitHub)
+    * [Dependencies](#Dependencies)
+  * [USAGE](#USAGE)
+    * [Pipline](#Pipline)
+      * [Output](#Output)
     * [get_candidates](#get_candidates)
     * [stat_filter](#stat_filter)
     * [Parameters](#parameters)
-  * [CREDITS](#credits)
-  * [LICENCE](#licence)
+  * [CREDITS](#CREDITS)
+  * [LICENCE](#LICENCE)
 
 
 INSTALLATION
@@ -63,7 +64,7 @@ Conda is the preferred way to install IsoCon.
 
 ```
 conda create -n IsoCon python=3 pip 
-source activate IsoCon
+conda activate IsoCon
 ```
 
 2. Install IsoCon 
@@ -71,15 +72,18 @@ source activate IsoCon
 ```
 pip install IsoCon
 ```
+
 3. You should now have 'IsoCon' installed; try it:
 ```
 IsoCon --help
 ```
 
 Upon start/login to your server/computer you need to activate the conda environment "IsoCon" to run IsoCon as:
+
 ```
-source activate IsoCon
+conda activate IsoCon
 ```
+
 
 ### Using pip 
 
@@ -244,7 +248,7 @@ CREDITS
 
 Please cite [1] when using IsoCon.
 
-1. Kristoffer Sahlin*, Marta Tomaszkiewicz*, Kateryna D. Makova†, Paul Medvedev† (2018) "IsoCon: Deciphering highly similar multigene family transcripts from Iso-Seq data", bioRxiv [Link](https://www.biorxiv.org/content/early/2018/01/10/246066).
+1. Kristoffer Sahlin*, Marta Tomaszkiewicz*, Kateryna D. Makova†, Paul Medvedev† Deciphering highly similar multigene family transcripts from iso-seq data with isocon. Nature Communications, 9(1):4601, 2018. [Link](https://www.nature.com/articles/s41467-018-06910-x).
 
 LICENCE
 ----------------
