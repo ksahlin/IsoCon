@@ -1,7 +1,7 @@
 IsoCon
 ========
 
-IsoCon is distributed as a python package supported on Linux / OSX with python v>=2.7, and 3.4-3.6, 3.5-dev and 3.6-dev [![Build Status](https://travis-ci.org/ksahlin/IsoCon.svg?branch=master)](https://travis-ci.org/ksahlin/IsoCon)
+IsoCon is distributed as a python package supported on Linux / OSX with python v2.7, and version >=3.6 [![Build Status](https://travis-ci.org/ksahlin/IsoCon.svg?branch=master)](https://travis-ci.org/ksahlin/IsoCon)
 
 
 IsoCon is a tool for reconstructing highly similar sequences present in a dataset of from long noisy reads. Its original use case was transcripts from highly similar gene copies ([paper here](https://www.nature.com/articles/s41467-018-06910-x)), however the methodology extends to any dataset where sequences spans the region(s) of interest end-to-end. IsoCon use examples: 
@@ -88,7 +88,7 @@ conda activate IsoCon
 
 ### Using pip 
 
-`pip` is pythons official package installer. This section assumes you have `python` (v2.7 or >=3.4) and a recent version of `pip` installed which should be included in most python versions. If you do not have `pip`, it can be easily installed [from here](https://pip.pypa.io/en/stable/installing/) and upgraded with `pip install --upgrade pip`. 
+`pip` is pythons official package installer. This section assumes you have `python` (v2.7 or >=3.6) and a recent version of `pip` installed which should be included in most python versions. If you do not have `pip`, it can be easily installed [from here](https://pip.pypa.io/en/stable/installing/) and upgraded with `pip install --upgrade pip`. 
 
 With `python` and `pip` available, create a file `requirements.txt` with contents copied from [this file](https://github.com/ksahlin/IsoCon/blob/master/requirements.txt). Then, type in terminal 
 
