@@ -19,7 +19,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 setup(
 
     name='IsoCon',  # Required
-    version='0.3.2',  # Required
+    version='0.3.3',  # Required
     description='Pipeline for obtaining non-redundant haplotype specific transcript isoforms using PacBio IsoSeq reads.',  # Required
     long_description=long_description,  # Optional
     url='https://github.com/ksahlin/IsoCon',  # Optional
@@ -76,7 +76,7 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=['edlib>=1.1.2',
                       'pysam>=0.11',
-                      'networkx>=1.10',
+                      'networkx<=2.3',
                       'parasail>=1.1.11'],  # Optional
     dependency_links=[
         'https://github.com/vishnubob/ssw/archive/master.zip'
