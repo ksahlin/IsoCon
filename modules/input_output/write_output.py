@@ -25,7 +25,7 @@ def print_candidates(out_file_name, C, significance_test_values, partition_of_X,
         reads_to_consensus_tsv_file.close()
 
     final_candidate_count = 0
-    for c_acc, seq in sorted(C.items()):
+    for c_acc, seq in sorted(C.items(), key=lambda x: len(x[1]), reverse=True):
         # print(significance_test_values[c_acc])
         c_acc, t_acc, p_value, correction_factor, support, N_t, delta_size = significance_test_values[c_acc] 
         if params.verbose:
