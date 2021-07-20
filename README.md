@@ -1,7 +1,7 @@
 IsoCon
 ========
 
-IsoCon is distributed as a python package supported on Linux / OSX with python v2.7, and version >=3.6 [![Build Status](https://travis-ci.org/ksahlin/IsoCon.svg?branch=master)](https://travis-ci.org/ksahlin/IsoCon)
+IsoCon is distributed as a python package supported on Linux / OSX with python v2.7, and versions 3.6-3.8 [![Build Status](https://travis-ci.org/ksahlin/IsoCon.svg?branch=master)](https://travis-ci.org/ksahlin/IsoCon)
 
 
 IsoCon is a tool for reconstructing highly similar sequences present in a dataset of from long noisy reads. Its original use case was transcripts from highly similar gene copies ([paper here](https://www.nature.com/articles/s41467-018-06910-x)), however the methodology extends to any dataset where sequences spans the region(s) of interest end-to-end. IsoCon use examples: 
@@ -62,7 +62,7 @@ Conda is the preferred way to install IsoCon.
 1. Create and activate a new environment called IsoCon
 
 ```
-conda create -n IsoCon python=3 pip 
+conda create -n IsoCon python=3.8 pip 
 conda activate IsoCon
 ```
 
